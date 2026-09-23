@@ -182,6 +182,151 @@ export function mapWebAppDetail(payload, selected, observedAt = new Date().toISO
   };
 }
 
+export function mapSecurityUserDetail(payload, selected, observedAt = new Date().toISOString()) {
+  requireRecord(selected, "Selected IRIS user");
+  requireRecord(selected.ref, "Selected IRIS user reference");
+  if (selected.ref.kind !== "users" || typeof selected.ref.key !== "string" || !selected.ref.key) {
+    throw new Error("Selected IRIS user is missing its stable list identity.");
+  }
+  const result = requireRecord(unwrapIrisResult(payload), "IRIS user detail result");
+  if (typeof result.Name === "string" && result.Name !== selected.ref.key) {
+    throw new Error("IRIS user detail identity does not match the selected user.");
+  }
+  const mapRoleRefs = (field, relation) => {
+    if (!Object.hasOwn(result, field)) return null;
+    if (!Array.isArray(result[field]) || result[field].some((name) => typeof name !== "string" || !name)) {
+      throw new Error(`IRIS user detail ${field} must be an array of role names.`);
+    }
+    return result[field].map((name) => ({
+      domain: "access", kind: "roles", provider: "sysadmin-api-v2", key: name,
+      scope: null, label: name, volatile: false, relation, observedAt,
+    }));
+  };
+  return {
+    ref: { ...selected.ref, kind: "user-detail", observedAt },
+    source: READ_ONLY_SOURCES.users.path.replace(/users$/u, "user"),
+    relationships: {
+      directRoles: mapRoleRefs("Roles", "direct"),
+      escalationRoles: mapRoleRefs("EscalationRoles", "escalation"),
+    },
+  };
+}
+
+export function sameSecurityUserRelationships(left, right) {
+  const keys = (refs) => refs === null ? null : refs.map((ref) => ref.key).sort();
+  return JSON.stringify(keys(left.relationships.directRoles)) === JSON.stringify(keys(right.relationships.directRoles)) &&
+    JSON.stringify(keys(left.relationships.escalationRoles)) === JSON.stringify(keys(right.relationships.escalationRoles));
+}
+
+export function mapSecurityRoleDetail(payload, selected, observedAt = new Date().toISOString()) {
+  requireRecord(selected, "Selected IRIS role");
+  requireRecord(selected.ref, "Selected IRIS role reference");
+  if (selected.ref.kind !== "roles" || typeof selected.ref.key !== "string" || !selected.ref.key) {
+    throw new Error("Selected IRIS role is missing its stable list identity.");
+  }
+  const result = requireRecord(unwrapIrisResult(payload), "IRIS role detail result");
+  if (typeof result.Name === "string" && result.Name !== selected.ref.key) {
+    throw new Error("IRIS role detail identity does not match the selected role.");
+  }
+  const stringArray = (field) => {
+    if (!Object.hasOwn(result, field)) return null;
+    if (!Array.isArray(result[field]) || result[field].some((item) => typeof item !== "string" || !item)) {
+      throw new Error(`IRIS role detail ${field} must be an array of strings.`);
+    }
+    return result[field].map((name) => ({
+      domain: "access", kind: "roles", provider: "sysadmin-api-v2", key: name,
+      scope: null, label: name, volatile: false, relation: "direct", observedAt,
+    }));
+  };
+  let resources = null;
+  if (Object.hasOwn(result, "Resources")) {
+    if (!Array.isArray(result.Resources)) throw new Error("IRIS role detail Resources must be an array.");
+    resources = result.Resources.map((item) => {
+      requireRecord(item, "IRIS role resource grant");
+      if (typeof item.Name !== "string" || !item.Name || typeof item.Permissions !== "string") {
+        throw new Error("IRIS role resource grant is missing its observed name or permissions string.");
+      }
+      return {
+        ref: { domain: "access", kind: "resources", provider: "sysadmin-api-v2", key: item.Name, scope: null, label: item.Name, volatile: false, relation: "direct", observedAt },
+        permissions: item.Permissions,
+      };
+    });
+  }
+  if (Object.hasOwn(result, "EscalationOnly") && typeof result.EscalationOnly !== "boolean") {
+    throw new Error("IRIS role detail EscalationOnly must be a boolean.");
+  }
+  if (Object.hasOwn(result, "Description") && result.Description !== null && typeof result.Description !== "string") {
+    throw new Error("IRIS role detail Description must be a string.");
+  }
+  return {
+    ref: { ...selected.ref, kind: "role-detail", observedAt },
+    source: READ_ONLY_SOURCES.roles.path.replace(/roles$/u, "role"),
+    description: typeof result.Description === "string" ? result.Description : null,
+    grantedRoles: stringArray("GrantedRoles"),
+    escalationOnly: typeof result.EscalationOnly === "boolean" ? result.EscalationOnly : null,
+    resources,
+  };
+}
+
+export function sameSecurityRoleDetail(left, right) {
+  const normalize = (detail) => ({
+    description: detail.description,
+    escalationOnly: detail.escalationOnly,
+    grantedRoles: detail.grantedRoles === null ? null : detail.grantedRoles.map((ref) => ref.key).sort(),
+    resources: detail.resources === null ? null : detail.resources.map(({ ref, permissions }) => [ref.key, permissions]).sort(([a], [b]) => a.localeCompare(b)),
+  });
+  return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
+}
+
+export function mapSecurityRoleOwners(payload, selected, observedAt = new Date().toISOString()) {
+  requireRecord(selected, "Selected IRIS role");
+  requireRecord(selected.ref, "Selected IRIS role reference");
+  if (selected.ref.kind !== "roles" || typeof selected.ref.key !== "string" || !selected.ref.key) {
+    throw new Error("Selected IRIS role is missing its stable list identity.");
+  }
+  const result = unwrapIrisResult(payload);
+  if (!Array.isArray(result)) throw new Error("IRIS role owners result must be an array.");
+  return result.map((item) => {
+    requireRecord(item, "IRIS role owner");
+    for (const field of ["Name", "Type", "AdminOption"]) {
+      if (typeof item[field] !== "string") throw new Error(`IRIS role owner ${field} must be a string.`);
+    }
+    return { name: item.Name, type: item.Type, adminOption: item.AdminOption, roleKey: selected.ref.key, observedAt };
+  });
+}
+
+export function sameSecurityRoleOwners(left, right) {
+  const normalize = (owners) => owners.map(({ name, type, adminOption }) => [name, type, adminOption]).sort(([a, b, c], [x, y, z]) => `${a}\u0000${b}\u0000${c}`.localeCompare(`${x}\u0000${y}\u0000${z}`));
+  return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
+}
+
+export function mapSecurityResourceDetail(payload, selected, observedAt = new Date().toISOString()) {
+  requireRecord(selected, "Selected IRIS resource");
+  requireRecord(selected.ref, "Selected IRIS resource reference");
+  if (selected.ref.kind !== "resources" || typeof selected.ref.key !== "string" || !selected.ref.key) {
+    throw new Error("Selected IRIS resource is missing its stable list identity.");
+  }
+  const result = requireRecord(unwrapIrisResult(payload), "IRIS resource detail result");
+  if (typeof result.Name === "string" && result.Name !== selected.ref.key) {
+    throw new Error("IRIS resource detail identity does not match the selected resource.");
+  }
+  for (const field of ["Description", "PublicPermission"]) {
+    if (Object.hasOwn(result, field) && result[field] !== null && typeof result[field] !== "string") {
+      throw new Error(`IRIS resource detail ${field} must be a string.`);
+    }
+  }
+  return {
+    ref: { ...selected.ref, kind: "resource-detail", observedAt },
+    source: READ_ONLY_SOURCES.resources.path.replace(/resources$/u, "resource"),
+    description: typeof result.Description === "string" ? result.Description : null,
+    publicPermission: typeof result.PublicPermission === "string" ? result.PublicPermission : null,
+  };
+}
+
+export function sameSecurityResourceDetail(left, right) {
+  return left.ref.key === right.ref.key && left.description === right.description && left.publicPermission === right.publicPermission;
+}
+
 export function mapRestServiceSpec(payload, ref, observedAt = new Date().toISOString()) {
   requireRecord(ref, "Selected REST service reference");
   const spec = requireRecord(payload, "IRIS REST specification");

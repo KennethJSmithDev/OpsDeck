@@ -148,6 +148,13 @@ td { color:var(--muted); font-size:10px; }
 .provider-row td:first-child strong { display:block; color:var(--text); font-size:10px; }
 .provider-inspector { position:static; }
 .inspector-section { margin-top:14px; padding-top:12px; border-top:1px solid var(--border); }
+.relationship-block { margin-top:10px; color:var(--muted); font-size:10px; }
+.relationship-block>strong { display:flex; align-items:baseline; justify-content:space-between; color:var(--text); }
+.relationship-list { display:flex; flex-wrap:wrap; gap:5px; margin:7px 0 0; padding:0; list-style:none; }
+.relationship-list > li { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
+.owner-row { width:100%; justify-content:space-between; padding:5px 7px; border:1px solid var(--border); border-radius:5px; font-size:12px; }
+.link-button { padding:4px 6px; border:1px solid var(--border); border-radius:5px; color:var(--accent-strong); background:var(--surface); cursor:pointer; font-size:9px; }
+.link-button:hover { border-color:var(--border-strong); background:var(--hover); }
 .relationship-item { margin-top:8px; padding:10px; border:1px solid var(--border); border-radius:7px; background:var(--surface); }
 .relationship-item>div:first-child strong,.relationship-item>div:first-child span { display:block; }
 .relationship-item>div:first-child strong { font-size:10px; }

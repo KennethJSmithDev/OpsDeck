@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapRestServiceSpec, mapReadOnlySource, sameWebAppState } from "../src/iris-provider.js";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapRestServiceSpec, mapReadOnlySource, sameWebAppState } from "../src/iris-provider.js";
 
 const envelope = (result, errors = []) => ({ status: { errors, summary: "" }, console: [], result });
 
@@ -65,6 +65,78 @@ test("maps authoritative web-app detail by its selected identity and drops unapp
   assert.throws(() => mapWebAppDetail(envelope({ Enabled: true }), selected), /namespace/);
   const malformed = mapWebAppDetail(envelope({ NameSpace: "%SYS", CSRFToken: "must-not-escape", Enabled: "yes" }), selected);
   assert.deepEqual(malformed.values, { NameSpace: "%SYS" });
+});
+
+test("maps live user role relationships with selected identity and omits unrelated and sensitive fields", () => {
+  const selected = { ref: { domain: "access", kind: "users", provider: "sysadmin-api-v2", key: "fixture-user", label: "Fixture user", scope: null } };
+  const payload = envelope({
+    NameSpace: "%SYS", Enabled: true, Roles: ["role-a", "role-b", "role-c"], EscalationRoles: [],
+    EmailAddress: "private@example.invalid", PasswordNeverExpires: true, Password: "never-map",
+  });
+  const detail = mapSecurityUserDetail(payload, selected, "2026-09-23T00:00:00.000Z");
+  assert.equal(detail.ref.key, "fixture-user");
+  assert.equal(detail.ref.kind, "user-detail");
+  assert.equal(detail.source, "/api/admin/v2/security/user");
+  assert.deepEqual(detail.relationships.directRoles.map((ref) => [ref.kind, ref.key, ref.relation]), [
+    ["roles", "role-a", "direct"], ["roles", "role-b", "direct"], ["roles", "role-c", "direct"],
+  ]);
+  assert.deepEqual(detail.relationships.escalationRoles, []);
+  assert.equal(Object.hasOwn(detail, "values"), false);
+  const reordered = mapSecurityUserDetail(envelope({ Roles: ["role-c", "role-a", "role-b"], EscalationRoles: [] }), selected);
+  assert.equal(sameSecurityUserRelationships(detail, reordered), true);
+  const changed = mapSecurityUserDetail(envelope({ Roles: ["role-c", "role-a"], EscalationRoles: [] }), selected);
+  assert.equal(sameSecurityUserRelationships(detail, changed), false);
+  assert.throws(() => mapSecurityUserDetail(envelope({ Name: "other", Roles: [], EscalationRoles: [] }), selected), /identity/);
+  assert.throws(() => mapSecurityUserDetail(envelope({ Roles: ["valid", { Name: "bad" }], EscalationRoles: [] }), selected), /array of role names/);
+});
+
+test("maps observed role detail and direct resource grants using selected list identity", () => {
+  const selected = { ref: { domain: "access", kind: "roles", provider: "sysadmin-api-v2", key: "%Manager", label: "%Manager", scope: null } };
+  const detail = mapSecurityRoleDetail(envelope({
+    Description: "Role description", GrantedRoles: ["%ManagerBase"], EscalationOnly: false,
+    Resources: [{ Name: "%DB_USER", Permissions: "RW" }, { Name: "%Admin_Manage", Permissions: "R" }], NameSpace: "ignored", Password: "never-map",
+  }), selected, "2026-09-23T00:00:00.000Z");
+  assert.equal(detail.ref.key, "%Manager");
+  assert.equal(detail.ref.kind, "role-detail");
+  assert.equal(detail.description, "Role description");
+  assert.equal(detail.escalationOnly, false);
+  assert.deepEqual(detail.grantedRoles.map((ref) => [ref.key, ref.relation]), [["%ManagerBase", "direct"]]);
+  assert.deepEqual(detail.resources.map(({ ref, permissions }) => [ref.kind, ref.key, ref.relation, permissions]), [
+    ["resources", "%DB_USER", "direct", "RW"], ["resources", "%Admin_Manage", "direct", "R"],
+  ]);
+  assert.equal(JSON.stringify(detail).includes("Password"), false);
+  const reordered = mapSecurityRoleDetail(envelope({
+    Description: "Role description", GrantedRoles: ["%ManagerBase"], EscalationOnly: false,
+    Resources: [{ Name: "%Admin_Manage", Permissions: "R" }, { Name: "%DB_USER", Permissions: "RW" }],
+  }), selected);
+  assert.equal(sameSecurityRoleDetail(detail, reordered), true);
+  const changed = mapSecurityRoleDetail(envelope({ Description: "changed", GrantedRoles: [], EscalationOnly: false, Resources: [] }), selected);
+  assert.equal(sameSecurityRoleDetail(detail, changed), false);
+  assert.throws(() => mapSecurityRoleDetail(envelope({ Name: "other", Resources: [] }), selected), /identity/);
+  assert.throws(() => mapSecurityRoleDetail(envelope({ Resources: [{ Name: "%DB_USER", Permissions: true }] }), selected), /permissions string/);
+});
+
+test("maps direct role owners without coercing string AdminOption or inferring holder types", () => {
+  const selected = { ref: { kind: "roles", key: "%Manager" } };
+  const rows = mapSecurityRoleOwners(envelope([{ Name: "ops-user", Type: "User", AdminOption: "Yes" }]), selected, "2026-09-23T00:00:00.000Z");
+  assert.deepEqual(rows, [{ name: "ops-user", type: "User", adminOption: "Yes", roleKey: "%Manager", observedAt: "2026-09-23T00:00:00.000Z" }]);
+  const reordered = mapSecurityRoleOwners(envelope([{ Name: "ops-user", Type: "User", AdminOption: "Yes" }]), selected);
+  assert.equal(sameSecurityRoleOwners(rows, reordered), true);
+  assert.throws(() => mapSecurityRoleOwners(envelope([{ Name: "ops-user", Type: "User", AdminOption: true }]), selected), /AdminOption must be a string/);
+  assert.throws(() => mapSecurityRoleOwners(envelope({ Name: "ops-user" }), selected), /must be an array/);
+});
+
+test("maps selected resource detail by list identity and verifies authoritative read-back", () => {
+  const selected = { ref: { domain: "access", kind: "resources", provider: "sysadmin-api-v2", key: "%DB_USER", label: "%DB_USER", scope: null } };
+  const detail = mapSecurityResourceDetail(envelope({ Description: "Database user", PublicPermission: "R", Secret: "ignored" }), selected, "2026-09-23T00:00:00.000Z");
+  assert.equal(detail.ref.key, "%DB_USER");
+  assert.equal(detail.description, "Database user");
+  assert.equal(detail.publicPermission, "R");
+  assert.equal(JSON.stringify(detail).includes("Secret"), false);
+  assert.equal(sameSecurityResourceDetail(detail, mapSecurityResourceDetail(envelope({ Description: "Database user", PublicPermission: "R" }), selected)), true);
+  assert.equal(sameSecurityResourceDetail(detail, mapSecurityResourceDetail(envelope({ Description: "changed", PublicPermission: "R" }), selected)), false);
+  assert.throws(() => mapSecurityResourceDetail(envelope({ Name: "other" }), selected), /identity/);
+  assert.throws(() => mapSecurityResourceDetail(envelope({ PublicPermission: false }), selected), /must be a string/);
 });
 
 test("reduces a live REST OpenAPI document to a compact schema-free operation summary", () => {

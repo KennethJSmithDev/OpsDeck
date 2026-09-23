@@ -59,6 +59,13 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     if (request.url === "/api/mgmnt/v1/%25SYS/spec/api/denied") return response.writeHead(403).end(JSON.stringify({ error: "denied" }));
     if (request.url === "/api/admin/v2/web-app?name=%2Fmissing") return response.writeHead(404).end(JSON.stringify({ error: "missing" }));
     if (request.url === "/api/admin/v2/security/users") return response.end(JSON.stringify({ status: { errors: [] }, result: [{ Name: "fixture-user" }] }));
+    if (request.url === "/api/admin/v2/security/user?name=fixture-user") return response.end(JSON.stringify({ status: { errors: [] }, console: [], result: { User: { Name: "fixture-user" }, Roles: [], EscalationRoles: [] } }));
+    if (request.url === "/api/admin/v2/security/roles") return response.end(JSON.stringify({ status: { errors: [] }, result: [{ Name: "fixture-role" }, { Name: "denied-role" }] }));
+    if (request.url === "/api/admin/v2/security/role?name=fixture-role") return response.end(JSON.stringify({ status: { errors: [] }, console: [], result: { Name: "fixture-role", GrantedRoles: [], Resources: [] } }));
+    if (request.url === "/api/admin/v2/security/role?name=denied-role") return response.writeHead(403).end(JSON.stringify({ status: { errors: ["denied"] }, result: null }));
+    if (request.url === "/api/admin/v2/security/role/owners?name=fixture-role&maxRows=20") return response.end(JSON.stringify({ status: { errors: [] }, result: [{ Name: "fixture-user", Type: "User", AdminOption: false }] }));
+    if (request.url === "/api/admin/v2/security/resources") return response.end(JSON.stringify({ status: { errors: [] }, result: [{ Name: "fixture-resource" }] }));
+    if (request.url === "/api/admin/v2/security/resource?name=fixture-resource") return response.end(JSON.stringify({ status: { errors: [] }, console: [], result: { Name: "fixture-resource", Description: "Fixture resource", PublicPermission: "None" } }));
     response.writeHead(404).end();
   });
   const irisPort = await listen(iris);
@@ -94,6 +101,12 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     assert.equal((await fetch(`${base}/api/read/restServiceSpec?source=restServices&name=%2Fapi%2Fadmin&namespace=%25SYS`)).status, 401);
     assert.equal((await fetch(`${base}/api/read/webAppDetail`)).status, 400);
     assert.equal((await fetch(`${base}/api/read/webAppDetail?name=%2Fapi%2Fadmin&name=%2Fother`)).status, 400);
+    assert.equal((await fetch(`${base}/api/read/userDetail?name=fixture-user`)).status, 401);
+    assert.equal((await fetch(`${base}/api/read/userDetail?name=fixture-user&name=other`)).status, 400);
+    assert.equal((await fetch(`${base}/api/read/roleDetail?name=fixture-role`)).status, 401);
+    assert.equal((await fetch(`${base}/api/read/resourceDetail?name=fixture-resource`)).status, 401);
+    assert.equal((await fetch(`${base}/api/read/roleOwners?name=fixture-role&maxRows=20`)).status, 401);
+    assert.equal((await fetch(`${base}/api/read/roleOwners?name=fixture-role&maxRows=26`)).status, 400);
 
     const rejectedOrigin = await fetch(`${base}/api/connect`, {
       method: "POST",
@@ -152,6 +165,26 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     const users = await fetch(`${base}/api/read/users`, { headers: { Cookie: sessionCookie } });
     assert.equal(users.status, 200);
     assert.equal((await users.json()).result[0].Name, "fixture-user");
+    const userDetail = await fetch(`${base}/api/read/userDetail?name=fixture-user`, { headers: { Cookie: sessionCookie } });
+    assert.equal(userDetail.status, 200);
+    assert.deepEqual((await userDetail.json()).result, { User: { Name: "fixture-user" }, Roles: [], EscalationRoles: [] });
+    const missingUserDetail = await fetch(`${base}/api/read/userDetail?name=missing`, { headers: { Cookie: sessionCookie } });
+    assert.equal(missingUserDetail.status, 404);
+    const roleDetail = await fetch(`${base}/api/read/roleDetail?name=fixture-role`, { headers: { Cookie: sessionCookie } });
+    assert.equal(roleDetail.status, 200);
+    assert.equal((await roleDetail.json()).result.Name, "fixture-role");
+    const missingRoleDetail = await fetch(`${base}/api/read/roleDetail?name=missing`, { headers: { Cookie: sessionCookie } });
+    assert.equal(missingRoleDetail.status, 404);
+    const deniedRoleDetail = await fetch(`${base}/api/read/roleDetail?name=denied-role`, { headers: { Cookie: sessionCookie } });
+    assert.equal(deniedRoleDetail.status, 403);
+    const resourceDetail = await fetch(`${base}/api/read/resourceDetail?name=fixture-resource`, { headers: { Cookie: sessionCookie } });
+    assert.equal(resourceDetail.status, 200);
+    assert.equal((await resourceDetail.json()).result.Name, "fixture-resource");
+    const roleOwners = await fetch(`${base}/api/read/roleOwners?name=fixture-role&maxRows=20`, { headers: { Cookie: sessionCookie } });
+    assert.equal(roleOwners.status, 200);
+    assert.equal((await roleOwners.json()).result[0].Type, "User");
+    const missingRoleOwners = await fetch(`${base}/api/read/roleOwners?name=missing&maxRows=20`, { headers: { Cookie: sessionCookie } });
+    assert.equal(missingRoleOwners.status, 404);
     const unknownSource = await fetch(`${base}/api/read/arbitrary`, { headers: { Cookie: sessionCookie } });
     assert.equal(unknownSource.status, 404);
     const inheritedSource = await fetch(`${base}/api/read/constructor`, { headers: { Cookie: sessionCookie } });

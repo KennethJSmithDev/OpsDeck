@@ -13,6 +13,10 @@ const sessionLifetimeMs = 30 * 60 * 1000;
 const maxSessions = 8;
 const sessions = new Map();
 const webAppDetailPath = "/api/admin/v2/web-app";
+const securityUserDetailPath = "/api/admin/v2/security/user";
+const securityRoleDetailPath = "/api/admin/v2/security/role";
+const securityRoleOwnersPath = "/api/admin/v2/security/role/owners";
+const securityResourceDetailPath = "/api/admin/v2/security/resource";
 const allowedApiPaths = new Set(["/api/admin/info", ...Object.values(READ_ONLY_SOURCES).map((source) => source.path)]);
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -108,7 +112,19 @@ async function readIrisJson(path, authorization, requestId = "untracked", query 
   const webAppDetail = path === webAppDetailPath && query &&
     Object.keys(query).length === 1 && typeof query.name === "string" && query.name.startsWith("/") &&
     query.name.length <= 256 && !/[\u0000-\u001f\u007f]/u.test(query.name);
-  if (!allowedApiPaths.has(path) && !webAppDetail && !safeManagementSpecPath(path)) {
+  const securityUserDetail = path === securityUserDetailPath && query &&
+    Object.keys(query).length === 1 && typeof query.name === "string" && query.name.length > 0 &&
+    query.name.length <= 128 && !/[\u0000-\u001f\u007f]/u.test(query.name);
+  const securityNamedDetail = [securityRoleDetailPath, securityResourceDetailPath].includes(path) && query &&
+    Object.keys(query).length === 1 && typeof query.name === "string" && query.name.length > 0 &&
+    query.name.length <= 128 && !/[\u0000-\u001f\u007f]/u.test(query.name);
+  const securityRoleOwners = path === securityRoleOwnersPath && query &&
+    Object.keys(query).length === 2 && typeof query.name === "string" && query.name.length > 0 &&
+    query.name.length <= 128 && typeof query.maxRows === "string" &&
+    Number.isInteger(Number(query.maxRows)) && Number(query.maxRows) >= 1 && Number(query.maxRows) <= 25 &&
+    !/[\u0000-\u001f\u007f]/u.test(query.name);
+  if (!allowedApiPaths.has(path) && !webAppDetail && !securityUserDetail && !securityNamedDetail &&
+    !securityRoleOwners && !safeManagementSpecPath(path)) {
     throw new Error("The requested IRIS path is not enabled in the M0 proxy.");
   }
   let response;
@@ -219,6 +235,89 @@ async function handleApi(request, response, url) {
     const session = requestSession(request);
     if (!session) return sendJson(response, 401, { error: "Connect to IRIS to load live data." });
     const result = await readIrisJson(webAppDetailPath, session.authorization, "untracked", { name: names[0] });
+    const status = result.status >= 200 && result.status < 300 ? result.status :
+      result.status === 401 || result.status === 403 || result.status === 404 ? result.status : 502;
+    const contentType = result.contentType ? { "X-OpsDeck-Upstream-Content-Type": result.contentType } : {};
+    return sendJson(response, status, result.value, contentType);
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/read/userDetail") {
+    const names = url.searchParams.getAll("name");
+    if (names.length !== 1 || [...url.searchParams.keys()].some((key) => key !== "name") ||
+      names[0].length < 1 || names[0].length > 128 || /[\u0000-\u001f\u007f]/u.test(names[0])) {
+      return sendJson(response, 400, { error: "A single user name from the live list is required." });
+    }
+    const session = requestSession(request);
+    if (!session) return sendJson(response, 401, { error: "Connect to IRIS to load live data." });
+    const listing = await readIrisJson(READ_ONLY_SOURCES.users.path, session.authorization);
+    if (listing.status < 200 || listing.status >= 300) {
+      const status = listing.status === 401 || listing.status === 403 ? listing.status : 502;
+      return sendJson(response, status, { error: "IRIS could not list users for detail lookup." });
+    }
+    let users;
+    try { users = unwrapIrisResult(listing.value); }
+    catch { return sendJson(response, 502, { error: "IRIS returned an invalid user list." }); }
+    if (!Array.isArray(users) || !users.some((user) => user && user.Name === names[0])) {
+      return sendJson(response, 404, { error: "The user is no longer present in the live list." });
+    }
+    const result = await readIrisJson(securityUserDetailPath, session.authorization, "untracked", { name: names[0] });
+    const status = result.status >= 200 && result.status < 300 ? result.status :
+      result.status === 401 || result.status === 403 || result.status === 404 ? result.status : 502;
+    const contentType = result.contentType ? { "X-OpsDeck-Upstream-Content-Type": result.contentType } : {};
+    return sendJson(response, status, result.value, contentType);
+  }
+
+  if (request.method === "GET" && ["/api/read/roleDetail", "/api/read/resourceDetail"].includes(url.pathname)) {
+    const names = url.searchParams.getAll("name");
+    if (names.length !== 1 || [...url.searchParams.keys()].some((key) => key !== "name") ||
+      names[0].length < 1 || names[0].length > 128 || /[\u0000-\u001f\u007f]/u.test(names[0])) {
+      return sendJson(response, 400, { error: "A single identity from the live Access list is required." });
+    }
+    const isRole = url.pathname === "/api/read/roleDetail";
+    const listPath = isRole ? READ_ONLY_SOURCES.roles.path : READ_ONLY_SOURCES.resources.path;
+    const detailPath = isRole ? securityRoleDetailPath : securityResourceDetailPath;
+    const session = requestSession(request);
+    if (!session) return sendJson(response, 401, { error: "Connect to IRIS to load live data." });
+    const listing = await readIrisJson(listPath, session.authorization);
+    if (listing.status < 200 || listing.status >= 300) {
+      const status = listing.status === 401 || listing.status === 403 ? listing.status : 502;
+      return sendJson(response, status, { error: "IRIS could not list Access resources for detail lookup." });
+    }
+    let records;
+    try { records = unwrapIrisResult(listing.value); }
+    catch { return sendJson(response, 502, { error: "IRIS returned an invalid Access list." }); }
+    if (!Array.isArray(records) || !records.some((record) => record && record.Name === names[0])) {
+      return sendJson(response, 404, { error: "The requested identity is no longer present in the live list." });
+    }
+    const result = await readIrisJson(detailPath, session.authorization, "untracked", { name: names[0] });
+    const status = result.status >= 200 && result.status < 300 ? result.status :
+      result.status === 401 || result.status === 403 || result.status === 404 ? result.status : 502;
+    const contentType = result.contentType ? { "X-OpsDeck-Upstream-Content-Type": result.contentType } : {};
+    return sendJson(response, status, result.value, contentType);
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/read/roleOwners") {
+    const names = url.searchParams.getAll("name");
+    const maxRows = url.searchParams.getAll("maxRows");
+    if (names.length !== 1 || maxRows.length !== 1 || [...url.searchParams.keys()].some((key) => !["name", "maxRows"].includes(key)) ||
+      names[0].length < 1 || names[0].length > 128 || !/^\d+$/u.test(maxRows[0]) || Number(maxRows[0]) < 1 || Number(maxRows[0]) > 25 ||
+      /[\u0000-\u001f\u007f]/u.test(names[0])) {
+      return sendJson(response, 400, { error: "A listed role and bounded row limit are required." });
+    }
+    const session = requestSession(request);
+    if (!session) return sendJson(response, 401, { error: "Connect to IRIS to load live data." });
+    const listing = await readIrisJson(READ_ONLY_SOURCES.roles.path, session.authorization);
+    if (listing.status < 200 || listing.status >= 300) {
+      const status = listing.status === 401 || listing.status === 403 ? listing.status : 502;
+      return sendJson(response, status, { error: "IRIS could not list roles for holder lookup." });
+    }
+    let roles;
+    try { roles = unwrapIrisResult(listing.value); }
+    catch { return sendJson(response, 502, { error: "IRIS returned an invalid role list." }); }
+    if (!Array.isArray(roles) || !roles.some((role) => role && role.Name === names[0])) {
+      return sendJson(response, 404, { error: "The requested role is no longer present in the live list." });
+    }
+    const result = await readIrisJson(securityRoleOwnersPath, session.authorization, "untracked", { name: names[0], maxRows: maxRows[0] });
     const status = result.status >= 200 && result.status < 300 ? result.status :
       result.status === 401 || result.status === 403 || result.status === 404 ? result.status : 502;
     const contentType = result.contentType ? { "X-OpsDeck-Upstream-Content-Type": result.contentType } : {};
