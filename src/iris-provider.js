@@ -31,8 +31,8 @@ export const READ_ONLY_SOURCES = Object.freeze({
 const SAFE_FIELDS = Object.freeze({
   webApps: ["Name", "Namespace", "Enabled", "Type", "AuthenticationMethods"],
   systemUsage: ["AllGlobalReferences", "GlobalUpdateReferences", "RoutineCalls", "RoutineBufferLoadsAndSaves", "LogicalBlockRequests", "BlockReads", "BlockWrites", "WIJwrites", "JournalEntries", "JournalBlockWrites", "RoutineLines", "LastUpdate"],
-  restServices: ["name", "dispatchClass", "namespace", "enabled"],
-  restServicesV2: ["name", "webApplications", "dispatchClass", "namespace"],
+  restServices: ["name", "dispatchClass", "namespace", "enabled", "swaggerSpec"],
+  restServicesV2: ["name", "webApplications", "dispatchClass", "namespace", "swaggerSpec"],
   users: ["Name", "FullName", "Namespace", "Routine", "Type", "Enabled"],
   roles: ["Name", "Description", "CreatedBy", "EscalationOnly"],
   resources: ["Name", "Description", "PublicPermission", "ResourceType", "AllowDelete"],
@@ -146,6 +146,79 @@ export function mapWebApps(payload, observedAt = new Date().toISOString()) {
       dispatchClass: typeof item.DispatchClass === "string" ? item.DispatchClass : null,
     };
   });
+}
+
+const SAFE_WEB_APP_DETAIL_TYPES = Object.freeze({
+  Description: "string", NameSpace: "string", Enabled: "boolean", Resource: "string", DispatchClass: "string",
+  AutheEnabled: "number", AutoCompile: "boolean", CSPZENEnabled: "boolean", DeepSeeEnabled: "boolean",
+  iKnowEnabled: "boolean", InbndWebServicesEnabled: "boolean", JWTAuthEnabled: "boolean",
+  JWTAccessTokenTimeout: "number", JWTRefreshTokenTimeout: "number", TwoFactorEnabled: "boolean",
+  // IRIS 2026.2 exposes this setting as a boolean; never forward token-shaped strings.
+  CSRFToken: "boolean", Recurse: "boolean", ServeFiles: "string", ServeFilesTimeout: "number",
+  Timeout: "number", UseCookies: "string", SessionScope: "string",
+});
+
+export function mapWebAppDetail(payload, selected, observedAt = new Date().toISOString()) {
+  requireRecord(selected, "Selected web application reference");
+  if (typeof selected.name !== "string" || typeof selected.namespace !== "string") {
+    throw new Error("Selected web application is missing its stable identity.");
+  }
+  const result = requireRecord(unwrapIrisResult(payload), "IRIS web-app detail result");
+  if (typeof result.Name === "string" && result.Name !== selected.name) {
+    throw new Error("IRIS web-app detail identity does not match the selected application.");
+  }
+  if (result.NameSpace !== selected.namespace) {
+    throw new Error("IRIS web-app detail namespace does not match the selected application.");
+  }
+  const values = Object.fromEntries(Object.entries(SAFE_WEB_APP_DETAIL_TYPES)
+    .filter(([key, type]) => Object.hasOwn(result, key) && (result[key] === null || typeof result[key] === type))
+    .map(([key]) => [key, displayValue(result[key])]));
+  return {
+    ref: {
+      domain: "applications", kind: "web-app-detail", provider: "sysadmin-api-v2",
+      key: selected.name, scope: selected.namespace, label: selected.name, volatile: false, observedAt,
+    },
+    values,
+  };
+}
+
+export function mapRestServiceSpec(payload, ref, observedAt = new Date().toISOString()) {
+  requireRecord(ref, "Selected REST service reference");
+  const spec = requireRecord(payload, "IRIS REST specification");
+  const swagger = typeof spec.swagger === "string";
+  const openapi = typeof spec.openapi === "string";
+  if (!swagger && !openapi) throw new Error("IRIS REST specification is missing its format version.");
+  const paths = requireRecord(spec.paths, "IRIS REST specification paths");
+  const operations = [];
+  let operationCount = 0;
+  for (const [path, pathItemValue] of Object.entries(paths)) {
+    if (!path.startsWith("/")) continue;
+    if (!pathItemValue || typeof pathItemValue !== "object" || Array.isArray(pathItemValue)) continue;
+    for (const [method, operation] of Object.entries(pathItemValue)) {
+      if (!["get", "put", "post", "delete", "patch", "head", "options"].includes(method.toLowerCase())) continue;
+      if (!operation || typeof operation !== "object" || Array.isArray(operation)) continue;
+      operationCount += 1;
+      if (operations.length < 12) {
+        operations.push({
+          path,
+          method: method.toUpperCase(),
+          summary: typeof operation.summary === "string" ? operation.summary : null,
+          tags: Array.isArray(operation.tags) ? operation.tags.filter((tag) => typeof tag === "string") : [],
+        });
+      }
+    }
+  }
+  return {
+    ref: {
+      domain: "applications", kind: "rest-service-spec", provider: ref.provider,
+      key: ref.key, scope: ref.scope ?? null, label: ref.label, volatile: false, observedAt,
+    },
+    format: swagger ? "Swagger 2.0" : `OpenAPI ${spec.openapi}`,
+    title: typeof spec.info?.title === "string" ? spec.info.title : ref.label,
+    version: typeof spec.info?.version === "string" ? spec.info.version : null,
+    operationCount,
+    operations,
+  };
 }
 
 export function sameWebAppState(left, right) {

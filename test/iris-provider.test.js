@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mapServerInfo, mapWebApps, mapReadOnlySource, sameWebAppState } from "../src/iris-provider.js";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapRestServiceSpec, mapReadOnlySource, sameWebAppState } from "../src/iris-provider.js";
 
 const envelope = (result, errors = []) => ({ status: { errors, summary: "" }, console: [], result });
 
@@ -47,6 +47,48 @@ test("maps observed web-app identity, scope, and state without changing provider
   assert.equal(app.ref.scope, "%SYS");
   assert.equal(app.enabled, true);
   assert.deepEqual(app.authenticationMethods, ["Password"]);
+});
+
+test("maps authoritative web-app detail by its selected identity and drops unapproved fields", () => {
+  const selected = { name: "/api/admin", namespace: "%SYS" };
+  const detail = mapWebAppDetail(envelope({
+    Name: "/api/admin", NameSpace: "%SYS", Description: "Management API", Enabled: true,
+    Resource: "", JWTAuthEnabled: false, CSRFToken: true, Password: "private", SecretToken: "private", Path: "ignored",
+  }), selected, "2026-09-23T00:00:00.000Z");
+  assert.equal(detail.ref.key, "/api/admin");
+  assert.equal(detail.ref.scope, "%SYS");
+  assert.deepEqual(detail.values, {
+    Description: "Management API", NameSpace: "%SYS", Enabled: true, Resource: "", JWTAuthEnabled: false, CSRFToken: true,
+  });
+  assert.throws(() => mapWebAppDetail(envelope({ Name: "/other", NameSpace: "%SYS" }), selected), /identity/);
+  assert.throws(() => mapWebAppDetail(envelope({ Name: "/api/admin", NameSpace: "USER" }), selected), /namespace/);
+  assert.throws(() => mapWebAppDetail(envelope({ Enabled: true }), selected), /namespace/);
+  const malformed = mapWebAppDetail(envelope({ NameSpace: "%SYS", CSRFToken: "must-not-escape", Enabled: "yes" }), selected);
+  assert.deepEqual(malformed.values, { NameSpace: "%SYS" });
+});
+
+test("reduces a live REST OpenAPI document to a compact schema-free operation summary", () => {
+  const summary = mapRestServiceSpec({
+    swagger: "2.0", info: { title: "Admin API", version: "1" },
+    paths: {
+      "/api/admin/info": { get: { summary: "Get identity", tags: ["admin"], responses: { 200: { schema: { $ref: "#/definitions/secret" } } } } },
+      "/api/admin/users": { post: { parameters: [{ in: "body", schema: { $ref: "#/definitions/private" } }] } },
+      "invalid": { get: { summary: "ignored" } },
+    },
+    definitions: { secret: { type: "string" } },
+  }, { provider: "iris-management-rest", key: "/api/admin", scope: "%SYS", label: "Admin API" }, "2026-09-23T00:00:00.000Z");
+  assert.equal(summary.format, "Swagger 2.0");
+  assert.equal(summary.title, "Admin API");
+  assert.equal(summary.operationCount, 2);
+  assert.deepEqual(summary.operations[0], { path: "/api/admin/info", method: "GET", summary: "Get identity", tags: ["admin"] });
+  assert.equal(JSON.stringify(summary).includes("definitions"), false);
+  assert.throws(() => mapRestServiceSpec({ info: {}, paths: {} }, { key: "x", label: "x" }), /format version/);
+  const bounded = mapRestServiceSpec({
+    openapi: "3.0.0", info: { title: "Large API" },
+    paths: Object.fromEntries(Array.from({ length: 20 }, (_, index) => [`/path/${index}`, { get: { summary: `Operation ${index}` } }])),
+  }, { provider: "iris-management-rest", key: "large", label: "Large API" });
+  assert.equal(bounded.operationCount, 20);
+  assert.equal(bounded.operations.length, 12);
 });
 
 test("rejects API error envelopes and malformed web-app state", () => {
@@ -98,7 +140,7 @@ test("maps manifest-backed list envelopes into safe stable resource summaries", 
 test("maps direct REST discovery arrays and object-valued monitor results", () => {
   const rest = mapReadOnlySource("restServices", [{ name: "Example", namespace: "USER", dispatchClass: "Example.Dispatch", swaggerSpec: "ignored", enabled: true }]);
   assert.equal(rest.items[0].ref.key, "Example");
-  assert.deepEqual(rest.items[0].values, { name: "Example", dispatchClass: "Example.Dispatch", namespace: "USER", enabled: true });
+  assert.deepEqual(rest.items[0].values, { name: "Example", dispatchClass: "Example.Dispatch", namespace: "USER", enabled: true, swaggerSpec: "ignored" });
   const usage = mapReadOnlySource("systemUsage", envelope({ AllGlobalReferences: 12, LastUpdate: "now", SecretToken: "ignored" }));
   assert.equal(usage.resultType, "object");
   assert.deepEqual(usage.items[0].values, { AllGlobalReferences: 12, LastUpdate: "now" });

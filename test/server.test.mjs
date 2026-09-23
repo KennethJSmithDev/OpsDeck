@@ -31,6 +31,11 @@ const appsPayload = {
     DispatchClass: "%Api.Admin",
   }],
 };
+const restServices = [
+  { name: "/api/admin", namespace: "%SYS", dispatchClass: "%Api.Admin", swaggerSpec: "/api/mgmnt/v1/%25SYS/spec/api/admin", enabled: true },
+  { name: "/api/denied", namespace: "%SYS", dispatchClass: "Fixture.Denied", swaggerSpec: "/api/mgmnt/v1/%25SYS/spec/api/denied", enabled: true },
+  { name: "/api/unsafe", namespace: "%SYS", dispatchClass: "Fixture.Unsafe", swaggerSpec: "https://example.invalid/spec", enabled: true },
+];
 
 async function listen(server) {
   await new Promise((resolve, reject) => {
@@ -47,6 +52,12 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     response.setHeader("Content-Type", "application/json; charset=utf-8");
     if (request.url === "/api/admin/info") return response.end(JSON.stringify(infoPayload));
     if (request.url === "/api/admin/v2/web-apps") return response.end(JSON.stringify(appsPayload));
+    if (request.url === "/api/admin/v2/web-app?name=%2Fapi%2Fadmin") return response.end(JSON.stringify({ status: { errors: [] }, console: [], result: { Name: "/api/admin", NameSpace: "%SYS", Enabled: true, JWTAuthEnabled: false } }));
+    if (request.url === "/api/admin/v2/web-app?name=%2Fdenied") return response.writeHead(403).end(JSON.stringify({ status: { errors: ["denied"] }, result: null }));
+    if (request.url === "/api/mgmnt/") return response.end(JSON.stringify(restServices));
+    if (request.url === "/api/mgmnt/v1/%25SYS/spec/api/admin") return response.end(JSON.stringify({ swagger: "2.0", info: { title: "Admin API", version: "1" }, paths: { "/api/admin/info": { get: { summary: "Get identity", responses: { 200: { schema: { $ref: "#/definitions/private" } } } } }, "/api/admin/users": { post: {} } }, definitions: { private: { type: "string" } } }));
+    if (request.url === "/api/mgmnt/v1/%25SYS/spec/api/denied") return response.writeHead(403).end(JSON.stringify({ error: "denied" }));
+    if (request.url === "/api/admin/v2/web-app?name=%2Fmissing") return response.writeHead(404).end(JSON.stringify({ error: "missing" }));
     if (request.url === "/api/admin/v2/security/users") return response.end(JSON.stringify({ status: { errors: [] }, result: [{ Name: "fixture-user" }] }));
     response.writeHead(404).end();
   });
@@ -79,6 +90,10 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
 
     const unauthorized = await fetch(`${base}/api/admin/v2/web-apps`);
     assert.equal(unauthorized.status, 401);
+    assert.equal((await fetch(`${base}/api/read/webAppDetail?name=%2Fapi%2Fadmin`)).status, 401);
+    assert.equal((await fetch(`${base}/api/read/restServiceSpec?source=restServices&name=%2Fapi%2Fadmin&namespace=%25SYS`)).status, 401);
+    assert.equal((await fetch(`${base}/api/read/webAppDetail`)).status, 400);
+    assert.equal((await fetch(`${base}/api/read/webAppDetail?name=%2Fapi%2Fadmin&name=%2Fother`)).status, 400);
 
     const rejectedOrigin = await fetch(`${base}/api/connect`, {
       method: "POST",
@@ -105,6 +120,34 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     assert.equal(apps.status, 200);
     assert.match(apps.headers.get("x-opsdeck-upstream-content-type"), /application\/json/);
     assert.equal((await apps.json()).result[0].Name, "/api/admin");
+
+    const detail = await fetch(`${base}/api/read/webAppDetail?name=%2Fapi%2Fadmin`, { headers: { Cookie: sessionCookie } });
+    assert.equal(detail.status, 200);
+    assert.equal((await detail.json()).result.NameSpace, "%SYS");
+    assert.equal(authorizationSeen.at(-1), `Basic ${Buffer.from("_SYSTEM:test-only").toString("base64")}`);
+    const notFoundDetail = await fetch(`${base}/api/read/webAppDetail?name=%2Fmissing`, { headers: { Cookie: sessionCookie } });
+    assert.equal(notFoundDetail.status, 404);
+    const deniedDetail = await fetch(`${base}/api/read/webAppDetail?name=%2Fdenied`, { headers: { Cookie: sessionCookie } });
+    assert.equal(deniedDetail.status, 403);
+
+    const spec = await fetch(`${base}/api/read/restServiceSpec?source=restServices&name=%2Fapi%2Fadmin&namespace=%25SYS`, { headers: { Cookie: sessionCookie } });
+    assert.equal(spec.status, 200);
+    const specPayload = await spec.json();
+    assert.equal(specPayload.swagger, "2.0");
+    assert.equal(specPayload.definitions.private.type, "string");
+    const listedServices = await fetch(`${base}/api/read/restServices`, { headers: { Cookie: sessionCookie } });
+    const listedServiceNames = (await listedServices.json()).map((item) => item.name);
+    assert.ok(listedServiceNames.includes("/api/denied"), JSON.stringify(listedServiceNames));
+    const unknownService = await fetch(`${base}/api/read/restServiceSpec?source=restServices&name=%2Fmissing&namespace=%25SYS`, { headers: { Cookie: sessionCookie } });
+    assert.equal(unknownService.status, 404);
+    const deniedSpec = await fetch(`${base}/api/read/restServiceSpec?source=restServices&name=%2Fapi%2Fdenied&namespace=%25SYS`, { headers: { Cookie: sessionCookie } });
+    const deniedSpecBody = await deniedSpec.text();
+    assert.equal(deniedSpec.status, 403, deniedSpecBody);
+    const unsafeSpec = await fetch(`${base}/api/read/restServiceSpec?source=restServices&name=%2Fapi%2Funsafe&namespace=%25SYS`, { headers: { Cookie: sessionCookie } });
+    assert.equal(unsafeSpec.status, 502);
+    const invalidSource = await fetch(`${base}/api/read/restServiceSpec?source=webApps&name=%2Fapi%2Fadmin&namespace=%25SYS`, { headers: { Cookie: sessionCookie } });
+    assert.equal(invalidSource.status, 400);
+    assert.equal(authorizationSeen.some((value) => value.includes("test-only")), false);
 
     const users = await fetch(`${base}/api/read/users`, { headers: { Cookie: sessionCookie } });
     assert.equal(users.status, 200);

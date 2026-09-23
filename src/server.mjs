@@ -12,6 +12,7 @@ const irisOrigin = new URL(process.env.OPSDECK_IRIS_URL || "http://127.0.0.1:527
 const sessionLifetimeMs = 30 * 60 * 1000;
 const maxSessions = 8;
 const sessions = new Map();
+const webAppDetailPath = "/api/admin/v2/web-app";
 const allowedApiPaths = new Set(["/api/admin/info", ...Object.values(READ_ONLY_SOURCES).map((source) => source.path)]);
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -87,13 +88,36 @@ function logRequest(requestId, phase, fields = {}) {
   console.info(JSON.stringify({ requestId, phase, ...fields }));
 }
 
-async function readIrisJson(path, authorization, requestId = "untracked") {
-  if (!allowedApiPaths.has(path)) throw new Error("The requested IRIS path is not enabled in the M0 proxy.");
+function safeManagementSpecPath(path) {
+  if (typeof path !== "string" || !path.startsWith("/api/mgmnt/v")) return false;
+  let target;
+  try { target = new URL(path, irisOrigin); }
+  catch { return false; }
+  if (target.origin !== irisOrigin.origin || target.search || target.hash ||
+    !/^\/api\/mgmnt\/v[12]\/[%A-Za-z0-9._~/-]+$/u.test(target.pathname)) return false;
+  return target.pathname.split("/").every((segment) => {
+    if (!segment) return true;
+    try {
+      const decoded = decodeURIComponent(segment);
+      return decoded !== "." && decoded !== ".." && !decoded.includes("/") && !decoded.includes("\\");
+    } catch { return false; }
+  });
+}
+
+async function readIrisJson(path, authorization, requestId = "untracked", query = null) {
+  const webAppDetail = path === webAppDetailPath && query &&
+    Object.keys(query).length === 1 && typeof query.name === "string" && query.name.startsWith("/") &&
+    query.name.length <= 256 && !/[\u0000-\u001f\u007f]/u.test(query.name);
+  if (!allowedApiPaths.has(path) && !webAppDetail && !safeManagementSpecPath(path)) {
+    throw new Error("The requested IRIS path is not enabled in the M0 proxy.");
+  }
   let response;
   const startedAt = Date.now();
   logRequest(requestId, "upstream_started", { path });
   try {
-    response = await fetch(new URL(path, irisOrigin), {
+    const target = new URL(path, irisOrigin);
+    if (query) for (const [key, value] of Object.entries(query)) target.searchParams.set(key, value);
+    response = await fetch(target, {
       method: "GET",
       headers: { Accept: "application/json", Authorization: authorization.toString("ascii") },
       cache: "no-store",
@@ -184,6 +208,58 @@ async function handleApi(request, response, url) {
     return sendJson(response, 200, { connected: false }, {
       "Set-Cookie": "opsdeck_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
     });
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/read/webAppDetail") {
+    const names = url.searchParams.getAll("name");
+    if (names.length !== 1 || [...url.searchParams.keys()].some((key) => key !== "name") ||
+      !names[0].startsWith("/") || names[0].length > 256 || /[\u0000-\u001f\u007f]/u.test(names[0])) {
+      return sendJson(response, 400, { error: "A single web-application name from the live list is required." });
+    }
+    const session = requestSession(request);
+    if (!session) return sendJson(response, 401, { error: "Connect to IRIS to load live data." });
+    const result = await readIrisJson(webAppDetailPath, session.authorization, "untracked", { name: names[0] });
+    const status = result.status >= 200 && result.status < 300 ? result.status :
+      result.status === 401 || result.status === 403 || result.status === 404 ? result.status : 502;
+    const contentType = result.contentType ? { "X-OpsDeck-Upstream-Content-Type": result.contentType } : {};
+    return sendJson(response, status, result.value, contentType);
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/read/restServiceSpec") {
+    const sourceIds = url.searchParams.getAll("source");
+    const names = url.searchParams.getAll("name");
+    const namespaces = url.searchParams.getAll("namespace");
+    const allowedKeys = new Set(["source", "name", "namespace"]);
+    if (sourceIds.length !== 1 || names.length !== 1 || namespaces.length !== 1 ||
+      [...url.searchParams.keys()].some((key) => !allowedKeys.has(key)) ||
+      !["restServices", "restServicesV2"].includes(sourceIds[0]) ||
+      names[0].length < 1 || names[0].length > 256 || namespaces[0].length < 1 || namespaces[0].length > 128 ||
+      /[\u0000-\u001f\u007f]/u.test(names[0]) || /[\u0000-\u001f\u007f]/u.test(namespaces[0])) {
+      return sendJson(response, 400, { error: "A listed REST service identity is required." });
+    }
+    const session = requestSession(request);
+    if (!session) return sendJson(response, 401, { error: "Connect to IRIS to load live data." });
+    const source = READ_ONLY_SOURCES[sourceIds[0]];
+    const discovery = await readIrisJson(source.path, session.authorization);
+    if (discovery.status < 200 || discovery.status >= 300) {
+      const status = discovery.status === 401 || discovery.status === 403 ? discovery.status : 502;
+      return sendJson(response, status, { error: "IRIS could not list REST services for specification lookup." });
+    }
+    if (!Array.isArray(discovery.value)) return sendJson(response, 502, { error: "IRIS returned an invalid REST service list." });
+    const service = discovery.value.find((item) => item && item.name === names[0] && item.namespace === namespaces[0]);
+    if (!service) return sendJson(response, 404, { error: "The REST service is no longer present in the live list." });
+    if (typeof service.swaggerSpec !== "string") return sendJson(response, 404, { error: "IRIS did not publish a specification for this REST service." });
+    let specUrl;
+    try { specUrl = new URL(service.swaggerSpec, irisOrigin); }
+    catch { return sendJson(response, 502, { error: "IRIS returned an invalid REST specification link." }); }
+    if (specUrl.origin !== irisOrigin.origin || !safeManagementSpecPath(specUrl.pathname) || specUrl.search || specUrl.hash) {
+      return sendJson(response, 502, { error: "IRIS returned an unsafe REST specification link." });
+    }
+    const spec = await readIrisJson(specUrl.pathname, session.authorization);
+    const status = spec.status >= 200 && spec.status < 300 ? spec.status :
+      spec.status === 401 || spec.status === 403 || spec.status === 404 ? spec.status : 502;
+    const contentType = spec.contentType ? { "X-OpsDeck-Upstream-Content-Type": spec.contentType } : {};
+    return sendJson(response, status, spec.value, contentType);
   }
 
   const sourceMatch = url.pathname.match(/^\/api\/read\/([A-Za-z][A-Za-z0-9]*)$/);

@@ -1,4 +1,4 @@
-import { mapServerInfo, mapWebApps, mapReadOnlySource, READ_ONLY_SOURCES, sameWebAppState } from "/iris-provider.js";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapRestServiceSpec, mapReadOnlySource, READ_ONLY_SOURCES, sameWebAppState } from "/iris-provider.js";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -27,6 +27,8 @@ const state = {
   sourceData: {}, sourceErrors: {}, sourceLoading: "",
   sourceTabs: { applications: "restServices", access: "users", security: "walletCollections", tasks: "tasks", system: "systemUsage", logs: "auditEnabled" },
   selectedItems: {},
+  webAppDetails: {}, webAppDetailErrors: {}, webAppDetailLoading: "",
+  restSpecs: {}, restSpecErrors: {}, restSpecLoading: "",
 };
 
 const app = document.querySelector("#app");
@@ -166,16 +168,51 @@ function pageHeader(title, description) {
 function applicationsView() {
   const selected = state.apps.find((item) => item.name === state.selected) || state.apps[0] || null;
   const rows = state.apps.map((item) => `<tr class="app-row ${selected?.name === item.name ? "selected" : ""}" tabindex="0" role="button" data-app="${esc(item.name)}" aria-label="Inspect ${esc(item.name)}"><td><span class="app-name">${esc(item.name)}</span><span class="app-sub">${esc(item.dispatchClass || item.type)}</span></td><td><code>${esc(item.namespace)}</code></td><td>${item.enabled ? badge("Enabled", "success") : badge("Disabled", "muted")}</td><td>${esc(item.type)}</td><td>${esc(item.authenticationMethods.join(", ") || "None returned")}</td></tr>`).join("");
+  const detail = selected ? state.webAppDetails[selected.name] : null;
+  const detailError = selected ? state.webAppDetailErrors[selected.name] : null;
+  const restMatches = selected ? restServiceMatches(selected) : [];
+  const detailContent = !selected ? `<div class="source-message">Select a web application.</div>` :
+    state.webAppDetailLoading === selected.name ? `<div class="source-message">Loading authoritative web-app detail…</div>` :
+      detailError ? `<div class="source-message source-error" role="alert"><strong>Detail unavailable</strong><p>${esc(detailError)}</p><code>GET /api/admin/v2/web-app?name=…</code></div>` :
+        detail ? `<dl class="detail-grid">${Object.entries(detail.values).map(([key, value]) => `<dt>${esc(key)}</dt><dd>${cellValue(value)}</dd>`).join("")}</dl><div class="inspector-foot">GET /api/admin/v2/web-app · ${esc(detail.ref.provider)} · observed ${fmtTime(detail.ref.observedAt)}</div>` :
+          `<p class="app-sub">Expanded configuration is fetched only when requested.</p><button class="button secondary" data-load-webapp-detail="${esc(selected.name)}">Load authoritative detail</button>`;
+  const relationshipContent = !selected ? "" : restMatches.length ? restMatches.map(({ sourceId, item }) => {
+    const specKey = `${sourceId}::${item.ref.key}::${item.ref.scope}`;
+    const spec = state.restSpecs[specKey];
+    const specError = state.restSpecErrors[specKey];
+    const specContent = state.restSpecLoading === specKey ? `<div class="source-message">Loading the authoritative REST specification…</div>` :
+      specError ? `<div class="source-message source-error" role="alert">${esc(specError)}</div>` :
+        spec ? `<div class="spec-summary"><div>${esc(spec.format)} · ${spec.operationCount} operations</div><strong>${esc(spec.title)}${spec.version ? ` · ${esc(spec.version)}` : ""}</strong><ul>${spec.operations.slice(0, 12).map((operation) => `<li><code>${esc(operation.method)} ${esc(operation.path)}</code>${operation.summary ? ` · ${esc(operation.summary)}` : ""}</li>`).join("")}</ul>${spec.operationCount > 12 ? `<p>Showing 12 of ${spec.operationCount} operations.</p>` : ""}</div>` :
+          item.values.swaggerSpec ? `<button class="button quiet" data-load-rest-spec="${esc(specKey)}">Retrieve live specification</button>` : `<span class="app-sub">IRIS did not publish a specification link.</span>`;
+    return `<div class="relationship-item"><div><strong>${esc(item.ref.label)}</strong><span>${esc(item.values.dispatchClass || "REST service")} · ${esc(sourceId === "restServices" ? "management REST v1" : "management REST v2")}</span></div>${specContent}</div>`;
+  }).join("") : `<div class="source-message">No exact REST-service link has been observed for this web application. Check both live discovery sources; OpsDeck does not infer a relationship from dispatch-class names.</div>`;
   return shell(`
     ${pageHeader("Applications", "Live web applications from the IRIS management API.")}
     <div class="app-toolbar"><div><strong>${state.apps.length}</strong><span> web applications</span><span class="toolbar-divider">·</span><span>Scope <code>All returned namespaces</code></span></div><div>${state.verification ? badge(state.verification.matched ? "Authoritative read-back matched" : "Read-back mismatch", state.verification.matched ? "success" : "error") : badge("Read-back pending", "muted")}</div></div>
     ${state.error ? `<div class="notice error" role="alert">${esc(state.error)}</div>` : ""}
     <section class="apps-layout">
       <article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>Web application</th><th>Namespace</th><th>State</th><th>Type</th><th>Authentication</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="empty-cell">No web applications were returned by IRIS.</td></tr>`}</tbody></table></div><div class="panel-foot">Provider <code>SysAdmin API v2</code> · Updated ${fmtTime(state.lastRead)}</div></article>
-      <aside class="panel inspector"><div class="panel-kicker">RESOURCE INSPECTOR</div>${selected ? `<h2 class="inspector-title"><code>${esc(selected.name)}</code></h2><p class="inspector-sub">Provider-owned identity · namespace scoped</p><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(selected.namespace)}</code></dd><dt>Enabled</dt><dd>${selected.enabled ? "Yes" : "No"}</dd><dt>Type</dt><dd>${selected.type === null ? "Not returned" : esc(selected.type)}</dd><dt>Resource</dt><dd>${selected.resource === null ? "Not returned" : selected.resource ? `<code>${esc(selected.resource)}</code>` : "None"}</dd><dt>Authentication</dt><dd>${esc(selected.authenticationMethods.join(", ") || "None returned")}</dd><dt>Default namespace</dt><dd>${selected.namespaceDefault === null ? "Not returned" : selected.namespaceDefault ? "Yes" : "No"}</dd><dt>System application</dt><dd>${selected.isSystemApp === null ? "Not returned" : selected.isSystemApp ? "Yes" : "No"}</dd><dt>Dispatch class</dt><dd>${selected.dispatchClass === null ? "Not returned" : selected.dispatchClass ? `<code>${esc(selected.dispatchClass)}</code>` : "None"}</dd></dl><div class="inspector-foot">Key <code>${esc(selected.ref.key)}</code> · refreshed ${fmtTime(selected.ref.observedAt)}</div>` : `<div class="empty-inspector">Select an application to inspect its observed fields.</div>`}</aside>
+      <aside class="panel inspector"><div class="panel-kicker">RESOURCE INSPECTOR</div>${selected ? `<h2 class="inspector-title"><code>${esc(selected.name)}</code></h2><p class="inspector-sub">Provider-owned identity · namespace scoped</p><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(selected.namespace)}</code></dd><dt>Enabled</dt><dd>${selected.enabled ? "Yes" : "No"}</dd><dt>Type</dt><dd>${selected.type === null ? "Not returned" : esc(selected.type)}</dd><dt>Resource</dt><dd>${selected.resource === null ? "Not returned" : selected.resource ? `<code>${esc(selected.resource)}</code>` : "None"}</dd><dt>Authentication</dt><dd>${esc(selected.authenticationMethods.join(", ") || "None returned")}</dd><dt>Default namespace</dt><dd>${selected.namespaceDefault === null ? "Not returned" : selected.namespaceDefault ? "Yes" : "No"}</dd><dt>System application</dt><dd>${selected.isSystemApp === null ? "Not returned" : selected.isSystemApp ? "Yes" : "No"}</dd><dt>Dispatch class</dt><dd>${selected.dispatchClass === null ? "Not returned" : selected.dispatchClass ? `<code>${esc(selected.dispatchClass)}</code>` : "None"}</dd></dl><div class="inspector-foot">Key <code>${esc(selected.ref.key)}</code> · refreshed ${fmtTime(selected.ref.observedAt)}</div><section class="inspector-section"><div class="panel-kicker">AUTHORITATIVE DETAIL</div>${detailContent}</section><section class="inspector-section"><div class="panel-kicker">REST SERVICE RELATIONSHIP</div>${relationshipContent}</section>` : `<div class="empty-inspector">Select an application to inspect its observed fields.</div>`}</aside>
     </section>
     <section class="verification-banner ${state.verification?.matched ? "verified" : state.verification ? "mismatch" : "pending"}"><div class="verification-symbol">${state.verification?.matched ? "✓" : state.verification ? "!" : "·"}</div><div><strong>${state.verification?.matched ? "Read-back confirmed" : state.verification ? "Read-back requires review" : "Waiting for authoritative read-back"}</strong><p>${state.verification ? `${state.verification.count} web-app records from the rendered list were compared with a second GET response.` : "OpsDeck performs a separate read after the initial list is rendered."}</p></div><code>GET /api/admin/v2/web-apps</code></section>
     <section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">REST DISCOVERY</div><h2>Namespace REST services</h2></div>${badge("Live source", "accent")}</div>${sourceSelector("applications")}${sourcePanel(state.sourceTabs.applications)}</section>`);
+}
+
+function restServiceMatches(webApp) {
+  const matches = [];
+  for (const sourceId of domainSources.applications) {
+    const data = state.sourceData[sourceId];
+    if (!data || data.resultType !== "array") continue;
+    for (const item of data.items) {
+      const linked = sourceId === "restServices"
+        ? item.ref.key === webApp.name && item.ref.scope === webApp.namespace
+        : (Array.isArray(item.values.webApplications)
+          ? item.values.webApplications.includes(webApp.name)
+          : item.values.webApplications === webApp.name);
+      if (linked) matches.push({ sourceId, item });
+    }
+  }
+  return matches;
 }
 
 function sourceSelector(route) {
@@ -268,6 +305,8 @@ function render() {
     row.addEventListener("click", select);
     row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
   });
+  app.querySelectorAll("[data-load-webapp-detail]").forEach((button) => button.addEventListener("click", () => loadWebAppDetail(button.dataset.loadWebappDetail, true)));
+  app.querySelectorAll("[data-load-rest-spec]").forEach((button) => button.addEventListener("click", () => loadRestSpec(button.dataset.loadRestSpec, true)));
   app.querySelector("#connect-form")?.addEventListener("submit", connect);
   app.querySelector("#refresh-button")?.addEventListener("click", () => refreshLive(true));
 }
@@ -292,6 +331,10 @@ async function connect(event) {
     passwordInput.value = "";
     state.sourceData = {};
     state.sourceErrors = {};
+    state.webAppDetails = {};
+    state.webAppDetailErrors = {};
+    state.restSpecs = {};
+    state.restSpecErrors = {};
     state.connected = true;
     // /api/connect validates and maps the observed info envelope server-side.
     state.info = result.info;
@@ -374,6 +417,56 @@ async function loadSource(sourceId, force = false) {
     }
   } finally {
     state.sourceLoading = "";
+    render();
+  }
+}
+
+async function loadWebAppDetail(name, force = false) {
+  if (!force && (state.webAppDetails[name] || state.webAppDetailErrors[name])) return;
+  const selected = state.apps.find((item) => item.name === name);
+  if (!selected) return;
+  state.webAppDetailLoading = name;
+  delete state.webAppDetailErrors[name];
+  render();
+  try {
+    const payload = await requestJson(`/api/read/webAppDetail?name=${encodeURIComponent(selected.name)}`);
+    state.webAppDetails[name] = mapWebAppDetail(payload, selected);
+    state.lastRead = state.webAppDetails[name].ref.observedAt;
+  } catch (error) {
+    state.webAppDetailErrors[name] = error.message;
+    if (/connect to IRIS|session|credentials/i.test(error.message)) {
+      state.connected = false;
+      state.info = null;
+      state.apps = [];
+    }
+  } finally {
+    state.webAppDetailLoading = "";
+    render();
+  }
+}
+
+async function loadRestSpec(specKey, force = false) {
+  if (!force && (state.restSpecs[specKey] || state.restSpecErrors[specKey])) return;
+  const [sourceId, name, namespace] = specKey.split("::");
+  const service = state.sourceData[sourceId]?.items.find((item) => item.ref.key === name && item.ref.scope === namespace);
+  if (!service) return;
+  state.restSpecLoading = specKey;
+  delete state.restSpecErrors[specKey];
+  render();
+  try {
+    const query = new URLSearchParams({ source: sourceId, name, namespace });
+    const payload = await requestJson(`/api/read/restServiceSpec?${query}`);
+    state.restSpecs[specKey] = mapRestServiceSpec(payload, service.ref);
+    state.lastRead = state.restSpecs[specKey].ref.observedAt;
+  } catch (error) {
+    state.restSpecErrors[specKey] = error.message;
+    if (/connect to IRIS|session|credentials/i.test(error.message)) {
+      state.connected = false;
+      state.info = null;
+      state.apps = [];
+    }
+  } finally {
+    state.restSpecLoading = "";
     render();
   }
 }
