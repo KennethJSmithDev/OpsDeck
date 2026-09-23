@@ -4,7 +4,7 @@ OpsDeck is an open-source operations console for InterSystems IRIS. Its active M
 
 ## M0 status
 
-The local M0 path has been exercised against InterSystems IRIS Community Edition 2026.2: `GET /api/admin/info` returned the live identity, `GET /api/admin/v2/web-apps` returned 22 applications, and OpsDeck displayed the result and reported a matching second read. The repeatable setup and test instructions are below. Broader operational domains remain gated until their providers and permissions have been verified.
+The local M0 path has been exercised against InterSystems IRIS Community Edition 2026.2: `GET /api/admin/info` returned the live identity, `GET /api/admin/v2/web-apps` returned 22 applications, and OpsDeck displayed the result and reported a matching second read. M1 read-only views are now being qualified against live sources; mutation workflows remain outside the M1 baseline.
 
 ## Requirements
 
@@ -36,7 +36,7 @@ npm test
 npm start
 ```
 
-Open `http://127.0.0.1:4173`. Enter the IRIS username and password in the local OpsDeck form. The local Node process proxies only `GET /api/admin/info` and `GET /api/admin/v2/web-apps` to the configured loopback IRIS origin. No cross-origin access is enabled. The username/password authorization value is held in process memory for the local session; the password field is cleared after connection, and the credential buffer is cleared when the session expires or the process stops. OpsDeck does not save credentials in browser storage or repository files.
+Open `http://127.0.0.1:4173`. Enter the IRIS username and password in the local OpsDeck form. The local Node process proxies `GET /api/admin/info`, the observed M0 web-app list, and only explicitly registered read-only M1 sources to the configured loopback IRIS origin. No arbitrary path or cross-origin target is accepted. The username/password authorization value is held in process memory for the local session; the password field is cleared after connection, and the credential buffer is cleared when the session expires or the process stops. OpsDeck does not save credentials in browser storage or repository files.
 
 For an alternate local IRIS web port, set `OPSDECK_IRIS_URL` before starting Node, for example:
 
@@ -53,7 +53,7 @@ The proxy intentionally rejects non-loopback IRIS origins. Stop OpsDeck with `Ct
 2. Confirm the Overview identifies the live server and reports its application count.
 3. Open Applications to inspect the returned web applications.
 4. Confirm **Authoritative read-back matched**. OpsDeck compares the first live list with a separate second `GET /api/admin/v2/web-apps`, independent of row order.
-5. Run `npm test` to check the API-shape mapping and comparison behavior.
+5. Run `npm test` to check API-shape mapping, source allowlisting, and comparison behavior.
 
 The UI is a thin view over IRIS-owned state. It does not mirror IRIS data to a local database, and it does not use fixtures as live data.
 
@@ -64,7 +64,13 @@ npm test
 npm start
 ```
 
-The provider mapping is in `src/iris-provider.js`; the loopback-only development server is in `src/server.mjs`; the M0 UI is in `public/`.
+The provider mapping is in `src/iris-provider.js`; the loopback-only development server is in `src/server.mjs`; the UI is in `public/`.
+
+## M1 live-read views
+
+The current GUI exposes read-only live views for Applications, Access, Security, Tasks, System, and Logs. It uses the SysAdmin API v2 envelope for `/api/admin` sources and the observed direct JSON array for `/api/mgmnt/` discovery. Results are lazy-loaded for the selected source, retain a provider-owned key and scope, and render only an explicit field allowlist. Empty collections are shown separately from provider errors. The OAuth authorization-server configuration source currently reports an IRIS error and remains visibly unavailable.
+
+M1 routes do not run scheduled jobs, mutate users or roles, reveal wallet secrets, advance the stateful alert feed, or read arbitrary filesystem paths. Audit record search and file-backed message/System Monitor sources are not yet bound. The source registry and automated adapter/server tests can be checked with `npm test`; this does not substitute for remaining live acceptance and fixture work.
 
 ## Competition
 

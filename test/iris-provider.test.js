@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mapServerInfo, mapWebApps, sameWebAppState } from "../src/iris-provider.js";
+import { mapServerInfo, mapWebApps, mapReadOnlySource, sameWebAppState } from "../src/iris-provider.js";
+
+const envelope = (result, errors = []) => ({ status: { errors, summary: "" }, console: [], result });
 
 const infoPayload = {
   status: { errors: [], summary: "" },
@@ -76,4 +78,35 @@ test("read-back comparison ignores row order but detects a changed enabled flag"
   assert.equal(sameWebAppState(first, second), true);
   second[0].enabled = false;
   assert.equal(sameWebAppState(first, second), false);
+});
+
+test("maps manifest-backed list envelopes into safe stable resource summaries", () => {
+  const users = mapReadOnlySource("users", envelope([{
+    Name: "ops", FullName: "Ops User", Namespace: "USER", Type: "IRIS", Enabled: true,
+    Password: "must-not-escape", ApiToken: "must-not-escape",
+  }]));
+  assert.equal(users.count, 1);
+  assert.equal(users.items[0].ref.key, "ops");
+  assert.deepEqual(users.items[0].values, { Name: "ops", FullName: "Ops User", Namespace: "USER", Type: "IRIS", Enabled: true });
+  assert.equal(users.items[0].ref.provider, "sysadmin-api-v2");
+
+  const task = mapReadOnlySource("tasks", envelope([{ Id: 41, Name: "Fixture task", Namespace: "USER", Suspended: false }])).items[0];
+  assert.equal(task.ref.key, "41");
+  assert.equal(task.ref.label, "Fixture task");
+});
+
+test("maps direct REST discovery arrays and object-valued monitor results", () => {
+  const rest = mapReadOnlySource("restServices", [{ name: "Example", namespace: "USER", dispatchClass: "Example.Dispatch", swaggerSpec: "ignored", enabled: true }]);
+  assert.equal(rest.items[0].ref.key, "Example");
+  assert.deepEqual(rest.items[0].values, { name: "Example", dispatchClass: "Example.Dispatch", namespace: "USER", enabled: true });
+  const usage = mapReadOnlySource("systemUsage", envelope({ AllGlobalReferences: 12, LastUpdate: "now", SecretToken: "ignored" }));
+  assert.equal(usage.resultType, "object");
+  assert.deepEqual(usage.items[0].values, { AllGlobalReferences: 12, LastUpdate: "now" });
+});
+
+test("keeps empty live collections distinct and rejects failed provider envelopes", () => {
+  const empty = mapReadOnlySource("walletCollections", envelope([]));
+  assert.equal(empty.count, 0);
+  assert.deepEqual(empty.items, []);
+  assert.throws(() => mapReadOnlySource("oauthServer", envelope({ status: "error" }, ["not configured"])), /API error/);
 });

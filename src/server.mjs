@@ -4,7 +4,7 @@ import { stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
-import { mapServerInfo, unwrapIrisResult } from "./iris-provider.js";
+import { mapServerInfo, READ_ONLY_SOURCES, unwrapIrisResult } from "./iris-provider.js";
 
 const root = resolve(fileURLToPath(new URL("../public/", import.meta.url)));
 const port = Number(process.env.PORT || 4173);
@@ -12,7 +12,7 @@ const irisOrigin = new URL(process.env.OPSDECK_IRIS_URL || "http://127.0.0.1:527
 const sessionLifetimeMs = 30 * 60 * 1000;
 const maxSessions = 8;
 const sessions = new Map();
-const allowedApiPaths = new Set(["/api/admin/info", "/api/admin/v2/web-apps"]);
+const allowedApiPaths = new Set(["/api/admin/info", ...Object.values(READ_ONLY_SOURCES).map((source) => source.path)]);
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
@@ -83,9 +83,15 @@ async function readJsonRequest(request, maxBytes = 8192) {
   catch { throw new Error("Request body must be JSON."); }
 }
 
-async function readIrisJson(path, authorization) {
+function logRequest(requestId, phase, fields = {}) {
+  console.info(JSON.stringify({ requestId, phase, ...fields }));
+}
+
+async function readIrisJson(path, authorization, requestId = "untracked") {
   if (!allowedApiPaths.has(path)) throw new Error("The requested IRIS path is not enabled in the M0 proxy.");
   let response;
+  const startedAt = Date.now();
+  logRequest(requestId, "upstream_started", { path });
   try {
     response = await fetch(new URL(path, irisOrigin), {
       method: "GET",
@@ -93,9 +99,15 @@ async function readIrisJson(path, authorization) {
       cache: "no-store",
       signal: AbortSignal.timeout(15000),
     });
-  } catch {
+  } catch (error) {
+    logRequest(requestId, "upstream_error", {
+      path,
+      error: error?.name === "TimeoutError" ? "timeout" : "transport",
+      elapsedMs: Date.now() - startedAt,
+    });
     return { status: 502, value: { error: "IRIS could not be reached at the configured local endpoint." } };
   }
+  logRequest(requestId, "upstream_response", { path, status: response.status, elapsedMs: Date.now() - startedAt });
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.toLowerCase().includes("application/json")) {
     return { status: 502, value: { error: "IRIS returned a non-JSON response." } };
@@ -113,6 +125,13 @@ async function handleApi(request, response, url) {
   }
 
   if (request.method === "POST" && url.pathname === "/api/connect") {
+    const requestId = randomBytes(8).toString("hex");
+    const startedAt = Date.now();
+    logRequest(requestId, "received", { method: request.method, path: url.pathname });
+    response.once("finish", () => logRequest(requestId, "downstream_completed", {
+      status: response.statusCode,
+      elapsedMs: Date.now() - startedAt,
+    }));
     if (!sameLocalOrigin(request)) return sendJson(response, 403, { error: "Request origin is not permitted." });
     let body;
     try { body = await readJsonRequest(request); }
@@ -128,7 +147,7 @@ async function handleApi(request, response, url) {
     password = null;
     const authorization = Buffer.from(`Basic ${credentialBytes.toString("base64")}`, "ascii");
     credentialBytes.fill(0);
-    const infoResponse = await readIrisJson("/api/admin/info", authorization);
+    const infoResponse = await readIrisJson("/api/admin/info", authorization, requestId);
     if (infoResponse.status < 200 || infoResponse.status >= 300) {
       authorization.fill(0);
       const status = infoResponse.status === 401 || infoResponse.status === 403 ? infoResponse.status : 502;
@@ -165,6 +184,19 @@ async function handleApi(request, response, url) {
     return sendJson(response, 200, { connected: false }, {
       "Set-Cookie": "opsdeck_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
     });
+  }
+
+  const sourceMatch = url.pathname.match(/^\/api\/read\/([A-Za-z][A-Za-z0-9]*)$/);
+  if (request.method === "GET" && sourceMatch) {
+    const source = Object.hasOwn(READ_ONLY_SOURCES, sourceMatch[1]) ? READ_ONLY_SOURCES[sourceMatch[1]] : null;
+    if (!source) return sendJson(response, 404, { error: "Read source is not enabled." });
+    const session = requestSession(request);
+    if (!session) return sendJson(response, 401, { error: "Connect to IRIS to load live data." });
+    const result = await readIrisJson(source.path, session.authorization);
+    const status = result.status >= 200 && result.status < 300 ? result.status :
+      result.status === 401 || result.status === 403 ? result.status : 502;
+    const contentType = result.contentType ? { "X-OpsDeck-Upstream-Content-Type": result.contentType } : {};
+    return sendJson(response, status, result.value, contentType);
   }
 
   if (request.method === "GET" && allowedApiPaths.has(url.pathname)) {
@@ -223,8 +255,8 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, "127.0.0.1", () => {
-  console.log(`OpsDeck M0 listening at http://127.0.0.1:${port}`);
-  console.log("Only fixed IRIS GET routes are proxied; credentials stay in this process memory.");
+  console.log(`OpsDeck listening at http://127.0.0.1:${port}`);
+  console.log("Only fixed read-only IRIS source routes are proxied; credentials stay in this process memory.");
 });
 
 function shutdown() {

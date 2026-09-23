@@ -47,6 +47,7 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     response.setHeader("Content-Type", "application/json; charset=utf-8");
     if (request.url === "/api/admin/info") return response.end(JSON.stringify(infoPayload));
     if (request.url === "/api/admin/v2/web-apps") return response.end(JSON.stringify(appsPayload));
+    if (request.url === "/api/admin/v2/security/users") return response.end(JSON.stringify({ status: { errors: [] }, result: [{ Name: "fixture-user" }] }));
     response.writeHead(404).end();
   });
   const irisPort = await listen(iris);
@@ -105,6 +106,14 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     assert.match(apps.headers.get("x-opsdeck-upstream-content-type"), /application\/json/);
     assert.equal((await apps.json()).result[0].Name, "/api/admin");
 
+    const users = await fetch(`${base}/api/read/users`, { headers: { Cookie: sessionCookie } });
+    assert.equal(users.status, 200);
+    assert.equal((await users.json()).result[0].Name, "fixture-user");
+    const unknownSource = await fetch(`${base}/api/read/arbitrary`, { headers: { Cookie: sessionCookie } });
+    assert.equal(unknownSource.status, 404);
+    const inheritedSource = await fetch(`${base}/api/read/constructor`, { headers: { Cookie: sessionCookie } });
+    assert.equal(inheritedSource.status, 404);
+
     const unsupported = await fetch(`${base}/api/admin/v2/users`, { headers: { Cookie: sessionCookie } });
     assert.equal(unsupported.status, 404);
 
@@ -123,6 +132,59 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
       child.once("exit", resolve);
       setTimeout(resolve, 2000).unref();
     });
+    await new Promise((resolve) => iris.close(resolve));
+  }
+});
+
+test("connection bootstrap returns a bounded transport error when IRIS never responds", async () => {
+  const iris = createServer(() => {});
+  const irisPort = await listen(iris);
+  const portServer = createServer();
+  const appPort = await listen(portServer);
+  await new Promise((resolve) => portServer.close(resolve));
+  const child = spawn(process.execPath, ["src/server.mjs"], {
+    cwd: new URL("..", import.meta.url),
+    env: { ...process.env, PORT: String(appPort), OPSDECK_IRIS_URL: `http://127.0.0.1:${irisPort}` },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const origin = `http://127.0.0.1:${appPort}`;
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8").on("data", (chunk) => { stdout += chunk; });
+  child.stderr.setEncoding("utf8").on("data", (chunk) => { stderr += chunk; });
+
+  try {
+    let ready = false;
+    for (let attempt = 0; attempt < 50 && !ready; attempt += 1) {
+      if (child.exitCode !== null) throw new Error(`OpsDeck server exited early: ${stderr}`);
+      try { ready = (await fetch(origin)).ok; } catch { await new Promise((resolve) => setTimeout(resolve, 40)); }
+    }
+    assert.equal(ready, true, `OpsDeck server did not become ready: ${stderr}`);
+
+    const startedAt = Date.now();
+    const response = await fetch(`${origin}/api/connect`, {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "_SYSTEM", password: "test-only" }),
+    });
+    assert.equal(response.status, 502);
+    assert.match((await response.json()).error, /could not verify/i);
+    assert.ok(Date.now() - startedAt < 17_000, "connection bootstrap exceeded its 15-second upstream bound");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const events = stdout.trim().split(/\r?\n/).filter((line) => line.startsWith("{")).map((line) => JSON.parse(line));
+    assert.deepEqual(events.map((event) => event.phase), ["received", "upstream_started", "upstream_error", "downstream_completed"]);
+    assert.equal(events[2].error, "timeout");
+    assert.equal(events[3].status, 502);
+    assert.equal(stdout.includes("test-only"), false);
+    assert.equal(stdout.toLowerCase().includes("authorization"), false);
+  } finally {
+    child.kill("SIGTERM");
+    await new Promise((resolve) => {
+      if (child.exitCode !== null) return resolve();
+      child.once("exit", resolve);
+      setTimeout(resolve, 2000).unref();
+    });
+    iris.closeAllConnections();
     await new Promise((resolve) => iris.close(resolve));
   }
 });
