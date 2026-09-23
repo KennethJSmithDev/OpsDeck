@@ -68,4 +68,4 @@ Product installation and usage documentation will move into this repository as m
 
 ## License
 
-An open-source license will be selected before the first contest release. No license grant should be inferred until a LICENSE file is committed.
+OpsDeck is licensed under the [MIT License](LICENSE).
