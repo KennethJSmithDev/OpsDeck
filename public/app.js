@@ -1,4 +1,4 @@
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState } from "./iris-provider.js";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState } from "./iris-provider.js?v=native-pivot-alerts";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -11,7 +11,7 @@ const domainSources = {
   security: ["walletCollections", "x509Credentials", "oauthResourceServers", "oauthServerDefinitions", "oauthServer"],
   tasks: ["tasks"],
   system: ["systemUsage", "processes", "databases", "devices"],
-  logs: ["auditEnabled", "auditEvents", "taskHistory", "journalFiles"],
+  logs: ["auditEnabled", "auditEvents", "taskHistory", "journalFiles", "alerts"],
 };
 const state = {
   route: location.hash.slice(1) || "overview",
@@ -255,6 +255,11 @@ function sourcePanel(sourceId) {
   const error = state.sourceErrors[sourceId];
   if (state.sourceLoading === sourceId) return `<div class="source-message">Loading the selected live source…</div>`;
   if (error) return `<div class="source-message source-error" role="alert"><strong>Source unavailable</strong><p>${esc(error)}</p><code>GET ${esc(source.path)}</code><button class="button quiet" data-refresh-source="${sourceId}">Retry source</button></div>`;
+  if (sourceId === "alerts") {
+    if (!data) return `<div class="source-message"><strong>Stateful alert feed</strong><p>IRIS returns alerts since the previous feed read. OpsDeck does not poll this source automatically; requesting a batch advances that read boundary.</p><button class="button secondary" data-load-alerts>Read alert batch</button><div class="panel-foot">GET <code>${esc(source.path)}</code> · ${esc(source.requiredPrivilege)} · iris-monitor-api</div></div>`;
+    const fieldShapes = data.items.map((item) => `<li><strong>${esc(item.ref.label)}</strong><span>${item.values.observedFields.length ? item.values.observedFields.map((field) => `<code>${esc(field)}</code>`).join(" ") : "No fields returned"}</span></li>`).join("");
+    return `<div class="source-toolbar"><div><strong>${data.count}</strong><span> alerts returned in this batch</span></div><button class="button quiet" data-load-alerts>Read next batch</button></div>${data.count ? `<p class="source-caveat">Alert values are withheld until the live record schema and safe display fields are qualified. These field names describe shape only.</p><ul class="relationship-list">${fieldShapes}</ul>` : `<div class="source-message" role="status">IRIS returned no alerts in this batch.</div>`}<div class="panel-foot">GET <code>${esc(source.path)}</code> · stateful feed · ${fmtTime(data.observedAt)}</div>`;
+  }
   if (!data) return `<div class="source-message">Select a source to load authoritative IRIS data.</div>`;
   const items = data.items;
   const selectedKey = state.selectedItems[sourceId] || items[0]?.ref.key;
@@ -369,7 +374,7 @@ function providerDomainView(route) {
     logs: "Audit configuration, task history, and journal inventory. Event polling is not started automatically.",
   };
   const sourceId = state.sourceTabs[route] || domainSources[route]?.[0];
-  const caveat = route === "logs" ? `<p class="source-caveat">Audit record search and the stateful alert feed are not polled by this view. File-backed messages and System Monitor logs remain separately qualified sources.</p>` : "";
+  const caveat = route === "logs" ? `<p class="source-caveat">Audit record search and file-backed messages/System Monitor sources are not yet available in this build. Alerts are a stateful feed and are read only when explicitly requested.</p>` : "";
   return shell(`${pageHeader(title, descriptions[route] || "Live IRIS provider data.")}<section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">LIVE PROVIDER DATA</div><h2>${esc(READ_ONLY_SOURCES[sourceId]?.label || title)}</h2></div>${badge("Read only", "accent")}</div>${sourceSelector(route)}${sourcePanel(sourceId)}${caveat}</section>`);
 }
 
@@ -396,8 +401,9 @@ function render() {
     const route = state.route;
     state.sourceTabs[route] = button.dataset.source;
     render();
-    loadSource(button.dataset.source);
+    if (button.dataset.source !== "alerts") loadSource(button.dataset.source);
   }));
+  app.querySelectorAll("[data-load-alerts]").forEach((button) => button.addEventListener("click", () => loadSource("alerts", true)));
   app.querySelectorAll("[data-item]").forEach((row) => row.addEventListener("click", () => {
     const [sourceId, key] = row.dataset.item.split("::");
     state.selectedItems[sourceId] = key;
@@ -619,7 +625,7 @@ async function loadSource(sourceId, force = false) {
     const previous = state.sourceData[sourceId];
     const current = mapReadOnlySource(sourceId, payload);
     state.sourceData[sourceId] = current;
-    if (previous) state.sourceVerification[sourceId] = {
+    if (previous && sourceId !== "alerts") state.sourceVerification[sourceId] = {
       matched: sameReadOnlySource(previous, current),
       at: current.observedAt,
     };

@@ -5,7 +5,7 @@ import vm from "node:vm";
 import { mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES } from "../src/iris-provider.js";
 
 const appSource = (await readFile(new URL("../public/app.js", import.meta.url), "utf8"))
-  .replace(/^import \{[^\n]+\} from "(?:\/iris-provider\.js|\.\/iris-provider\.js)";\s*/u, "");
+  .replace(/^import \{[^\n]+\} from "(?:\/iris-provider\.js|\.\/iris-provider\.js)(?:\?[^"]*)?";\s*/u, "");
 const info = {
   status: { errors: [], summary: "" }, console: [],
   result: {
@@ -18,8 +18,8 @@ test("frontend assets resolve from the current application path", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
   assert.match(html, /href="\.\/styles\.css\?v=native-pivot"/u);
-  assert.match(html, /src="\.\/app\.js\?v=native-pivot"/u);
-  assert.match(app, /from "\.\/iris-provider\.js"/u);
+  assert.match(html, /src="\.\/app\.js\?v=native-pivot-alerts"/u);
+  assert.match(app, /from "\.\/iris-provider\.js\?v=native-pivot-alerts"/u);
 });
 const apps = {
   status: { errors: [], summary: "" }, console: [],
@@ -209,4 +209,68 @@ test("native API object errors become useful text instead of [object Object]", a
   while (!rendered.html.includes("No matching endpoint.") && Date.now() < errorDeadline) await new Promise((resolve) => setTimeout(resolve, 5));
   assert.match(rendered.html, /No matching endpoint\./u);
   assert.doesNotMatch(rendered.html, /\[object Object\]/u);
+});
+
+test("alerts are opt-in stateful reads and unqualified record values stay hidden", async () => {
+  let submit;
+  let logsClick;
+  let alertTabClick;
+  let readAlertsClick;
+  const rendered = { html: "" };
+  const form = {
+    elements: { username: { value: "SyntheticUser" }, password: { value: "synthetic-passphrase" } },
+    addEventListener(type, listener) { if (type === "submit") submit = listener; },
+  };
+  let alertReadCount = 0;
+  const responses = {
+    "/api/admin/info": info,
+    "/api/admin/v2/web-apps": apps,
+    "/api/admin/v2/security/audit/enabled": { status: { errors: [] }, result: { Enabled: true } },
+  };
+  const app = {
+    set innerHTML(value) { rendered.html = value; },
+    querySelector(selector) { return selector === "#connect-form" ? form : null; },
+    querySelectorAll(selector) {
+      if (selector === "[data-route]") return [{ dataset: { route: "logs" }, addEventListener(type, listener) { if (type === "click") logsClick = listener; } }];
+      if (selector === "[data-source]") return [{ dataset: { source: "alerts" }, addEventListener(type, listener) { if (type === "click") alertTabClick = listener; } }];
+      if (selector === "[data-load-alerts]" && rendered.html.includes("data-load-alerts")) return [{ addEventListener(type, listener) { if (type === "click") readAlertsClick = listener; } }];
+      return [];
+    },
+  };
+  const context = {
+    AbortSignal, Date, Intl, Object, String, TextEncoder, URL, btoa,
+    document: { querySelector(selector) { return selector === "#app" ? app : null; }, documentElement: { dataset: {} } },
+    location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test" },
+    history: { replaceState() {} },
+    localStorage: { getItem: () => "dark", setItem() {} },
+    matchMedia: () => ({ matches: false, addEventListener() {} }),
+    addEventListener() {},
+    fetch: async (path) => {
+      if (path === "/api/monitor/alerts") {
+        alertReadCount += 1;
+        return { ok: true, status: 200, json: async () => alertReadCount === 1 ? [] : [{ Message: "raw alert text must not render", Severity: "critical" }] };
+      }
+      const payload = responses[path];
+      assert.ok(payload, `unexpected request ${path}`);
+      return { ok: true, status: 200, json: async () => payload };
+    },
+    mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
+  };
+  vm.runInNewContext(appSource, context, { filename: "public/app.js" });
+  await submit({ preventDefault() {}, currentTarget: form });
+  logsClick();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  alertTabClick();
+  assert.equal(alertReadCount, 0, "opening the stateful provider tab must not consume a batch");
+  assert.match(rendered.html, /OpsDeck does not poll this source automatically/u);
+  readAlertsClick();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(alertReadCount, 1);
+  assert.match(rendered.html, /IRIS returned no alerts in this batch/u);
+  assert.doesNotMatch(rendered.html, /Second read matched/u);
+  readAlertsClick();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(alertReadCount, 2);
+  assert.match(rendered.html, /Message.*Severity/u);
+  assert.doesNotMatch(rendered.html, /raw alert text must not render/u);
 });

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, sameWebAppState } from "../src/iris-provider.js";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, sameWebAppState, READ_ONLY_SOURCES } from "../src/iris-provider.js";
 
 const envelope = (result, errors = []) => ({ status: { errors, summary: "" }, console: [], result });
 
@@ -216,6 +216,20 @@ test("maps direct REST discovery arrays and object-valued monitor results", () =
   const usage = mapReadOnlySource("systemUsage", envelope({ AllGlobalReferences: 12, LastUpdate: "now", SecretToken: "ignored" }));
   assert.equal(usage.resultType, "object");
   assert.deepEqual(usage.items[0].values, { AllGlobalReferences: 12, LastUpdate: "now" });
+});
+
+test("maps the stateful IRIS alert feed without exposing unqualified alert values", () => {
+  assert.equal(READ_ONLY_SOURCES.alerts.path, "/api/monitor/alerts");
+  const empty = mapReadOnlySource("alerts", [], "2026-09-24T12:00:00Z");
+  assert.equal(empty.resultType, "stateful-alert-batch");
+  assert.equal(empty.count, 0);
+  assert.deepEqual(empty.items, []);
+
+  const shaped = mapReadOnlySource("alerts", [{ AlertId: "must-not-render", Message: "must-not-render", Time: "now" }]);
+  assert.deepEqual(shaped.items[0].values, { observedFields: ["AlertId", "Message", "Time"] });
+  assert.equal(JSON.stringify(shaped).includes("must-not-render"), false);
+  assert.equal(shaped.items[0].ref.volatile, true);
+  assert.throws(() => mapReadOnlySource("alerts", { result: [] }), /must be an array/);
 });
 
 test("keeps empty live collections distinct and rejects failed provider envelopes", () => {

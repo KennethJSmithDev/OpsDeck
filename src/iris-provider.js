@@ -26,6 +26,7 @@ export const READ_ONLY_SOURCES = Object.freeze({
   auditEnabled: { path: "/api/admin/v2/security/audit/enabled", domain: "logs", label: "Audit status", requiredPrivilege: "%Admin_Secure:U" },
   auditEvents: { path: "/api/admin/v2/security/audit/events", domain: "logs", label: "Audit event definitions", requiredPrivilege: "%Admin_Secure:U" },
   journalFiles: { path: "/api/admin/v2/journal/files", domain: "logs", label: "Journal files", requiredPrivilege: "%Admin_Operate:U" },
+  alerts: { path: "/api/monitor/alerts", domain: "logs", label: "Alerts (stateful feed)", requiredPrivilege: "provider-defined" },
 });
 
 const SAFE_FIELDS = Object.freeze({
@@ -396,6 +397,30 @@ export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toI
   let result;
   if (source.path.startsWith("/api/admin/")) result = unwrapIrisResult(payload);
   else result = payload;
+
+  if (sourceId === "alerts") {
+    if (!Array.isArray(result)) throw new Error("IRIS alert response must be an array.");
+    return {
+      sourceId,
+      provider: "iris-monitor-api",
+      observedAt,
+      resultType: "stateful-alert-batch",
+      count: result.length,
+      items: result.map((record, index) => {
+        requireRecord(record, "IRIS alert record");
+        return {
+          ref: {
+            domain: "logs", kind: "alert", provider: "iris-monitor-api",
+            key: `batch:${index}`, scope: null, label: `Alert record ${index + 1}`,
+            volatile: true, observedAt,
+          },
+          // Only field names are surfaced until this provider's non-empty record
+          // shape and safe display fields have been qualified on the live instance.
+          values: { observedFields: Object.keys(record).sort() },
+        };
+      }),
+    };
+  }
 
   const fields = SAFE_FIELDS[sourceId] || [];
   const identities = IDENTITY_FIELDS[sourceId] || [];
