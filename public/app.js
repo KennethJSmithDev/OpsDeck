@@ -1,4 +1,4 @@
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapRestServiceSpec, mapReadOnlySource, READ_ONLY_SOURCES, sameWebAppState } from "/iris-provider.js";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState } from "/iris-provider.js";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -24,7 +24,7 @@ const state = {
   selected: "",
   lastRead: null,
   verification: null,
-  sourceData: {}, sourceErrors: {}, sourceLoading: "",
+  sourceData: {}, sourceErrors: {}, sourceLoading: "", sourceVerification: {},
   sourceTabs: { applications: "restServices", access: "users", security: "walletCollections", tasks: "tasks", system: "systemUsage", logs: "auditEnabled" },
   selectedItems: {},
   webAppDetails: {}, webAppDetailErrors: {}, webAppDetailLoading: "",
@@ -32,6 +32,7 @@ const state = {
   roleDetails: {}, roleDetailErrors: {}, roleDetailLoading: "", roleDetailVerification: {},
   roleOwners: {}, roleOwnerErrors: {}, roleOwnerLoading: "", roleOwnerVerification: {},
   resourceDetails: {}, resourceDetailErrors: {}, resourceDetailLoading: "", resourceDetailVerification: {},
+  taskDetails: {}, taskDetailErrors: {}, taskDetailLoading: "", taskDetailVerification: {},
   restSpecs: {}, restSpecErrors: {}, restSpecLoading: "",
 };
 
@@ -239,7 +240,7 @@ function sourcePanel(sourceId) {
   const data = state.sourceData[sourceId];
   const error = state.sourceErrors[sourceId];
   if (state.sourceLoading === sourceId) return `<div class="source-message">Loading the selected live source…</div>`;
-  if (error) return `<div class="source-message source-error" role="alert"><strong>Source unavailable</strong><p>${esc(error)}</p><code>GET ${esc(source.path)}</code></div>`;
+  if (error) return `<div class="source-message source-error" role="alert"><strong>Source unavailable</strong><p>${esc(error)}</p><code>GET ${esc(source.path)}</code><button class="button quiet" data-refresh-source="${sourceId}">Retry source</button></div>`;
   if (!data) return `<div class="source-message">Select a source to load authoritative IRIS data.</div>`;
   const items = data.items;
   const selectedKey = state.selectedItems[sourceId] || items[0]?.ref.key;
@@ -252,11 +253,12 @@ function sourcePanel(sourceId) {
     ? `<div class="metric-grid">${Object.entries(selected.values).map(([key, value]) => `<article class="metric-card"><span>${esc(key)}</span><strong>${cellValue(value)}</strong></article>`).join("")}</div>`
     : null;
   const detail = selected && data.resultType !== "object"
-    ? `<aside class="panel inspector provider-inspector"><div class="panel-kicker">AUTHORITATIVE RESOURCE</div><h2 class="inspector-title">${esc(selected.ref.label)}</h2><p class="inspector-sub">Stable key <code>${esc(selected.ref.key)}</code>${selected.ref.scope ? ` · ${esc(selected.ref.scope)}` : ""}</p><dl class="detail-grid">${Object.entries(selected.values).map(([key, value]) => `<dt>${esc(key)}</dt><dd>${cellValue(value)}</dd>`).join("")}</dl><div class="inspector-foot">${esc(selected.ref.provider)} · observed ${fmtTime(selected.ref.observedAt)}</div>${sourceId === "users" ? userDetailContent(selected) : sourceId === "roles" ? roleDetailContent(selected) : sourceId === "resources" ? resourceDetailContent(selected) : ""}</aside>`
+    ? `<aside class="panel inspector provider-inspector"><div class="panel-kicker">AUTHORITATIVE RESOURCE</div><h2 class="inspector-title">${esc(selected.ref.label)}</h2><p class="inspector-sub">Stable key <code>${esc(selected.ref.key)}</code>${selected.ref.scope ? ` · ${esc(selected.ref.scope)}` : ""}</p><dl class="detail-grid">${Object.entries(selected.values).map(([key, value]) => `<dt>${esc(key)}</dt><dd>${cellValue(value)}</dd>`).join("")}</dl><div class="inspector-foot">${esc(selected.ref.provider)} · observed ${fmtTime(selected.ref.observedAt)}</div>${sourceId === "users" ? userDetailContent(selected) : sourceId === "roles" ? roleDetailContent(selected) : sourceId === "resources" ? resourceDetailContent(selected) : sourceId === "tasks" ? taskDetailContent(selected) : ""}</aside>`
     : "";
-  return `<div class="source-toolbar"><div><strong>${data.count ?? 1}</strong><span> ${data.resultType === "array" ? "records returned" : "live object"}</span></div><button class="button quiet" data-refresh-source="${sourceId}">Refresh source</button></div>
+  const verification = state.sourceVerification[sourceId];
+  return `<div class="source-toolbar"><div><strong>${data.count ?? 1}</strong><span> ${data.resultType === "array" ? "records returned" : "live object"}</span></div><div>${verification ? badge(verification.matched ? "Second read matched" : "Second read differed", verification.matched ? "success" : "error") : ""} <button class="button quiet" data-refresh-source="${sourceId}">Refresh source</button></div></div>
     ${objectMetrics || `<div class="provider-layout"><article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>Resource</th>${visibleColumns.map((key) => `<th>${esc(key)}</th>`).join("")}</tr></thead><tbody>${rows || `<tr><td colspan="${visibleColumns.length + 1}" class="empty-cell">IRIS returned an empty collection.</td></tr>`}</tbody></table></div></article>${detail}</div>`}
-    <div class="panel-foot">GET <code>${esc(source.path)}</code> · ${esc(source.requiredPrivilege)} · ${esc(data.provider)} · ${fmtTime(data.observedAt)}</div>`;
+    <div class="panel-foot">GET <code>${esc(source.path)}</code> · ${esc(source.requiredPrivilege)} · ${esc(data.provider)} · ${fmtTime(data.observedAt)}${verification ? ` · repeated ${fmtTime(verification.at)}` : ""}</div>`;
 }
 
 function relationList(title, refs, relationKind = "role") {
@@ -327,6 +329,22 @@ function resourceDetailContent(selected) {
   return `<section class="inspector-section"><div class="panel-kicker">RESOURCE DETAIL</div>${content}${button}</section>`;
 }
 
+function taskDetailContent(selected) {
+  const key = selected.ref.key;
+  const detail = state.taskDetails[key];
+  const error = state.taskDetailErrors[key];
+  const verification = state.taskDetailVerification[key];
+  const content = state.taskDetailLoading === key
+    ? `<div class="source-message">Loading authoritative task detail…</div>`
+    : error
+      ? `<div class="source-message source-error" role="alert"><strong>Task detail unavailable</strong><p>${esc(error)}</p></div>`
+      : detail
+        ? `<dl class="detail-grid">${Object.entries(detail.values).map(([field, value]) => `<dt>${esc(field)}</dt><dd>${cellValue(value)}</dd>`).join("")}</dl><div class="inspector-foot">GET <code>/api/admin/v2/task?id=…</code> · ${esc(detail.ref.provider)} · observed ${fmtTime(detail.ref.observedAt)}${verification ? ` · ${verification.matched ? "Second read matched" : "Second read differed"} at ${fmtTime(verification.at)}` : ""}</div>`
+        : `<p class="app-sub">Expanded task configuration is fetched only when requested.</p>`;
+  const button = state.taskDetailLoading === key ? "" : `<button class="button secondary" data-load-task-detail="${esc(key)}">${detail ? "Refresh and verify task" : "Load authoritative detail"}</button>`;
+  return `<section class="inspector-section"><div class="panel-kicker">AUTHORITATIVE TASK DETAIL</div>${content}${button}</section>`;
+}
+
 function providerDomainView(route) {
   const title = navItems.find(([item]) => item === route)?.[1] || "Workspace";
   const descriptions = {
@@ -375,6 +393,7 @@ function render() {
   app.querySelectorAll("[data-load-role-detail]").forEach((button) => button.addEventListener("click", () => loadRoleDetail(button.dataset.loadRoleDetail)));
   app.querySelectorAll("[data-load-role-owners]").forEach((button) => button.addEventListener("click", () => loadRoleOwners(button.dataset.loadRoleOwners)));
   app.querySelectorAll("[data-load-resource-detail]").forEach((button) => button.addEventListener("click", () => loadResourceDetail(button.dataset.loadResourceDetail)));
+  app.querySelectorAll("[data-load-task-detail]").forEach((button) => button.addEventListener("click", () => loadTaskDetail(button.dataset.loadTaskDetail)));
   app.querySelectorAll("[data-related-role]").forEach((button) => button.addEventListener("click", () => {
     state.route = "access";
     state.sourceTabs.access = "roles";
@@ -498,7 +517,14 @@ async function loadSource(sourceId, force = false) {
   render();
   try {
     const payload = await requestJson(`/api/read/${sourceId}`);
-    state.sourceData[sourceId] = mapReadOnlySource(sourceId, payload);
+    const previous = state.sourceData[sourceId];
+    const current = mapReadOnlySource(sourceId, payload);
+    state.sourceData[sourceId] = current;
+    if (previous) state.sourceVerification[sourceId] = {
+      matched: sameReadOnlySource(previous, current),
+      at: current.observedAt,
+    };
+    delete state.sourceErrors[sourceId];
     state.lastRead = state.sourceData[sourceId].observedAt;
   } catch (error) {
     state.sourceErrors[sourceId] = error.message;
@@ -633,6 +659,29 @@ async function loadResourceDetail(name) {
     if (/connect to IRIS|session|credentials/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
   } finally {
     state.resourceDetailLoading = "";
+    render();
+  }
+}
+
+async function loadTaskDetail(id) {
+  if (state.taskDetailLoading) return;
+  const selected = state.sourceData.tasks?.items.find((item) => item.ref.key === id);
+  if (!selected) return;
+  const previous = state.taskDetails[id];
+  state.taskDetailLoading = id;
+  delete state.taskDetailErrors[id];
+  render();
+  try {
+    const payload = await requestJson(`/api/read/taskDetail?id=${encodeURIComponent(id)}`);
+    const detail = mapTaskDetail(payload, selected);
+    state.taskDetails[id] = detail;
+    if (previous) state.taskDetailVerification[id] = { matched: sameTaskDetail(previous, detail), at: detail.ref.observedAt };
+    state.lastRead = detail.ref.observedAt;
+  } catch (error) {
+    state.taskDetailErrors[id] = error.message;
+    if (/connect to IRIS|session|credentials/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
+  } finally {
+    state.taskDetailLoading = "";
     render();
   }
 }

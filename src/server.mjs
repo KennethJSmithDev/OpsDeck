@@ -17,6 +17,8 @@ const securityUserDetailPath = "/api/admin/v2/security/user";
 const securityRoleDetailPath = "/api/admin/v2/security/role";
 const securityRoleOwnersPath = "/api/admin/v2/security/role/owners";
 const securityResourceDetailPath = "/api/admin/v2/security/resource";
+const taskDetailPath = "/api/admin/v2/task";
+const taskDetailFields = Object.freeze(["Id", "Name", "Type", "Namespace", "Description", "Suspended", "LastFinished", "NextScheduled"]);
 const allowedApiPaths = new Set(["/api/admin/info", ...Object.values(READ_ONLY_SOURCES).map((source) => source.path)]);
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -123,8 +125,10 @@ async function readIrisJson(path, authorization, requestId = "untracked", query 
     query.name.length <= 128 && typeof query.maxRows === "string" &&
     Number.isInteger(Number(query.maxRows)) && Number(query.maxRows) >= 1 && Number(query.maxRows) <= 25 &&
     !/[\u0000-\u001f\u007f]/u.test(query.name);
+  const taskDetail = path === taskDetailPath && query && Object.keys(query).length === 1 &&
+    typeof query.id === "string" && /^\d{1,10}$/u.test(query.id);
   if (!allowedApiPaths.has(path) && !webAppDetail && !securityUserDetail && !securityNamedDetail &&
-    !securityRoleOwners && !safeManagementSpecPath(path)) {
+    !securityRoleOwners && !taskDetail && !safeManagementSpecPath(path)) {
     throw new Error("The requested IRIS path is not enabled in the M0 proxy.");
   }
   let response;
@@ -322,6 +326,44 @@ async function handleApi(request, response, url) {
       result.status === 401 || result.status === 403 || result.status === 404 ? result.status : 502;
     const contentType = result.contentType ? { "X-OpsDeck-Upstream-Content-Type": result.contentType } : {};
     return sendJson(response, status, result.value, contentType);
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/read/taskDetail") {
+    const ids = url.searchParams.getAll("id");
+    if (ids.length !== 1 || [...url.searchParams.keys()].some((key) => key !== "id") || !/^\d{1,10}$/u.test(ids[0])) {
+      return sendJson(response, 400, { error: "A single numeric task ID from the live task list is required." });
+    }
+    const session = requestSession(request);
+    if (!session) return sendJson(response, 401, { error: "Connect to IRIS to load live data." });
+    const listing = await readIrisJson(READ_ONLY_SOURCES.tasks.path, session.authorization);
+    if (listing.status < 200 || listing.status >= 300) {
+      const status = listing.status === 401 || listing.status === 403 ? listing.status : 502;
+      return sendJson(response, status, { error: "IRIS could not list tasks for detail lookup." });
+    }
+    let tasks;
+    try { tasks = unwrapIrisResult(listing.value); }
+    catch { return sendJson(response, 502, { error: "IRIS returned an invalid task list." }); }
+    if (!Array.isArray(tasks) || !tasks.some((task) => task && String(task.Id) === ids[0])) {
+      return sendJson(response, 404, { error: "The task is no longer present in the live list." });
+    }
+    const detail = await readIrisJson(taskDetailPath, session.authorization, "untracked", { id: ids[0] });
+    if (detail.status < 200 || detail.status >= 300) {
+      const status = detail.status === 401 || detail.status === 403 || detail.status === 404 ? detail.status : 502;
+      return sendJson(response, status, { error: status === 403 ? "IRIS denied task detail access." : "IRIS task detail is unavailable." });
+    }
+    try {
+      const result = unwrapIrisResult(detail.value);
+      if (!result || typeof result !== "object" || Array.isArray(result) ||
+        (result.Id !== undefined && String(result.Id) !== ids[0])) {
+        return sendJson(response, 502, { error: "IRIS task detail did not match the selected task." });
+      }
+      const safeResult = Object.fromEntries(taskDetailFields
+        .filter((key) => Object.hasOwn(result, key) && (result[key] === null || ["string", "number", "boolean"].includes(typeof result[key])))
+        .map((key) => [key, result[key]]));
+      return sendJson(response, 200, { status: { errors: [] }, console: [], result: safeResult });
+    } catch {
+      return sendJson(response, 502, { error: "IRIS returned an invalid task detail response." });
+    }
   }
 
   if (request.method === "GET" && url.pathname === "/api/read/restServiceSpec") {

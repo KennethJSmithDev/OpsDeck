@@ -424,3 +424,41 @@ export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toI
   requireRecord(result, `IRIS ${sourceId} result`);
   return { sourceId, provider: "sysadmin-api-v2", observedAt, resultType: "object", count: null, items: [mapRecord(result, 0)] };
 }
+
+export function mapTaskDetail(payload, selected, observedAt = new Date().toISOString()) {
+  requireRecord(selected, "Selected IRIS task");
+  requireRecord(selected.ref, "Selected IRIS task reference");
+  if (selected.ref.kind !== "tasks" || !/^\d{1,10}$/u.test(selected.ref.key)) {
+    throw new Error("Selected IRIS task is missing its stable numeric list identity.");
+  }
+  const result = requireRecord(unwrapIrisResult(payload), "IRIS task detail result");
+  if (result.Id !== undefined && String(result.Id) !== selected.ref.key) {
+    throw new Error("IRIS task detail identity does not match the selected task.");
+  }
+  if (typeof result.Name === "string" && typeof selected.values?.Name === "string" && result.Name !== selected.values.Name) {
+    throw new Error("IRIS task detail name does not match the selected task.");
+  }
+  if (typeof result.Namespace === "string" && selected.ref.scope && result.Namespace !== selected.ref.scope) {
+    throw new Error("IRIS task detail namespace does not match the selected task.");
+  }
+  const mapped = mapReadOnlySource("tasks", payload, observedAt);
+  const item = mapped.items[0];
+  return { ...item, ref: { ...selected.ref, kind: "task-detail", observedAt } };
+}
+
+export function sameTaskDetail(left, right) {
+  return left?.ref?.key === right?.ref?.key && left?.ref?.scope === right?.ref?.scope &&
+    JSON.stringify(left?.values) === JSON.stringify(right?.values);
+}
+
+export function sameReadOnlySource(left, right) {
+  if (!left || !right || left.sourceId !== right.sourceId || left.resultType !== right.resultType || left.count !== right.count) {
+    return false;
+  }
+  const normalize = (data) => data.items.map((item) => ({
+    key: item.ref.key,
+    scope: item.ref.scope,
+    values: item.values,
+  })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
+}

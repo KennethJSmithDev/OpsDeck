@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapRestServiceSpec, mapReadOnlySource, sameWebAppState } from "../src/iris-provider.js";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, sameWebAppState } from "../src/iris-provider.js";
 
 const envelope = (result, errors = []) => ({ status: { errors, summary: "" }, console: [], result });
 
@@ -223,4 +223,43 @@ test("keeps empty live collections distinct and rejects failed provider envelope
   assert.equal(empty.count, 0);
   assert.deepEqual(empty.items, []);
   assert.throws(() => mapReadOnlySource("oauthServer", envelope({ status: "error" }, ["not configured"])), /API error/);
+});
+
+test("compares allowlisted provider reads without observation time or row-order noise", () => {
+  const first = mapReadOnlySource("tasks", envelope([
+    { Id: 2, Name: "Second", Type: "System", Suspended: false },
+    { Id: 1, Name: "First", Type: "System", Suspended: false },
+  ]), "2026-09-23T12:00:00Z");
+  const reordered = mapReadOnlySource("tasks", envelope([
+    { Id: 1, Name: "First", Type: "System", Suspended: false },
+    { Id: 2, Name: "Second", Type: "System", Suspended: false },
+  ]), "2026-09-23T12:01:00Z");
+  const changed = mapReadOnlySource("tasks", envelope([
+    { Id: 1, Name: "First", Type: "System", Suspended: true },
+    { Id: 2, Name: "Second", Type: "System", Suspended: false },
+  ]), "2026-09-23T12:02:00Z");
+  assert.equal(sameReadOnlySource(first, reordered), true);
+  assert.equal(sameReadOnlySource(first, changed), false);
+  assert.equal(sameReadOnlySource(first, mapReadOnlySource("walletCollections", envelope([]))), false);
+});
+
+test("maps task detail by the exact selected list identity and drops unapproved fields", () => {
+  const selected = mapReadOnlySource("tasks", envelope([{
+    Id: 41, Name: "Fixture task", Namespace: "USER", Type: "System", Suspended: false,
+  }])).items[0];
+  const payload = envelope({
+    Id: 41, Name: "Fixture task", Namespace: "USER", Type: "System", Suspended: false,
+    Description: "Safe description", Command: "must-not-escape", Password: "must-not-escape",
+  });
+  const detail = mapTaskDetail(payload, selected, "2026-09-23T12:00:00Z");
+  const repeated = mapTaskDetail(payload, selected, "2026-09-23T12:01:00Z");
+  assert.equal(detail.ref.key, "41");
+  assert.equal(detail.ref.kind, "task-detail");
+  assert.deepEqual(detail.values, {
+    Name: "Fixture task", Type: "System", Namespace: "USER", Description: "Safe description", Suspended: false,
+  });
+  assert.equal(Object.hasOwn(detail.values, "Command"), false);
+  assert.equal(Object.hasOwn(detail.values, "Password"), false);
+  assert.equal(sameTaskDetail(detail, repeated), true);
+  assert.throws(() => mapTaskDetail(envelope({ Id: 42, Name: "Fixture task" }), selected), /identity/);
 });

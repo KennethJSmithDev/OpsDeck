@@ -66,6 +66,8 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     if (request.url === "/api/admin/v2/security/role/owners?name=fixture-role&maxRows=20") return response.end(JSON.stringify({ status: { errors: [] }, result: [{ Name: "fixture-user", Type: "User", AdminOption: false }] }));
     if (request.url === "/api/admin/v2/security/resources") return response.end(JSON.stringify({ status: { errors: [] }, result: [{ Name: "fixture-resource" }] }));
     if (request.url === "/api/admin/v2/security/resource?name=fixture-resource") return response.end(JSON.stringify({ status: { errors: [] }, console: [], result: { Name: "fixture-resource", Description: "Fixture resource", PublicPermission: "None" } }));
+    if (request.url === "/api/admin/v2/tasks") return response.end(JSON.stringify({ status: { errors: [] }, result: [{ Id: 41, Name: "Fixture task", Namespace: "USER" }] }));
+    if (request.url === "/api/admin/v2/task?id=41") return response.end(JSON.stringify({ status: { errors: [] }, console: [], result: { Id: 41, Name: "Fixture task", Namespace: "USER", Type: "System", Suspended: false, Description: "Safe description", Command: "must-not-escape", Password: "must-not-escape" } }));
     response.writeHead(404).end();
   });
   const irisPort = await listen(iris);
@@ -107,6 +109,9 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     assert.equal((await fetch(`${base}/api/read/resourceDetail?name=fixture-resource`)).status, 401);
     assert.equal((await fetch(`${base}/api/read/roleOwners?name=fixture-role&maxRows=20`)).status, 401);
     assert.equal((await fetch(`${base}/api/read/roleOwners?name=fixture-role&maxRows=26`)).status, 400);
+    assert.equal((await fetch(`${base}/api/read/taskDetail?id=41`)).status, 401);
+    assert.equal((await fetch(`${base}/api/read/taskDetail?id=invalid`)).status, 400);
+    assert.equal((await fetch(`${base}/api/read/taskDetail?id=41&id=42`)).status, 400);
 
     const rejectedOrigin = await fetch(`${base}/api/connect`, {
       method: "POST",
@@ -185,6 +190,13 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     assert.equal((await roleOwners.json()).result[0].Type, "User");
     const missingRoleOwners = await fetch(`${base}/api/read/roleOwners?name=missing&maxRows=20`, { headers: { Cookie: sessionCookie } });
     assert.equal(missingRoleOwners.status, 404);
+    const taskDetail = await fetch(`${base}/api/read/taskDetail?id=41`, { headers: { Cookie: sessionCookie } });
+    assert.equal(taskDetail.status, 200);
+    const taskDetailPayload = await taskDetail.json();
+    assert.deepEqual(taskDetailPayload.result, { Id: 41, Name: "Fixture task", Type: "System", Namespace: "USER", Description: "Safe description", Suspended: false });
+    assert.equal(JSON.stringify(taskDetailPayload).includes("must-not-escape"), false);
+    const missingTaskDetail = await fetch(`${base}/api/read/taskDetail?id=42`, { headers: { Cookie: sessionCookie } });
+    assert.equal(missingTaskDetail.status, 404);
     const unknownSource = await fetch(`${base}/api/read/arbitrary`, { headers: { Cookie: sessionCookie } });
     assert.equal(unknownSource.status, 404);
     const inheritedSource = await fetch(`${base}/api/read/constructor`, { headers: { Cookie: sessionCookie } });
