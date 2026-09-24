@@ -4,6 +4,18 @@
   <img src="assets/OpsDeckLogo.png" alt="OpsDeck — Operations Console for InterSystems IRIS" width="720">
 </p>
 
+<p align="center">
+  <a href="https://kennethjsmithdev.github.io/OpsDeck/"><strong>🚀 LIVE SAFE DEMO</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#current-release"><strong>📦 RELEASE STATUS</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#development"><strong>🛠️ DEVELOPMENT</strong></a>
+</p>
+
+<p align="center">
+  <sub>Interactive sanitized sample data · No IRIS connection or credentials required</sub>
+</p>
+
 **OpsDeck** is an open-source, web-based operations console for InterSystems IRIS. It brings application discovery, access and security metadata, tasks, system information, logs, and evidence-backed read verification into one focused interface.
 
 OpsDeck is being developed for the **InterSystems Programming Contest: Build Your Own Management Portal (2026)**.
