@@ -385,7 +385,7 @@ function auditQueryPanel() {
   const records = query?.result?.length
     ? `<div class="audit-records"><div class="panel-kicker">SAFE RECORD FIELDS · ${query.resultCount} OF AT MOST ${AUDIT_QUERY_MAX_ROWS}</div>${query.result.map((record, index) => `<div class="audit-record"><strong>Record ${index + 1}</strong><dl class="detail-grid">${Object.entries(record).map(([key, value]) => `<dt>${esc(key)}</dt><dd>${cellValue(value)}</dd>`).join("") || "<dt>Fields</dt><dd>No approved display fields returned.</dd>"}</dl></div>`).join("")}</div>`
     : query?.state === "finished" ? `<p class="source-message">Finished empty. The bounded Result array contained no audit records.</p>` : "";
-  const progress = query ? `<div class="audit-progress" role="status"><div class="panel-kicker">AUDIT QUERY · ${esc(query.state.toUpperCase())}</div><p>${esc(query.message)}</p>${query.task ? `<dl class="detail-grid"><dt>Task</dt><dd>${esc(query.task.TaskName || "Async audit query")}</dd><dt>Identity</dt><dd><code>${esc(query.task.id || "Not returned")}</code></dd><dt>State</dt><dd>${esc(query.task.state || query.state)}</dd>${query.task.TimeQueued ? `<dt>Queued</dt><dd>${esc(query.task.TimeQueued)}</dd>` : ""}${query.task.TimeStarted ? `<dt>Started</dt><dd>${esc(query.task.TimeStarted)}</dd>` : ""}${query.task.TimeFinished ? `<dt>Finished</dt><dd>${esc(query.task.TimeFinished)}</dd>` : ""}</dl>` : ""}${query.failure ? `<p class="source-message source-error">${esc(query.failure)}</p>` : ""}${query.result ? `<p class="source-message">Result: ${query.resultCount === 0 ? "finished empty" : `${query.resultCount} bounded record(s)`}${query.truncatedToMaxRows ? " · provider returned rows beyond maxRows; display was capped" : ""}</p><p class="app-sub">${esc(query.classification || "Continuation fields observed: " + query.continuationFields.join(", "))}</p>` : ""}${records}</div>` : `<p class="source-message">Run one filtered audit query for the current account. It uses maxRows=1 and retains only approved display fields.</p>`;
+  const progress = query ? `<div class="audit-progress" role="status"><div class="panel-kicker">AUDIT QUERY · ${esc(query.state.toUpperCase())}</div><p>${esc(query.message)}</p>${query.stage ? `<p class="app-sub">Stage: ${esc(query.stage)}${query.httpStatus ? ` · HTTP ${query.httpStatus}` : ""}</p>` : ""}${query.task ? `<dl class="detail-grid"><dt>Task</dt><dd>${esc(query.task.TaskName || "Async audit query")}</dd><dt>Identity</dt><dd><code>${esc(query.task.id || "Not returned")}</code></dd><dt>State</dt><dd>${esc(query.task.state || query.state)}</dd>${query.task.TimeQueued ? `<dt>Queued</dt><dd>${esc(query.task.TimeQueued)}</dd>` : ""}${query.task.TimeStarted ? `<dt>Started</dt><dd>${esc(query.task.TimeStarted)}</dd>` : ""}${query.task.TimeFinished ? `<dt>Finished</dt><dd>${esc(query.task.TimeFinished)}</dd>` : ""}</dl>` : ""}${query.failure ? `<p class="source-message source-error">${esc(query.failure)}</p>` : ""}${query.result ? `<p class="source-message">Result: ${query.resultCount === 0 ? "finished empty" : `${query.resultCount} bounded record(s)`}${query.truncatedToMaxRows ? " · provider returned rows beyond maxRows; display was capped" : ""}</p><p class="app-sub">${esc(query.classification || "Continuation fields observed: " + query.continuationFields.join(", "))}</p>` : ""}${records}</div>` : `<p class="source-message">Run one filtered audit query for the current account. It uses maxRows=1 and retains only approved display fields.</p>`;
   return `<section class="panel provider-panel audit-query-panel"><div class="panel-head"><div><div class="panel-kicker">BOUNDED ASYNC SEARCH</div><h2>Audit records</h2></div><button class="button secondary" data-run-audit-query ${state.auditQueryBusy ? "disabled" : ""}>${state.auditQueryBusy ? "Checking async task…" : "Run maxRows=1 query"}</button></div>${progress}</section>`;
 }
 
@@ -658,6 +658,9 @@ async function loadSource(sourceId, force = false) {
 
 async function runAuditQuery() {
   if (state.auditQueryBusy || !state.info?.username) return;
+  let stage = "submit";
+  let httpStatus = null;
+  let currentTask = null;
   state.auditQueryBusy = true;
   state.auditQuery = { state: "accepted", message: "Submitting one filtered query for the current account, bounded to maxRows=1." };
   render();
@@ -675,27 +678,34 @@ async function runAuditQuery() {
       method: "POST", cache: "no-store", credentials: "same-origin", headers,
       signal: AbortSignal.timeout(20000),
     });
+    httpStatus = response.status;
     if (response.status === 401 || response.status === 403) {
-      state.auditQuery = { state: "denied", message: `IRIS denied the bounded audit query (HTTP ${response.status}).` };
+      state.auditQuery = { state: "denied", stage, httpStatus, message: `IRIS denied the bounded audit query (HTTP ${response.status}).` };
       return;
     }
     if (response.status !== 202) {
-      state.auditQuery = { state: "unavailable", message: `Audit query handoff was unavailable (HTTP ${response.status}).` };
+      state.auditQuery = { state: "unavailable", stage, httpStatus, message: `Audit query handoff was unavailable (HTTP ${response.status}).` };
       return;
     }
-    state.auditQuery = { state: "accepted", message: "IRIS accepted the query (HTTP 202). Validating the returned Location." };
+    stage = "validate Location";
+    state.auditQuery = { state: "accepted", stage, httpStatus, message: "IRIS accepted the query (HTTP 202). Validating the returned Location." };
     render();
     const handle = validateAuditLocation(response.headers.get("Location"), location.href);
-    state.auditQuery = { state: "queued", message: "IRIS accepted the query. Reading the exact same-origin async resource from Location.", task: { id: handle.id } };
+    currentTask = { id: handle.id };
+    stage = "async result read";
+    state.auditQuery = { state: "queued", stage, httpStatus, message: "IRIS accepted the query. Reading the exact same-origin async resource from Location.", task: currentTask };
     render();
     const deadline = Date.now() + 30000;
     for (let attempt = 0; attempt < 40 && Date.now() < deadline; attempt += 1) {
       const payload = await requestJson(handle.url, { signal: AbortSignal.timeout(Math.min(5000, Math.max(1, deadline - Date.now()))) });
+      httpStatus = 200;
+      stage = "async task contract";
       const mapped = mapAuditAsyncResult(payload, handle.id);
+      currentTask = mapped.task;
       const taskState = mapped.task.state.toLowerCase();
       if (taskState === "queued" || taskState === "running") {
         state.auditQuery = {
-          state: taskState, message: taskState === "queued" ? "Async task is queued; waiting for a live state update." : "Async task is running; waiting for a terminal state.",
+          state: taskState, stage, httpStatus, message: taskState === "queued" ? "Async task is queued; waiting for a live state update." : "Async task is running; waiting for a terminal state.",
           task: mapped.task,
         };
         render();
@@ -719,7 +729,10 @@ async function runAuditQuery() {
     state.auditQuery = {
       state: denied ? "denied" : "unavailable",
       message: denied ? `IRIS denied the async audit read (HTTP ${error.status}).` : "Audit query or async result is unavailable.",
-      failure: "The response did not match the reviewed async contract.",
+      stage,
+      httpStatus: error.status || httpStatus,
+      task: currentTask,
+      failure: ["validate Location", "async task contract"].includes(stage) ? error.message : "The request did not produce a usable async result.",
     };
   } finally {
     state.auditQueryBusy = false;
