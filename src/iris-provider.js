@@ -29,6 +29,101 @@ export const READ_ONLY_SOURCES = Object.freeze({
   alerts: { path: "/api/monitor/alerts", domain: "logs", label: "Alerts (stateful feed)", requiredPrivilege: "provider-defined" },
 });
 
+export const AUDIT_QUERY_MAX_ROWS = 1;
+const ASYNC_RESULT_PATH = "/api/admin/v2/async-result";
+const AUDIT_RECORD_SAFE_FIELDS = Object.freeze(["TimeStamp", "Event", "EventSource", "UserName", "PID", "Namespace"]);
+
+export function validateAuditLocation(locationHeader, pageUrl) {
+  if (typeof locationHeader !== "string" || !locationHeader.trim()) throw new Error("IRIS audit query omitted its async Location.");
+  let base;
+  let location;
+  try {
+    base = new URL(pageUrl);
+    location = new URL(locationHeader, base);
+  } catch {
+    throw new Error("IRIS returned an invalid async Location.");
+  }
+  if (location.origin !== base.origin || location.pathname !== ASYNC_RESULT_PATH || location.hash ||
+      [...location.searchParams.keys()].some((key) => key !== "id") || location.searchParams.getAll("id").length !== 1) {
+    throw new Error("IRIS returned an unsafe async Location.");
+  }
+  const id = location.searchParams.get("id");
+  if (!id || id.length > 256 || /[\u0000-\u0020\u007f]/u.test(id)) throw new Error("IRIS returned an invalid async task id.");
+  return { url: `${location.pathname}?id=${encodeURIComponent(id)}`, id };
+}
+
+export function mapAuditAsyncResult(payload, taskId) {
+  const task = requireRecord(unwrapIrisResult(payload), "IRIS async-result task");
+  const state = task.State;
+  const states = ["Queued", "Running", "Finished", "Failed", "Canceled", "Paused"];
+  if (!states.includes(state)) throw new Error("IRIS async-result returned an unknown state.");
+  if (task.GUID !== undefined && String(task.GUID) !== taskId) throw new Error("IRIS async-result identity did not match its Location id.");
+  const fields = ["TaskName", "TimeQueued", "TimeStarted", "TimeFinished", "FailureReason"];
+  const safeTask = { id: taskId, state };
+  for (const field of fields) {
+    if (Object.hasOwn(task, field) && (task[field] === null || ["string", "number", "boolean"].includes(typeof task[field]))) {
+      safeTask[field] = field === "FailureReason" ? (task[field] ? "IRIS reported a task failure." : "") : task[field];
+    }
+  }
+  let result = null;
+  if (state === "Finished") {
+    if (!Array.isArray(task.Result)) throw new Error("Finished audit query Result must be an array.");
+    result = task.Result.slice(0, AUDIT_QUERY_MAX_ROWS).map((record) => {
+      requireRecord(record, "IRIS audit record");
+      return Object.fromEntries(AUDIT_RECORD_SAFE_FIELDS
+        .filter((field) => Object.hasOwn(record, field) && (record[field] === null || ["string", "number", "boolean"].includes(typeof record[field])))
+        .map((field) => [field, record[field]]));
+    });
+  }
+  const continuationFields = Object.keys(task).filter((key) => /cursor|continu|next(page|token)?|hasMore|pageToken/iu.test(key)).sort();
+  return {
+    task: safeTask,
+    result,
+    resultCount: result?.length ?? null,
+    truncatedToMaxRows: Array.isArray(task.Result) && task.Result.length > AUDIT_QUERY_MAX_ROWS,
+    continuationFields,
+    classification: state === "Finished" && continuationFields.length === 0
+      ? "BOUNDED_ASYNC_RESULT — NO PAGINATION MECHANISM OBSERVED"
+      : null,
+  };
+}
+
+const FIXED_LOGS = Object.freeze({
+  messagesLog: { name: "messages.log", maxBytes: 65536, maxLines: 250 },
+  systemMonitorLog: { name: "SystemMonitor.log", maxBytes: 65536, maxLines: 250 },
+});
+
+export function mapFixedLogResult(sourceId, payload) {
+  const source = FIXED_LOGS[sourceId];
+  if (!source) throw new Error("IRIS log source is not enabled.");
+  requireRecord(payload, "IRIS fixed log result");
+  const statuses = ["available", "unavailable", "denied", "read-failure"];
+  if (!statuses.includes(payload.status)) throw new Error("IRIS fixed log result has an invalid status.");
+  if (payload.status !== "available") {
+    return { source: source.name, status: payload.status, lines: [], truncated: false, bytesReturned: 0 };
+  }
+  if (!Array.isArray(payload.lines) || payload.lines.some((line) => typeof line !== "string")) {
+    throw new Error("IRIS fixed log lines must be an array of strings.");
+  }
+  const lines = [];
+  let bytesReturned = 0;
+  let truncated = payload.truncated === true;
+  for (const rawLine of payload.lines) {
+    const sanitizedLine = rawLine.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, "�");
+    const safeLine = sanitizedLine.slice(0, 2048);
+    if (safeLine.length < sanitizedLine.length) truncated = true;
+    const lineBytes = new TextEncoder().encode(safeLine).byteLength;
+    if (lines.length >= source.maxLines || bytesReturned + lineBytes > source.maxBytes) {
+      truncated = true;
+      break;
+    }
+    lines.push(safeLine);
+    bytesReturned += lineBytes;
+  }
+  if (lines.length < payload.lines.length) truncated = true;
+  return { source: source.name, status: "available", lines, truncated, bytesReturned };
+}
+
 const SAFE_FIELDS = Object.freeze({
   webApps: ["Name", "Namespace", "Enabled", "Type", "AuthenticationMethods"],
   systemUsage: ["AllGlobalReferences", "GlobalUpdateReferences", "RoutineCalls", "RoutineBufferLoadsAndSaves", "LogicalBlockRequests", "BlockReads", "BlockWrites", "WIJwrites", "JournalEntries", "JournalBlockWrites", "RoutineLines", "LastUpdate"],
