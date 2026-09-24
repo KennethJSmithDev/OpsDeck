@@ -1,0 +1,73 @@
+name: Deploy safe demo to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "public/**"
+      - "src/iris-provider.js"
+      - "demo/**"
+      - ".github/workflows/pages-demo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  test-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Test production sources
+        run: |
+          npm test
+          node --check public/app.js
+          node --check src/iris-provider.js
+          node --check demo/demo-provider.js
+
+      - name: Build safe static demo
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir _site
+          cp demo/index.html _site/index.html
+          cp demo/demo-provider.js _site/demo-provider.js
+          cp public/app.js _site/app.js
+          cp public/styles.css _site/styles.css
+          cp src/iris-provider.js _site/iris-provider.js
+          sed -i 's|from "/iris-provider.js"|from "./iris-provider.js"|' _site/app.js
+          if grep -R -nE '(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|Authorization:[[:space:]]*Basic|password[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"']+)' _site; then
+            echo "Potential secret-shaped content found in generated Pages artifact."
+            exit 1
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
