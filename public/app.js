@@ -1,4 +1,4 @@
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState } from "/iris-provider.js";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState } from "./iris-provider.js";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -36,6 +36,8 @@ const state = {
   restSpecs: {}, restSpecErrors: {}, restSpecLoading: "",
 };
 
+const nativeMode = location.pathname?.startsWith("/opsdeck") === true;
+let nativeAuthorization = null;
 const app = document.querySelector("#app");
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -46,22 +48,30 @@ const fmtTime = (value) => value ? new Intl.DateTimeFormat(undefined, {
 
 async function requestJson(path, options = {}) {
   let response;
+  const headers = { Accept: "application/json", ...(options.headers || {}) };
+  if (nativeMode && nativeAuthorization) headers.Authorization = nativeAuthorization;
   try {
     response = await fetch(path, {
       cache: "no-store",
       credentials: "same-origin",
-      headers: { Accept: "application/json", ...(options.headers || {}) },
+      headers,
       ...options,
       signal: options.signal || AbortSignal.timeout(20000),
     });
   } catch (error) {
     if (error?.name === "TimeoutError" || error?.name === "AbortError") {
-      throw new Error("Timed out waiting for the local OpsDeck proxy.");
+      throw new Error(`Timed out waiting for ${nativeMode ? "IRIS" : "the local OpsDeck proxy"}.`);
     }
-    throw new Error("Could not reach the local OpsDeck proxy.");
+    throw new Error(`Could not reach ${nativeMode ? "IRIS" : "the local OpsDeck proxy"}.`);
   }
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || `Request failed with HTTP ${response.status}.`);
+  if (!response.ok) {
+    if (nativeMode && response.status === 401) nativeAuthorization = null;
+    const message = nativeMode && response.status === 401 ? "IRIS authentication failed (HTTP 401)." : data.error || data.status?.errors?.join(" ") || `Request failed with HTTP ${response.status}.`;
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
@@ -103,7 +113,7 @@ function shell(content) {
         <div class="sidebar-note"><span class="note-dot"></span><span>Live reads · M1</span></div>
       </aside>
       <main class="workspace">${content}</main>
-      <footer class="statusbar"><span><i class="status-dot ${connected ? "online" : ""}"></i>${connected ? "IRIS connection active" : "Connect to your local IRIS instance"}</span><span>Loopback session · credentials are not saved</span><span>Last read ${fmtTime(state.lastRead)}</span></footer>
+      <footer class="statusbar"><span><i class="status-dot ${connected ? "online" : ""}"></i>${connected ? "IRIS connection active" : "Connect to your local IRIS instance"}</span><span>${nativeMode ? "Same-origin session · credentials remain in tab memory" : "Loopback session · credentials are not saved"}</span><span>Last read ${fmtTime(state.lastRead)}</span></footer>
     </div>`;
 }
 
@@ -115,19 +125,19 @@ function connectView() {
         <div class="eyebrow"><span class="eyebrow-rule"></span>LIVE ENVIRONMENT · LOCAL ONLY</div>
         <h1>Operations,<br><span>with evidence.</span></h1>
         <p>Connect to the local IRIS instance to load its identity and web applications from the authoritative SysAdmin API.</p>
-        <div class="promise-list"><div><span class="promise-check">01</span><span>Credentials remain in this browser request and the local proxy process.</span></div><div><span class="promise-check">02</span><span>Only fixed read-only IRIS source routes are enabled.</span></div><div><span class="promise-check">03</span><span>A second live read checks the result shown on screen.</span></div></div>
+        <div class="promise-list"><div><span class="promise-check">01</span><span>${nativeMode ? "Credentials stay in this tab's memory and are sent directly to same-origin IRIS APIs." : "Credentials remain in this browser request and the local proxy process."}</span></div><div><span class="promise-check">02</span><span>Only fixed read-only IRIS source routes are enabled.</span></div><div><span class="promise-check">03</span><span>A second live read checks the result shown on screen.</span></div></div>
       </div>
-      <form id="connect-form" class="connect-card" autocomplete="on">
+      <form id="connect-form" class="connect-card" autocomplete="off">
         <div class="card-overline">SECURE LOCAL SESSION</div>
         <h2>Connect to IRIS</h2>
         <p class="card-copy">Use an account allowed to read server information and web applications.</p>
         ${error}
         <label for="username">Username</label>
-        <input id="username" name="username" value="_SYSTEM" autocomplete="username" required maxlength="128">
+        <input id="username" name="username" value="${nativeMode ? "" : "_SYSTEM"}" autocomplete="off" required maxlength="128">
         <label for="password">Password</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="512">
+        <input id="password" name="password" type="password" autocomplete="off" required maxlength="512">
         <button class="button primary connect-button" type="submit" ${state.busy ? "disabled" : ""}>${state.busy ? '<span class="spinner"></span>Checking connection…' : "Connect to local IRIS"}</button>
-        <div class="local-only"><span class="lock-icon" aria-hidden="true">⌑</span> Requests stay on this computer · HTTP Basic · loopback only</div>
+        <div class="local-only"><span class="lock-icon" aria-hidden="true">⌑</span> ${nativeMode ? "Direct to same-origin IRIS · HTTP Basic" : "Requests stay on this computer · HTTP Basic · loopback only"}</div>
       </form>
     </section>
     <section class="gate-strip"><div><span class="gate-kicker">M0 PASSED</span><strong>Live API identity + applications</strong></div><div>${badge("M1 read-only", "accent")}</div><p>Connected sessions can browse verified M1 providers. Mutation workflows remain gated until fixture and read-back qualification.</p></section>`);
@@ -430,6 +440,29 @@ async function connect(event) {
   state.error = "";
   render();
   try {
+    if (nativeMode) {
+      const username = form.elements.username.value.trim();
+      const password = passwordInput.value;
+      const bytes = new TextEncoder().encode(`${username}:${password}`);
+      let binary = "";
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      nativeAuthorization = `Basic ${btoa(binary)}`;
+      passwordInput.value = "";
+      state.sourceData = {};
+      state.sourceErrors = {};
+      state.webAppDetails = {};
+      state.webAppDetailErrors = {};
+      state.restSpecs = {};
+      state.restSpecErrors = {};
+      state.connected = true;
+      state.route = "overview";
+      history.replaceState(null, "", "#overview");
+      state.busy = false;
+      render();
+      await refreshLive(true);
+      if (state.connected) ensureRouteSource();
+      return;
+    }
     const body = {
       username: form.elements.username.value.trim(),
       password: passwordInput.value,
@@ -465,8 +498,42 @@ async function connect(event) {
 }
 
 async function apiPayload(path) {
-  const payload = await requestJson(path);
-  return payload;
+  return requestJson(nativeMode ? nativeApiPath(path) : path);
+}
+
+async function readJson(path) {
+  return requestJson(nativeMode ? nativeApiPath(path) : path);
+}
+
+function nativeApiPath(path) {
+  if (path.startsWith("/api/read/")) {
+    const url = new URL(path, location.origin || "http://localhost");
+    const route = url.pathname.slice("/api/read/".length);
+    const source = READ_ONLY_SOURCES[route];
+    if (source) return source.path;
+    const details = {
+      webAppDetail: ["/api/admin/v2/web-app", "name"],
+      userDetail: ["/api/admin/v2/security/user", "name"],
+      roleDetail: ["/api/admin/v2/security/role", "name"],
+      roleOwners: ["/api/admin/v2/security/role/owners", "name"],
+      resourceDetail: ["/api/admin/v2/security/resource", "name"],
+      taskDetail: ["/api/admin/v2/task", "id"],
+    }[route];
+    if (details) return `${details[0]}?${details[1]}=${encodeURIComponent(url.searchParams.get(details[1]) || "")}${route === "roleOwners" ? `&maxRows=${encodeURIComponent(url.searchParams.get("maxRows") || "20")}` : ""}`;
+    if (route === "restServiceSpec") {
+      const sourceId = url.searchParams.get("source");
+      const name = url.searchParams.get("name");
+      const namespace = url.searchParams.get("namespace");
+      const service = state.sourceData[sourceId]?.items.find((item) => item.ref.key === name && item.ref.scope === namespace);
+      if (!service || typeof service.values.swaggerSpec !== "string") throw new Error("IRIS did not publish a specification for this discovered service.");
+      const origin = location.origin || "http://localhost";
+      const spec = new URL(service.values.swaggerSpec, origin);
+      if (spec.origin !== origin || !spec.pathname.startsWith("/api/mgmnt/")) throw new Error("IRIS returned a specification URL outside the same-origin management API.");
+      return spec.pathname;
+    }
+    throw new Error("This native IRIS read route is not enabled.");
+  }
+  return path;
 }
 
 async function refreshLive(compareReadback) {
@@ -498,7 +565,7 @@ async function refreshLive(compareReadback) {
     }
   } catch (error) {
     state.error = error.message;
-    if (/connect to IRIS|session|credentials/i.test(error.message)) {
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) {
       state.connected = false;
       state.info = null;
       state.apps = [];
@@ -516,7 +583,7 @@ async function loadSource(sourceId, force = false) {
   delete state.sourceErrors[sourceId];
   render();
   try {
-    const payload = await requestJson(`/api/read/${sourceId}`);
+    const payload = await readJson(`/api/read/${sourceId}`);
     const previous = state.sourceData[sourceId];
     const current = mapReadOnlySource(sourceId, payload);
     state.sourceData[sourceId] = current;
@@ -528,7 +595,7 @@ async function loadSource(sourceId, force = false) {
     state.lastRead = state.sourceData[sourceId].observedAt;
   } catch (error) {
     state.sourceErrors[sourceId] = error.message;
-    if (/connect to IRIS|session|credentials/i.test(error.message)) {
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) {
       state.connected = false;
       state.info = null;
       state.apps = [];
@@ -547,12 +614,12 @@ async function loadWebAppDetail(name, force = false) {
   delete state.webAppDetailErrors[name];
   render();
   try {
-    const payload = await requestJson(`/api/read/webAppDetail?name=${encodeURIComponent(selected.name)}`);
+    const payload = await readJson(`/api/read/webAppDetail?name=${encodeURIComponent(selected.name)}`);
     state.webAppDetails[name] = mapWebAppDetail(payload, selected);
     state.lastRead = state.webAppDetails[name].ref.observedAt;
   } catch (error) {
     state.webAppDetailErrors[name] = error.message;
-    if (/connect to IRIS|session|credentials/i.test(error.message)) {
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) {
       state.connected = false;
       state.info = null;
       state.apps = [];
@@ -572,7 +639,7 @@ async function loadUserDetail(name) {
   delete state.userDetailErrors[name];
   render();
   try {
-    const payload = await requestJson(`/api/read/userDetail?name=${encodeURIComponent(selected.ref.key)}`);
+    const payload = await readJson(`/api/read/userDetail?name=${encodeURIComponent(selected.ref.key)}`);
     const detail = mapSecurityUserDetail(payload, selected);
     state.userDetails[name] = detail;
     if (previous) state.userDetailVerification[name] = {
@@ -582,7 +649,7 @@ async function loadUserDetail(name) {
     state.lastRead = detail.ref.observedAt;
   } catch (error) {
     state.userDetailErrors[name] = error.message;
-    if (/connect to IRIS|session|credentials/i.test(error.message)) {
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) {
       state.connected = false;
       state.info = null;
       state.apps = [];
@@ -602,14 +669,14 @@ async function loadRoleDetail(name) {
   delete state.roleDetailErrors[name];
   render();
   try {
-    const payload = await requestJson(`/api/read/roleDetail?name=${encodeURIComponent(selected.ref.key)}`);
+    const payload = await readJson(`/api/read/roleDetail?name=${encodeURIComponent(selected.ref.key)}`);
     const detail = mapSecurityRoleDetail(payload, selected);
     state.roleDetails[name] = detail;
     if (previous) state.roleDetailVerification[name] = { matched: sameSecurityRoleDetail(previous, detail), at: detail.ref.observedAt };
     state.lastRead = detail.ref.observedAt;
   } catch (error) {
     state.roleDetailErrors[name] = error.message;
-    if (/connect to IRIS|session|credentials/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
   } finally {
     state.roleDetailLoading = "";
     render();
@@ -626,14 +693,14 @@ async function loadRoleOwners(name) {
   render();
   try {
     const query = new URLSearchParams({ name: selected.ref.key, maxRows: "20" });
-    const payload = await requestJson(`/api/read/roleOwners?${query}`);
+    const payload = await readJson(`/api/read/roleOwners?${query}`);
     const owners = mapSecurityRoleOwners(payload, selected);
     state.roleOwners[name] = owners;
     if (previous) state.roleOwnerVerification[name] = { matched: sameSecurityRoleOwners(previous, owners), at: new Date().toISOString() };
     state.lastRead = new Date().toISOString();
   } catch (error) {
     state.roleOwnerErrors[name] = error.message;
-    if (/connect to IRIS|session|credentials/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
   } finally {
     state.roleOwnerLoading = "";
     render();
@@ -649,14 +716,14 @@ async function loadResourceDetail(name) {
   delete state.resourceDetailErrors[name];
   render();
   try {
-    const payload = await requestJson(`/api/read/resourceDetail?name=${encodeURIComponent(selected.ref.key)}`);
+    const payload = await readJson(`/api/read/resourceDetail?name=${encodeURIComponent(selected.ref.key)}`);
     const detail = mapSecurityResourceDetail(payload, selected);
     state.resourceDetails[name] = detail;
     if (previous) state.resourceDetailVerification[name] = { matched: sameSecurityResourceDetail(previous, detail), at: detail.ref.observedAt };
     state.lastRead = detail.ref.observedAt;
   } catch (error) {
     state.resourceDetailErrors[name] = error.message;
-    if (/connect to IRIS|session|credentials/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
   } finally {
     state.resourceDetailLoading = "";
     render();
@@ -672,14 +739,14 @@ async function loadTaskDetail(id) {
   delete state.taskDetailErrors[id];
   render();
   try {
-    const payload = await requestJson(`/api/read/taskDetail?id=${encodeURIComponent(id)}`);
+    const payload = await readJson(`/api/read/taskDetail?id=${encodeURIComponent(id)}`);
     const detail = mapTaskDetail(payload, selected);
     state.taskDetails[id] = detail;
     if (previous) state.taskDetailVerification[id] = { matched: sameTaskDetail(previous, detail), at: detail.ref.observedAt };
     state.lastRead = detail.ref.observedAt;
   } catch (error) {
     state.taskDetailErrors[id] = error.message;
-    if (/connect to IRIS|session|credentials/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
   } finally {
     state.taskDetailLoading = "";
     render();
@@ -696,12 +763,12 @@ async function loadRestSpec(specKey, force = false) {
   render();
   try {
     const query = new URLSearchParams({ source: sourceId, name, namespace });
-    const payload = await requestJson(`/api/read/restServiceSpec?${query}`);
+    const payload = await readJson(`/api/read/restServiceSpec?${query}`);
     state.restSpecs[specKey] = mapRestServiceSpec(payload, service.ref);
     state.lastRead = state.restSpecs[specKey].ref.observedAt;
   } catch (error) {
     state.restSpecErrors[specKey] = error.message;
-    if (/connect to IRIS|session|credentials/i.test(error.message)) {
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) {
       state.connected = false;
       state.info = null;
       state.apps = [];
@@ -721,6 +788,12 @@ function ensureRouteSource() {
 }
 
 async function restoreSession() {
+  if (nativeMode) {
+    state.connected = false;
+    state.busy = false;
+    render();
+    return;
+  }
   try {
     await requestJson("/api/session");
     state.connected = true;
