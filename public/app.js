@@ -67,7 +67,10 @@ async function requestJson(path, options = {}) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (nativeMode && response.status === 401) nativeAuthorization = null;
-    const message = nativeMode && response.status === 401 ? "IRIS authentication failed (HTTP 401)." : data.error || data.status?.errors?.join(" ") || `Request failed with HTTP ${response.status}.`;
+    const messages = Array.isArray(data.status?.errors) ? data.status.errors
+      .map((item) => typeof item === "string" ? item : item?.message || item?.error)
+      .filter((item) => typeof item === "string" && item.trim()) : [];
+    const message = nativeMode && response.status === 401 ? "IRIS authentication failed (HTTP 401)." : (typeof data.error === "string" && data.error.trim()) || messages.join(" ") || `Request failed with HTTP ${response.status}.`;
     const error = new Error(message);
     error.status = response.status;
     throw error;
@@ -100,6 +103,7 @@ function shell(content) {
         <div class="top-actions">
           <span class="connection-state">${badge(connected ? "Live session" : "Disconnected", connected ? "success" : "muted")}</span>
           ${connected ? `<span class="user-chip">${user}</span>` : ""}
+          ${connected ? '<button class="button quiet" id="disconnect-button" type="button">Sign out</button>' : ""}
           <label class="theme-picker"><span class="sr-only">Color theme</span><select id="theme-select" aria-label="Color theme"><option value="dark" ${state.theme === "dark" ? "selected" : ""}>Dark</option><option value="light" ${state.theme === "light" ? "selected" : ""}>Light</option><option value="system" ${state.theme === "system" ? "selected" : ""}>System</option></select></label>
         </div>
       </header>
@@ -429,7 +433,35 @@ function render() {
   app.querySelectorAll("[data-load-webapp-detail]").forEach((button) => button.addEventListener("click", () => loadWebAppDetail(button.dataset.loadWebappDetail, true)));
   app.querySelectorAll("[data-load-rest-spec]").forEach((button) => button.addEventListener("click", () => loadRestSpec(button.dataset.loadRestSpec, true)));
   app.querySelector("#connect-form")?.addEventListener("submit", connect);
+  app.querySelector("#disconnect-button")?.addEventListener("click", disconnect);
   app.querySelector("#refresh-button")?.addEventListener("click", () => refreshLive(true));
+}
+
+async function disconnect() {
+  if (!nativeMode) {
+    try { await requestJson("/api/logout", { method: "POST" }); } catch { /* local state is cleared even if the proxy is unavailable */ }
+  }
+  nativeAuthorization = null;
+  state.connected = false;
+  state.busy = false;
+  state.error = "";
+  state.info = null;
+  state.apps = [];
+  state.selected = "";
+  state.lastRead = null;
+  state.verification = null;
+  for (const key of [
+    "sourceData", "sourceErrors", "sourceVerification", "selectedItems", "webAppDetails", "webAppDetailErrors",
+    "userDetails", "userDetailErrors", "userDetailVerification", "roleDetails", "roleDetailErrors",
+    "roleDetailVerification", "roleOwners", "roleOwnerErrors", "roleOwnerVerification", "resourceDetails",
+    "resourceDetailErrors", "resourceDetailVerification", "taskDetails", "taskDetailErrors", "taskDetailVerification",
+    "restSpecs", "restSpecErrors",
+  ]) state[key] = {};
+  for (const key of ["sourceLoading", "webAppDetailLoading", "userDetailLoading", "roleDetailLoading", "roleOwnerLoading", "resourceDetailLoading", "taskDetailLoading", "restSpecLoading"]) state[key] = "";
+  state.sourceTabs = { applications: "restServices", access: "users", security: "walletCollections", tasks: "tasks", system: "systemUsage", logs: "auditEnabled" };
+  state.route = "overview";
+  history.replaceState(null, "", "#overview");
+  render();
 }
 
 async function connect(event) {
