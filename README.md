@@ -8,13 +8,18 @@ The local M0 path has been exercised against InterSystems IRIS Community Edition
 
 ## Requirements
 
-- InterSystems IRIS Community Edition 2026.2, available locally on `127.0.0.1:52773`.
-- Docker Engine/Desktop with a working Linux container backend. First-time image use may require accepting the InterSystems Community Edition terms in Docker Hub.
+- InterSystems IRIS Community Edition 2026.2, available locally through the SysAdmin API (the default development endpoint is `http://127.0.0.1:52773`). A native Windows installation is supported; Docker is optional.
 - Node.js 22 or newer. The application uses only Node's built-in modules; there are no npm dependencies to install.
 
-InterSystems publishes the `intersystems/iris-community` image. The validated workstation used tag `2026.2-linux-amd64` with image digest `sha256:d4331089a4d19aafa867c26b343eb2b8486cf112ef1522132761e6327691377e` (Linux/amd64). See the [official image and deployment guidance](https://hub.docker.com/r/intersystems/iris-community) and the [official 2026.2 documentation](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=ACLOUD).
+Use the supported InterSystems Windows installer or an InterSystems-published Community Edition image. The validated container image was `intersystems/iris-community:2026.2-linux-amd64` (Linux/amd64). See the [official image and deployment guidance](https://hub.docker.com/r/intersystems/iris-community) and the [official 2026.2 documentation](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=ACLOUD).
+
+Keep the Management Portal and API on the local machine for this development workflow; do not expose management ports to an untrusted network.
 
 ## Start a local IRIS instance
+
+For a native Windows installation, start the IRIS instance using the installed InterSystems tooling and verify the local Management Portal at `http://127.0.0.1:52773/csp/sys/UtilHome.csp` (adjust the port if the installation uses another one). Complete any required first-login setup in the Portal, then enter the resulting account in OpsDeck. Do not put that password in a command, repository file, or issue.
+
+### Optional: use the Community Edition container
 
 If no container named `opsdeck-iris` exists, run:
 
