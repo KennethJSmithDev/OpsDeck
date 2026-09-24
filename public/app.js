@@ -680,7 +680,7 @@ async function runAuditQuery() {
       return;
     }
     if (response.status !== 202) {
-      state.auditQuery = { state: response.status >= 400 && response.status < 500 ? "unavailable" : "unavailable", message: `Audit query handoff was unavailable (HTTP ${response.status}).` };
+      state.auditQuery = { state: "unavailable", message: `Audit query handoff was unavailable (HTTP ${response.status}).` };
       return;
     }
     state.auditQuery = { state: "accepted", message: "IRIS accepted the query (HTTP 202). Validating the returned Location." };
@@ -688,8 +688,9 @@ async function runAuditQuery() {
     const handle = validateAuditLocation(response.headers.get("Location"), location.href);
     state.auditQuery = { state: "queued", message: "IRIS accepted the query. Reading the exact same-origin async resource from Location.", task: { id: handle.id } };
     render();
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-      const payload = await requestJson(handle.url);
+    const deadline = Date.now() + 30000;
+    for (let attempt = 0; attempt < 40 && Date.now() < deadline; attempt += 1) {
+      const payload = await requestJson(handle.url, { signal: AbortSignal.timeout(Math.min(5000, Math.max(1, deadline - Date.now()))) });
       const mapped = mapAuditAsyncResult(payload, handle.id);
       const taskState = mapped.task.state.toLowerCase();
       if (taskState === "queued" || taskState === "running") {
