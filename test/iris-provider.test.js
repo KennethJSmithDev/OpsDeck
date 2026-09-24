@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, sameWebAppState, READ_ONLY_SOURCES, validateAuditLocation, mapAuditAsyncResult, mapFixedLogResult, AUDIT_QUERY_MAX_ROWS } from "../src/iris-provider.js";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, sameWebAppState, READ_ONLY_SOURCES, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, mapFixedLogResult, AUDIT_QUERY_MAX_ROWS } from "../src/iris-provider.js";
 
 const envelope = (result, errors = []) => ({ status: { errors, summary: "" }, console: [], result });
 
@@ -222,17 +222,54 @@ test("validates the async audit Location and extracts its documented id", () => 
   assert.deepEqual(validateAuditLocation("/api/admin/v2/async-result?id=abc-123", "http://127.0.0.1:52773/opsdeck/index.html"), {
     url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123",
   });
+  assert.deepEqual(validateAuditLocation("http://127.0.0.1:52773/api/admin/v2/async-result?id=abc-123", "http://127.0.0.1:52773/opsdeck/index.html"), {
+    url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123",
+  });
   assert.throws(() => validateAuditLocation(null, "http://127.0.0.1:52773/opsdeck/index.html"), /omitted/);
   assert.throws(() => validateAuditLocation("", "http://127.0.0.1:52773/opsdeck/index.html"), /omitted/);
   assert.throws(() => validateAuditLocation("https://attacker.invalid/api/admin/v2/async-result?id=x", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
   assert.throws(() => validateAuditLocation("/api/admin/v2/async-result/other?id=x", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
   assert.throws(() => validateAuditLocation("/api/admin/v2/async-result?id=x&id=y", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
   assert.throws(() => validateAuditLocation("//attacker.invalid/api/admin/v2/async-result?id=x", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
+  assert.throws(() => validateAuditLocation("http://user:secret@127.0.0.1:52773/api/admin/v2/async-result?id=x", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result?%69d=x", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result?id=a%2Fb", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
+});
+
+test("inspects only sanitized async Location structure and never returns the id value", () => {
+  const shape = inspectAuditLocation("/api/admin/v2/async-result?id=secret-task-id", "http://127.0.0.1:52773/opsdeck/index.html");
+  assert.deepEqual({
+    form: shape.form, scheme: shape.scheme, authorityPresent: shape.authorityPresent,
+    sameOrigin: shape.sameOrigin, hostnameRelationship: shape.hostnameRelationship,
+    schemeRelationship: shape.schemeRelationship, portRelationship: shape.portRelationship,
+    pathname: shape.pathname, queryParameterNames: shape.queryParameterNames,
+    idCount: shape.idCount, idParameterState: shape.idParameterState,
+    fragmentPresent: shape.fragmentPresent, userinfoPresent: shape.userinfoPresent,
+    rejectionReasons: shape.rejectionReasons,
+  }, {
+    form: "relative", scheme: "http", authorityPresent: false,
+    sameOrigin: true, hostnameRelationship: "same", schemeRelationship: "same", portRelationship: "same",
+    pathname: "/api/admin/v2/async-result", queryParameterNames: ["id"], idCount: 1,
+    idParameterState: "single-nonempty", fragmentPresent: false, userinfoPresent: false, rejectionReasons: [],
+  });
+  assert.equal(JSON.stringify(shape).includes("secret-task-id"), false);
+});
+
+test("rejects unsafe async Location identity and origin structures", () => {
+  const base = "http://127.0.0.1:52773/opsdeck/index.html";
+  assert.throws(() => validateAuditLocation("https://attacker.invalid/api/admin/v2/async-result?id=x", base), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result/other?id=x", base), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result", base), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result?id=x&id=y", base), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result?id=x&other=y", base), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/x/../async-result?id=x", base), /unsafe/);
 });
 
 test("maps queued, running, and finished-empty async audit tasks without inventing completion", () => {
   const queued = mapAuditAsyncResult(envelope({ GUID: "g-1", TaskName: "ListAuditRecords", State: "Queued", TimeQueued: "now" }), "g-1");
   assert.equal(queued.task.state, "Queued");
+  assert.equal(queued.task.idVerified, true);
+  assert.equal(JSON.stringify(queued).includes("g-1"), false);
   assert.equal(queued.result, null);
   const running = mapAuditAsyncResult(envelope({ GUID: "g-1", State: "Running", TimeStarted: "now" }), "g-1");
   assert.equal(running.task.state, "Running");
@@ -269,7 +306,7 @@ test("maps failed/canceled async tasks and rejects identity or Result contract d
   assert.equal(JSON.stringify(failed).includes("private detail"), false);
   assert.equal(mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Canceled" }), "g-4").task.state, "Canceled");
   assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "other", State: "Finished", Result: [] }), "g-4"), /identity/);
-  assert.throws(() => mapAuditAsyncResult(envelope({ State: "Finished", Result: {} }), "g-4"), /array/);
+  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Finished", Result: {} }), "g-4"), /array/);
 });
 
 test("enforces fixed log source identities and bounded sanitized output", () => {

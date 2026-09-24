@@ -33,23 +33,92 @@ export const AUDIT_QUERY_MAX_ROWS = 1;
 const ASYNC_RESULT_PATH = "/api/admin/v2/async-result";
 const AUDIT_RECORD_SAFE_FIELDS = Object.freeze(["TimeStamp", "Event", "EventSource", "UserName", "PID", "Namespace"]);
 
-export function validateAuditLocation(locationHeader, pageUrl) {
-  if (typeof locationHeader !== "string" || !locationHeader.trim()) throw new Error("IRIS audit query omitted its async Location.");
+export function inspectAuditLocation(locationHeader, pageUrl) {
+  if (typeof locationHeader !== "string" || !locationHeader.trim()) {
+    return { present: false, parseable: false, rejection: "missing-location" };
+  }
   let base;
   let location;
+  const raw = locationHeader.trim();
   try {
     base = new URL(pageUrl);
-    location = new URL(locationHeader, base);
+    location = new URL(raw, base);
   } catch {
-    throw new Error("IRIS returned an invalid async Location.");
+    return { present: true, parseable: false, rejection: "invalid-url" };
   }
-  if (location.origin !== base.origin || location.pathname !== ASYNC_RESULT_PATH || location.hash ||
-      [...location.searchParams.keys()].some((key) => key !== "id") || location.searchParams.getAll("id").length !== 1) {
+  const absolute = /^[a-z][a-z0-9+.-]*:/iu.test(raw);
+  const schemeRelative = !absolute && raw.startsWith("//");
+  let rawPath = absolute ? raw.replace(/^[a-z][a-z0-9+.-]*:\/\/[^/?#]*/iu, "") :
+    schemeRelative ? raw.replace(/^\/\/[^/?#]*/u, "") : raw;
+  rawPath = rawPath.split(/[?#]/u, 1)[0];
+  const rawQuery = raw.includes("?") ? raw.slice(raw.indexOf("?") + 1).split("#", 1)[0] : "";
+  const rawNames = rawQuery ? rawQuery.split("&").map((part) => part.split("=", 1)[0]) : [];
+  const rawValues = rawQuery ? rawQuery.split("&").map((part) => part.includes("=") ? part.slice(part.indexOf("=") + 1) : "") : [];
+  const queryParameterNames = [...location.searchParams.keys()].slice(0, 16).map((name) => name.slice(0, 64));
+  let queryNameEncodingChanged = rawNames.length !== queryParameterNames.length || rawNames.some((name) => /[%+]/u.test(name));
+  if (!queryNameEncodingChanged) {
+    queryNameEncodingChanged = rawNames.some((name, index) => {
+      try { return decodeURIComponent(name.replace(/\+/gu, " ")) !== queryParameterNames[index]; }
+      catch { return true; }
+    });
+  }
+  const effectivePort = (url) => url.port || (url.protocol === "https:" ? "443" : url.protocol === "http:" ? "80" : "");
+  const idValues = location.searchParams.getAll("id");
+  const idLengthValid = idValues.length === 1 && idValues[0].length <= 256;
+  const shape = {
+    present: true,
+    parseable: true,
+    form: absolute ? "absolute" : schemeRelative ? "scheme-relative" : "relative",
+    scheme: location.protocol.slice(0, -1),
+    authorityPresent: absolute || schemeRelative,
+    sameOrigin: location.origin === base.origin,
+    hostnameRelationship: location.hostname.toLowerCase() === base.hostname.toLowerCase() ? "same" : "different",
+    schemeRelationship: location.protocol === base.protocol ? "same" : "different",
+    portRelationship: effectivePort(location) === effectivePort(base) ? "same" : "different",
+    pathname: location.pathname.slice(0, 512),
+    pathEncodingOrNormalizationChanged: rawPath !== location.pathname,
+    queryParameterNames,
+    idCount: idValues.length,
+    idParameterState: idValues.length === 0 ? "missing" : idValues.length > 1 ? "duplicate" : !idValues[0] ? "empty" : "single-nonempty",
+    idLengthValid,
+    idNonempty: idValues.length === 1 && Boolean(idValues[0]) && !/[\u0000-\u0020\u007f]/u.test(idValues[0]),
+    idValuePercentEncoded: rawNames.length === 1 && rawNames[0] === "id" && /%[0-9a-f]{2}/iu.test(rawValues[0]),
+    fragmentPresent: Boolean(location.hash),
+    userinfoPresent: Boolean(location.username || location.password),
+    malformedPercentEscape: /%(?![0-9a-f]{2})/iu.test(raw),
+    queryNameEncodingChanged,
+  };
+  shape.rejectionReasons = [
+    !shape.sameOrigin && "origin-mismatch",
+    shape.pathname !== ASYNC_RESULT_PATH && "unexpected-path",
+    shape.fragmentPresent && "fragment-present",
+    shape.userinfoPresent && "userinfo-present",
+    shape.malformedPercentEscape && "malformed-percent-escape",
+    shape.pathEncodingOrNormalizationChanged && "path-encoding-or-normalization-changed",
+    shape.queryNameEncodingChanged && "query-name-encoding-changed",
+    shape.idValuePercentEncoded && "id-value-percent-encoded",
+    (shape.queryParameterNames.length !== 1 || shape.queryParameterNames[0] !== "id") && "unexpected-query-identity-structure",
+    shape.idCount === 0 && "missing-id",
+    shape.idCount > 1 && "duplicate-id",
+    shape.idCount === 1 && !shape.idNonempty && "empty-or-invalid-id",
+    shape.idCount === 1 && !shape.idLengthValid && "id-too-long",
+  ].filter(Boolean);
+  return shape;
+}
+
+export function validateAuditLocation(locationHeader, pageUrl) {
+  if (typeof locationHeader !== "string" || !locationHeader.trim()) throw new Error("IRIS audit query omitted its async Location.");
+  const shape = inspectAuditLocation(locationHeader, pageUrl);
+  if (!shape.parseable) throw new Error("IRIS returned an invalid async Location.");
+  if (!shape.sameOrigin || shape.pathname !== ASYNC_RESULT_PATH || shape.fragmentPresent || shape.userinfoPresent ||
+      shape.malformedPercentEscape || shape.pathEncodingOrNormalizationChanged || shape.queryNameEncodingChanged ||
+      shape.idValuePercentEncoded || shape.queryParameterNames.length !== 1 || shape.queryParameterNames[0] !== "id" || shape.idCount !== 1 || !shape.idNonempty || !shape.idLengthValid) {
     throw new Error("IRIS returned an unsafe async Location.");
   }
+  const base = new URL(pageUrl);
+  const location = new URL(locationHeader, base);
   const id = location.searchParams.get("id");
-  if (!id || id.length > 256 || /[\u0000-\u0020\u007f]/u.test(id)) throw new Error("IRIS returned an invalid async task id.");
-  return { url: `${location.pathname}?id=${encodeURIComponent(id)}`, id };
+  return { url: `${location.pathname}${location.search}`, id };
 }
 
 export function mapAuditAsyncResult(payload, taskId) {
@@ -57,9 +126,9 @@ export function mapAuditAsyncResult(payload, taskId) {
   const state = task.State;
   const states = ["Queued", "Running", "Finished", "Failed", "Canceled", "Paused"];
   if (!states.includes(state)) throw new Error("IRIS async-result returned an unknown state.");
-  if (task.GUID !== undefined && String(task.GUID) !== taskId) throw new Error("IRIS async-result identity did not match its Location id.");
+  if (typeof task.GUID !== "string" || task.GUID !== taskId) throw new Error("IRIS async-result identity did not match its Location id.");
   const fields = ["TaskName", "TimeQueued", "TimeStarted", "TimeFinished", "FailureReason"];
-  const safeTask = { id: taskId, state };
+  const safeTask = { idVerified: true, state };
   for (const field of fields) {
     if (Object.hasOwn(task, field) && (task[field] === null || ["string", "number", "boolean"].includes(typeof task[field]))) {
       safeTask[field] = field === "FailureReason" ? (task[field] ? "IRIS reported a task failure." : "") : task[field];
