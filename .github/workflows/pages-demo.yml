@@ -2,7 +2,7 @@ name: Deploy safe demo to GitHub Pages
 
 on:
   push:
-    branches: ["main", "safe-demo-polish"]
+    branches: ["main"]
     paths:
       - "public/**"
       - "src/iris-provider.js"
