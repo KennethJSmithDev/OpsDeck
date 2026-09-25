@@ -1,6 +1,18 @@
 # OpsDeck
 
 <p align="center">
+  <a href="https://kennethjsmithdev.github.io/OpsDeck/"><strong>🚀 LIVE SAFE DEMO</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#current-release"><strong>📦 RELEASE STATUS</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#development"><strong>🛠️ DEVELOPMENT</strong></a>
+</p>
+
+<p align="center">
+  <sub>Interactive sanitized sample data · No IRIS connection or credentials required</sub>
+</p>
+
+<p align="center">
   <img src="assets/OpsDeckLogo.png" alt="OpsDeck — Operations Console for InterSystems IRIS" width="720">
 </p>
 
