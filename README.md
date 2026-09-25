@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <sub>Interactive sanitized sample data · No IRIS connection or credentials required</sub>
+  <sub>Interactive sanitized sample data · No IRIS connection or credentials required · Includes a 90-second evaluator tour and evidence center</sub>
 </p>
 
 <p align="center">
