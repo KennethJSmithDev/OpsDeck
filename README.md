@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <sub>Interactive sanitized sample data · No IRIS connection or credentials required</sub>
+  <sub>Interactive sanitized sample data · No IRIS connection or credentials required · Includes a 90-second evaluator tour and evidence center</sub>
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@ The repository version is **0.1.0**. The project has a proven Node reference wor
 |---|---|---|
 | Node reference runtime | Reproduced against IRIS Community Edition 2026.2 for server identity, web-app discovery, and independent web-app read-back. Fixed read-only provider mappings, safe-field projections, loopback session behavior, and adapter/server/bootstrap tests are in the repository. | This is the reference and development workflow. It is not required by the qualified native browser path. |
 | IRIS-native browser app | `/opsdeck/index.html`, static assets, browser authentication, live identity, web-app list/read-back, and selected Applications, Access, Security, Tasks, System, and Logs reads have been observed on native Windows IRIS 2026.2. Sign-out and recoverable authentication errors are implemented. | M1 is **PARTIAL**. Audit async result handling and named-source Messages/System Monitor logs are not qualified. See [qualification status](docs/QUALIFICATION_STATUS.md). |
-| Safe demo | The Pages demo uses deterministic sanitized data through a separate demo provider. The app can be explored without IRIS or credentials; a Pages deployment workflow is included. | Demo data is illustrative and does not prove live IRIS behavior. |
+| Safe demo | The Pages demo uses deterministic sanitized data through a separate demo provider. The app can be explored without IRIS or credentials; a Pages deployment workflow is included. The evaluator surface includes persona-based access boundaries, a 90-second guided tour, and an Evidence view that distinguishes verified, empty, unavailable, denied, blocked, and unverified states. | Demo data is illustrative and demonstrates UI/evidence semantics only; it does not prove live IRIS behavior. |
 | IPM/ZPM package | No IRIS `module.xml` package manifest or successful package lifecycle evidence is present. | Load/install, uninstall, and clean reinstall remain unverified. |
 | ObjectScript execution / CallIn | The repository contains a static browser client that calls bounded same-origin IRIS REST APIs; it has no ObjectScript execution bridge. | No authenticated native ObjectScript execution or CallIn capability is claimed. |
 
