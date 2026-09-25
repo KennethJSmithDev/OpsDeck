@@ -4,7 +4,24 @@
 
 **Native qualification branch:** `native-iris-pivot`
 
-**Status:** reference workflow reproduced; native browser slice reproduced; M1 and package lifecycle remain partial/unverified.
+**Status:** reference workflow reproduced; native browser slice reproduced; M1 remains partial. The package lifecycle is being qualified separately and is not claimed until the full cycle passes.
+
+### Current native candidate reproduction — 2026-09-25
+
+- Candidate branch and base commit: `native-iris-pivot` at `64141ec7eae0e96f7b94b5d6b1f46d2346866741`.
+- `npm test`: 32 passed, 0 failed. JavaScript syntax checks and `git diff --check` passed on the candidate working tree.
+- `/opsdeck/index.html` loaded from the local IRISTesting instance. On 2026-09-25, the user completed browser sign-in and the app showed authenticated identity `OpsDeckTest`.
+- Applications returned 23 web-app records and the independent authoritative read-back matched. REST services returned 9 records and its second read matched.
+- Access returned 12 user records with matching second read. Security wallet collections returned an empty collection with matching second read. Tasks returned 16 task records with matching second read. System usage returned one live object; its second sample differed, consistent with changing counters and not claimed as a stable read-back. Logs audit status returned one live object and matching second read. No audit search was started.
+- A separate bounded HTTP authentication discriminator returned HTTP 200 from `/api/admin/info`; this is corroborating endpoint evidence, independent of the browser session.
+- R1 browser authentication and the selected surface smoke are **PASS** for this locally installed bundle. This does not qualify package installation or deferred audit async and named-source log readers.
+
+### Explicit v0.1 deferred dispositions
+
+- Audit async result retrieval: **BLOCKED / UNVERIFIED**. IRIS accepted a bounded request, but the returned route failed the existing strict validator and no result GET was made.
+- Native `%SYS.Audit` DB-API path: **UNRESOLVED**. A direct DB-API request did not establish an authenticated identity; no SQL result is claimed.
+- Messages native reader: **UNAVAILABLE / DEFERRED**. No supported fixed-source reader is qualified.
+- System Monitor native reader: **UNAVAILABLE / DEFERRED**. No supported fixed-source reader is qualified.
 
 This record applies EGEHAR's evidence rule: a result admits only the boundary that was observed. Historical local runtime receipts are identified as historical observations; they are not represented as a fresh reproduction at every later checkout.
 
@@ -33,7 +50,7 @@ This record applies EGEHAR's evidence rule: a result admits only the boundary th
 - Any async status response, task state, terminal result shape, bounded record count, or continuation/pagination behavior for the audit query.
 - Authenticated OpsDeck readers for `messages.log` and `SystemMonitor.log`; only their existence and metadata were inspected.
 - The full declared v0.1 Logs baseline and full M1 acceptance.
-- IPM availability/version in the target namespace; package load/install; uninstall/removal; clean reinstall; and a reproducible package-managed native deployment. No `module.xml` or package lifecycle claim is present.
+- A root candidate `module.xml` is present. IPM availability/version in the target namespace; package load/install; uninstall/removal; clean reinstall; and a reproducible package-managed native deployment remain unverified until the actual lifecycle is reproduced.
 - Server-side ObjectScript execution through OpsDeck. No ObjectScript bridge exists in this repository. CallIn availability or enablement in the IRIS runtime was not qualified, and OpsDeck makes no CallIn claim.
 - A current fresh authenticated native browser run from this checkout. Historical browser evidence remains scoped to the bundle/runtime identity recorded at the time.
 
@@ -51,7 +68,11 @@ This record applies EGEHAR's evidence rule: a result admits only the boundary th
 
 ### Named-source logs and packaging
 
-The local files were observed by metadata only. No source implementation was found in the OpsDeck tree, and no fixed-source bridge was deployed. Continue only after identifying a supported IRIS-owned reader and an exact bounded API; do not expose arbitrary paths. Package qualification separately requires a real installed IPM namespace and a clean load/install/uninstall/reinstall lifecycle. A manifest or unit test alone cannot admit that claim.
+The local files were observed by metadata only. No source implementation was found in the OpsDeck tree, and no fixed-source bridge was deployed. Continue only after identifying a supported IRIS-owned reader and an exact bounded API; do not expose arbitrary paths.
+
+The root `module.xml` is a static candidate only. It copies the four package-owned browser files individually, avoiding the unrelated `proof/` content in the local CSP directory, and declares the Password-authenticated `/opsdeck` application. XML parsing, application tests, syntax checks, and whitespace checks pass. No IPM command was executed: the local authenticated Terminal runner was rejected by the active automation execution policy before reaching IRIS, so even `%IPM.Main` availability/version in `%SYS` remains unknown. There was no load, install, uninstall, application deletion, or runtime/security change.
+
+**Earliest package boundary not reached:** authenticated local package-manager inspection in `%SYS` using the separate package-install identity. Continue only when that supported local Terminal action can run; then use the actual installed IPM path without changing runtime privileges or Locked Down. A manifest or unit test alone cannot admit package lifecycle claims.
 
 ### ObjectScript / CallIn
 
@@ -69,9 +90,10 @@ The unaffected items above remain scoped to their own evidence. They do not impl
 ## Preservation and test record
 
 - Product source SHA qualified by the latest local suite: `daa07d1ec22a888522b7dad03d76dfff3ccd2db2`; the suite ran on merged tree `361930c`.
+- Current candidate base `64141ec7eae0e96f7b94b5d6b1f46d2346866741`: on 2026-09-25, browser authentication as `OpsDeckTest`, Applications (23 records, matched read-back), Access (12 records, matched read-back), Security (empty wallet collection, matched read-back), Tasks (16 records, matched read-back), System usage (one live object; second counter sample differed), and Logs audit status (one object, matched read-back) were observed. No audit search was started. `npm test` passed 32/32 on the candidate working tree with the current corrections; syntax checks, `git diff --check`, and `module.xml` XML parsing passed. This does not qualify the IPM lifecycle.
 - Latest sanitized audit follow-up receipt: 2026-09-24. It records `npm test` 32/32, both JavaScript syntax checks, and `git diff --check` as passing at that commit.
 - Local verification on 2026-09-25 at tree `361930c`: `npm test` (32 pass, 0 fail); `node --check public/app.js`; `node --check src/iris-provider.js`; `node --check src/server.mjs`; `node --check demo/demo-provider.js`; `git diff --check` (all passed). No live audit follow-up, package operation, CallIn test, or provider expansion was run.
 
 ## Next boundary
 
-Stop at the route-equivalence question. Resume native audit qualification only with authoritative evidence or an approved bounded test that can discriminate the v1/v2 route relationship. Keep the async response strict, and keep package, fixed-log, and ObjectScript/CallIn claims separate from already reproduced native browser capability.
+Continue package lifecycle qualification independently from the audit route-equivalence question. Keep the async response strict, and keep package, fixed-log, and ObjectScript/CallIn claims separate from already reproduced native browser capability.

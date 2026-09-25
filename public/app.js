@@ -372,7 +372,7 @@ function providerDomainView(route) {
     security: "Credential and OAuth configuration metadata. Secret material is never rendered.",
     tasks: "Scheduled task definitions from the live IRIS management API.",
     system: "Live system usage, processes, databases, and device inventory.",
-    logs: "Audit configuration, task history, journal inventory, and bounded audit search.",
+    logs: "Audit configuration, task history, and journal inventory. Audit record retrieval is not qualified.",
   };
   const sourceId = state.sourceTabs[route] || domainSources[route]?.[0];
   const logTools = route === "logs" ? auditQueryPanel() : "";
@@ -381,13 +381,7 @@ function providerDomainView(route) {
 }
 
 function auditQueryPanel() {
-  const query = state.auditQuery;
-  const locationShape = query?.locationShape ? `<div class="audit-location-shape"><div class="panel-kicker">LOCATION STRUCTURE · NO ID VALUE RETAINED</div><dl class="detail-grid">${Object.entries(query.locationShape).map(([key, value]) => `<dt>${esc(key)}</dt><dd>${esc(Array.isArray(value) ? value.join(", ") || "none" : value)}</dd>`).join("")}</dl></div>` : "";
-  const records = query?.result?.length
-    ? `<div class="audit-records"><div class="panel-kicker">SAFE RECORD FIELDS · ${query.resultCount} OF AT MOST ${AUDIT_QUERY_MAX_ROWS}</div>${query.result.map((record, index) => `<div class="audit-record"><strong>Record ${index + 1}</strong><dl class="detail-grid">${Object.entries(record).map(([key, value]) => `<dt>${esc(key)}</dt><dd>${cellValue(value)}</dd>`).join("") || "<dt>Fields</dt><dd>No approved display fields returned.</dd>"}</dl></div>`).join("")}</div>`
-    : query?.state === "finished" ? `<p class="source-message">Finished empty. The bounded Result array contained no audit records.</p>` : "";
-  const progress = query ? `<div class="audit-progress" role="status"><div class="panel-kicker">AUDIT QUERY · ${esc(query.state.toUpperCase())}</div><p>${esc(query.message)}</p>${query.stage ? `<p class="app-sub">Stage: ${esc(query.stage)}${query.httpStatus ? ` · HTTP ${query.httpStatus}` : ""}</p>` : ""}${query.task ? `<dl class="detail-grid"><dt>Task</dt><dd>${esc(query.task.TaskName || "Async audit query")}</dd><dt>Identity check</dt><dd>${query.task.idVerified ? "GUID matches Location id; id value not retained" : "Not verified"}</dd><dt>State</dt><dd>${esc(query.task.state || query.state)}</dd>${query.task.TimeQueued ? `<dt>Queued</dt><dd>${esc(query.task.TimeQueued)}</dd>` : ""}${query.task.TimeStarted ? `<dt>Started</dt><dd>${esc(query.task.TimeStarted)}</dd>` : ""}${query.task.TimeFinished ? `<dt>Finished</dt><dd>${esc(query.task.TimeFinished)}</dd>` : ""}</dl>` : ""}${locationShape}${query.failure ? `<p class="source-message source-error">${esc(query.failure)}</p>` : ""}${query.result ? `<p class="source-message">Result: ${query.resultCount === 0 ? "finished empty" : `${query.resultCount} bounded record(s)`}${query.truncatedToMaxRows ? " · provider returned rows beyond maxRows; display was capped" : ""}</p><p class="app-sub">${esc(query.classification || "Continuation fields observed: " + query.continuationFields.join(", "))}</p>` : ""}${records}</div>` : `<p class="source-message">Run one filtered audit query for the current account. It uses maxRows=1 and retains only approved display fields.</p>`;
-  return `<section class="panel provider-panel audit-query-panel"><div class="panel-head"><div><div class="panel-kicker">BOUNDED ASYNC SEARCH</div><h2>Audit records</h2></div><button class="button secondary" data-run-audit-query ${state.auditQueryBusy ? "disabled" : ""}>${state.auditQueryBusy ? "Checking async task…" : "Run maxRows=1 query"}</button></div>${progress}</section>`;
+  return `<section class="panel provider-panel audit-query-panel"><div class="panel-head"><div><div class="panel-kicker">BLOCKED / UNVERIFIED</div><h2>Audit records</h2></div></div><p class="source-message">Audit search can be accepted by IRIS, but asynchronous result retrieval is not qualified. OpsDeck does not display audit records or claim a completed read.</p></section>`;
 }
 
 function gatedView() {
