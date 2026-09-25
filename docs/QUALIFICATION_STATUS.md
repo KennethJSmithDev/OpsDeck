@@ -4,7 +4,7 @@
 
 **Native qualification branch:** `native-iris-pivot`
 
-**Status:** reference workflow reproduced; native browser slice reproduced; M1 remains partial. The package lifecycle is being qualified separately and is not claimed until the full cycle passes.
+**Status:** reference workflow reproduced; native browser slice reproduced; M1 remains partial. The package lifecycle remains unqualified until the full cycle passes.
 
 ### Current native candidate reproduction — 2026-09-25
 
@@ -14,7 +14,7 @@
 - Applications returned 23 web-app records and the independent authoritative read-back matched. REST services returned 9 records and its second read matched.
 - Access returned 12 user records with matching second read. Security wallet collections returned an empty collection with matching second read. Tasks returned 16 task records with matching second read. System usage returned one live object; its second sample differed, consistent with changing counters and not claimed as a stable read-back. Logs audit status returned one live object and matching second read. No audit search was started.
 - A separate bounded HTTP authentication discriminator returned HTTP 200 from `/api/admin/info`; this is corroborating endpoint evidence, independent of the browser session.
-- R1 browser authentication and the selected surface smoke are **PASS** for this locally installed bundle. This does not qualify package installation or deferred audit async and named-source log readers.
+- R1 browser authentication and the selected surface smoke are **PASS** for the existing locally installed native bundle. The live CSP files were not compared byte-for-byte with this checkout, and the locally changed audit status panel was not deployed to IRIS; source-to-runtime parity is therefore unverified. This does not qualify package installation or deferred audit async and named-source log readers.
 
 ### Explicit v0.1 deferred dispositions
 
@@ -52,7 +52,7 @@ This record applies EGEHAR's evidence rule: a result admits only the boundary th
 - The full declared v0.1 Logs baseline and full M1 acceptance.
 - A root candidate `module.xml` is present. IPM availability/version in the target namespace; package load/install; uninstall/removal; clean reinstall; and a reproducible package-managed native deployment remain unverified until the actual lifecycle is reproduced.
 - Server-side ObjectScript execution through OpsDeck. No ObjectScript bridge exists in this repository. CallIn availability or enablement in the IRIS runtime was not qualified, and OpsDeck makes no CallIn claim.
-- A current fresh authenticated native browser run from this checkout. Historical browser evidence remains scoped to the bundle/runtime identity recorded at the time.
+- Whether the live CSP files match the current checkout byte-for-byte. The fresh browser run authenticated against the existing local native bundle; local checkout changes were not package-deployed.
 
 ## Blocked boundary and attempts
 
