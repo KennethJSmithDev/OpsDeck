@@ -14,7 +14,8 @@
 - Applications returned 23 web-app records and the independent authoritative read-back matched. REST services returned 9 records and its second read matched.
 - Access returned 12 user records with matching second read. Security wallet collections returned an empty collection with matching second read. Tasks returned 16 task records with matching second read. System usage returned one live object; its second sample differed, consistent with changing counters and not claimed as a stable read-back. Logs audit status returned one live object and matching second read. No audit search was started.
 - A separate bounded HTTP authentication discriminator returned HTTP 200 from `/api/admin/info`; this is corroborating endpoint evidence, independent of the browser session.
-- R1 browser authentication and the selected surface smoke are **PASS** for the existing locally installed native bundle. The live CSP files were not compared byte-for-byte with this checkout, and the locally changed audit status panel was not deployed to IRIS; source-to-runtime parity is therefore unverified. This does not qualify package installation or deferred audit async and named-source log readers.
+- R1 browser authentication and the selected surface smoke are **PASS** for the existing locally installed native bundle. The local checkout corrections were not deployed to IRIS; see the source-to-runtime comparison below. This does not qualify package installation or deferred audit async and named-source log readers.
+- A read-only SHA-256 comparison found `public/index.html` and `src/iris-provider.js` match the live CSP copies; `public/app.js` and `public/styles.css` differ. This confirms the current runtime is not byte-for-byte identical to the candidate checkout.
 
 ### Explicit v0.1 deferred dispositions
 
@@ -52,7 +53,7 @@ This record applies EGEHAR's evidence rule: a result admits only the boundary th
 - The full declared v0.1 Logs baseline and full M1 acceptance.
 - A root candidate `module.xml` is present. IPM availability/version in the target namespace; package load/install; uninstall/removal; clean reinstall; and a reproducible package-managed native deployment remain unverified until the actual lifecycle is reproduced.
 - Server-side ObjectScript execution through OpsDeck. No ObjectScript bridge exists in this repository. CallIn availability or enablement in the IRIS runtime was not qualified, and OpsDeck makes no CallIn claim.
-- Whether the live CSP files match the current checkout byte-for-byte. The fresh browser run authenticated against the existing local native bundle; local checkout changes were not package-deployed.
+- The reason `app.js` and `styles.css` differ from their live CSP copies. The fresh browser run authenticated against the existing local native bundle; local checkout changes were not package-deployed.
 
 ## Blocked boundary and attempts
 
@@ -70,7 +71,7 @@ This record applies EGEHAR's evidence rule: a result admits only the boundary th
 
 The local files were observed by metadata only. No source implementation was found in the OpsDeck tree, and no fixed-source bridge was deployed. Continue only after identifying a supported IRIS-owned reader and an exact bounded API; do not expose arbitrary paths.
 
-The root `module.xml` is a static candidate only. It copies the four package-owned browser files individually, avoiding the unrelated `proof/` content in the local CSP directory, and declares the Password-authenticated `/opsdeck` application. XML parsing, application tests, syntax checks, and whitespace checks pass. No IPM command was executed: the local authenticated Terminal runner was rejected by the active automation execution policy before reaching IRIS, so even `%IPM.Main` availability/version in `%SYS` remains unknown. There was no load, install, uninstall, application deletion, or runtime/security change.
+The root `module.xml` is a static candidate only. It copies the four package-owned browser files individually, avoiding the unrelated `proof/` content in the local CSP directory, and declares the Password-authenticated `/opsdeck` application. XML parsing, application tests, syntax checks, and whitespace checks pass. No IPM command was executed: the local authenticated Terminal runner was rejected by the active automation execution policy before reaching IRIS, so even `%IPM.Main` availability/version in `%SYS` remains unknown. The installed `iris.exe` CLI documents instance/routine execution but no direct ObjectScript expression mode; no existing local routine that invokes IPM was identified. The existing OpsDeck REST surface is read-only and `/api/atelier` is disabled. There was no load, install, uninstall, application deletion, or runtime/security change.
 
 **Earliest package boundary not reached:** authenticated local package-manager inspection in `%SYS` using the separate package-install identity. Continue only when that supported local Terminal action can run; then use the actual installed IPM path without changing runtime privileges or Locked Down. A manifest or unit test alone cannot admit package lifecycle claims.
 
