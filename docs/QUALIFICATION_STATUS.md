@@ -1,7 +1,9 @@
 # OpsDeck qualification status
 
-**Repository version:** `0.1.0`  
-**Native qualification branch:** `native-iris-pivot`  
+**Repository version:** `0.1.0`
+
+**Native qualification branch:** `native-iris-pivot`
+
 **Status:** reference workflow reproduced; native browser slice reproduced; M1 and package lifecycle remain partial/unverified.
 
 This record applies EGEHAR's evidence rule: a result admits only the boundary that was observed. Historical local runtime receipts are identified as historical observations; they are not represented as a fresh reproduction at every later checkout.
