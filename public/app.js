@@ -135,6 +135,57 @@ function connectView() {
 }
 
 
+
+function demoPersonaProfile() {
+  if (state.info?.systemMode !== "DEMO") return null;
+  const profiles = {
+    DemoOperator: {
+      label: "Operations",
+      mission: "Inspect runtime health, scheduled work, applications, and operational logs without security-administration access.",
+      allowed: ["Applications", "Tasks", "System", "Logs"],
+      withheld: ["Access", "Security"],
+    },
+    DemoSecurity: {
+      label: "Security Administrator",
+      mission: "Inspect identities, roles, resources, credential metadata, applications, and security-relevant logs.",
+      allowed: ["Applications", "Access", "Security", "Logs"],
+      withheld: ["Tasks", "System"],
+    },
+    DemoAppAdmin: {
+      label: "Application Administrator",
+      mission: "Inspect application registration and REST relationships while unrelated administrative domains remain outside the persona.",
+      allowed: ["Applications"],
+      withheld: ["Access", "Security", "Tasks", "System", "Logs"],
+    },
+    DemoRestricted: {
+      label: "Restricted User",
+      mission: "Demonstrate that insufficient authority is visible as an access boundary rather than being misreported as empty operational state.",
+      allowed: ["Overview"],
+      withheld: ["Applications", "Access", "Security", "Tasks", "System", "Logs"],
+    },
+  };
+  return profiles[state.info.username] || null;
+}
+
+function demoPersonaCard() {
+  const profile = demoPersonaProfile();
+  if (!profile) return "";
+  const chips = (items, tone) => items.map((item) => badge(item, tone)).join("");
+  return `
+    <section class="panel persona-story" aria-labelledby="persona-story-title">
+      <div class="persona-story-main">
+        <div class="panel-kicker">CURRENT DEMO PERSONA</div>
+        <h2 id="persona-story-title">${esc(profile.label)}</h2>
+        <p>${esc(profile.mission)}</p>
+      </div>
+      <div class="persona-scope">
+        <div><strong>In scope</strong><span class="persona-chips">${chips(profile.allowed, "success")}</span></div>
+        <div><strong>Withheld by persona</strong><span class="persona-chips">${chips(profile.withheld, "muted")}</span></div>
+      </div>
+      <p class="persona-hint">Use the <strong>DEMO ACCESS</strong> selector above to switch identities. The dataset stays deterministic; only authority changes.</p>
+    </section>`;
+}
+
 function safeDemoTour() {
   if (state.info?.systemMode !== "DEMO") return "";
   return `
@@ -182,11 +233,13 @@ function overviewView() {
     </section>
     ${state.error ? `<div class="notice error" role="alert">${esc(state.error)}</div>` : ""}
     ${safeDemoTour()}
-    <section class="panel roadmap-panel"><div class="panel-head"><div><div class="panel-kicker">PRODUCT COVERAGE</div><h2>Operations workspace</h2></div>${badge(demoMode ? "Evaluator-safe surface" : "M0 reproduced · M1 in progress", demoMode ? "accent" : "warning")}</div><div class="roadmap-grid">${navItems.slice(2).map(([, title], i) => `<div class="roadmap-item"><span class="roadmap-index">${String(i + 2).padStart(2, "0")}</span><strong>${title}</strong><span>${["Users, roles and resources", "Credential metadata", "Task inventory", "System and process views", "Audit and journal sources", "Qualification and evidence receipts"][i]}</span></div>`).join("")}</div><p class="roadmap-note">Live values come from fixed read-only providers. OpsDeck does not substitute fixtures for IRIS data.</p></section>`);
+    ${demoPersonaCard()}
+    <section class="panel roadmap-panel"><div class="panel-head"><div><div class="panel-kicker">PRODUCT COVERAGE</div><h2>Operations workspace</h2></div>${badge(demoMode ? "Evaluator-safe surface" : "M0 reproduced · M1 in progress", demoMode ? "accent" : "warning")}</div><div class="roadmap-grid">${navItems.slice(2).map(([, title], i) => `<div class="roadmap-item"><span class="roadmap-index">${String(i + 2).padStart(2, "0")}</span><strong>${title}</strong><span>${["Users, roles and resources", "Credential metadata", "Task inventory", "System and process views", "Audit and journal sources", "Qualification and evidence receipts"][i]}</span></div>`).join("")}</div><p class="roadmap-note">${demoMode ? "Evaluator mode uses a deterministic demo provider. Live OpsDeck uses fixed read-only providers and never substitutes demo records for failed IRIS reads." : "Live values come from fixed read-only providers. OpsDeck does not substitute fixtures for IRIS data."}</p></section>`);
 }
 
 function pageHeader(title, description) {
-  return `<div class="page-header"><div><div class="eyebrow"><span class="eyebrow-rule"></span>OPSDECK WORKSPACE</div><h1>${title}</h1><p>${description}</p></div><div class="page-header-meta">${badge("IRIS 2026.2", "accent")}</div></div>`;
+  const demoMode = state.info?.systemMode === "DEMO";
+  return `<div class="page-header"><div><div class="eyebrow"><span class="eyebrow-rule"></span>OPSDECK WORKSPACE</div><h1>${title}</h1><p>${description}</p></div><div class="page-header-meta">${demoMode ? badge("Evaluator mode", "warning") : badge("IRIS 2026.2", "accent")}</div></div>`;
 }
 
 function applicationsView() {
@@ -259,7 +312,10 @@ function sourcePanel(sourceId) {
   const data = state.sourceData[sourceId];
   const error = state.sourceErrors[sourceId];
   if (state.sourceLoading === sourceId) return `<div class="source-message">Loading the selected live source…</div>`;
-  if (error) return `<div class="source-message source-error" role="alert"><strong>Source unavailable</strong><p>${esc(error)}</p><code>GET ${esc(source.path)}</code><button class="button quiet" data-refresh-source="${sourceId}">Retry source</button></div>`;
+  if (error) {
+    const denied = /does not have authority|HTTP 403|denied/i.test(error);
+    return `<div class="source-message source-error ${denied ? "source-denied" : ""}" role="alert"><strong>${denied ? "Access denied by persona" : "Source unavailable"}</strong><p>${esc(error)}</p><code>GET ${esc(source.path)}</code><button class="button quiet" data-refresh-source="${sourceId}">Retry source</button></div>`;
+  }
   if (!data) return `<div class="source-message">Select a source to load authoritative IRIS data.</div>`;
   const items = data.items;
   const selectedKey = state.selectedItems[sourceId] || items[0]?.ref.key;
