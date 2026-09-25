@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+  <Document name="opsdeck.ZPM">
+    <Module>
+      <Name>opsdeck</Name>
+      <Version>0.1.0</Version>
+      <Description>OpsDeck read-only operations console for InterSystems IRIS</Description>
+      <Packaging>module</Packaging>
+
+      <FileCopy Name="public/app.js" Target="{$cspdir}opsdeck/app.js" />
+      <FileCopy Name="public/index.html" Target="{$cspdir}opsdeck/index.html" />
+      <FileCopy Name="public/styles.css" Target="{$cspdir}opsdeck/styles.css" />
+      <FileCopy Name="src/iris-provider.js" Target="{$cspdir}opsdeck/iris-provider.js" />
+
+      <WebApplication
+        Name="/opsdeck"
+        NameSpace="%SYS"
+        Path="{$cspdir}opsdeck/"
+        Recurse="1"
+        ServeFiles="1"
+        AutheEnabled="32"
+      />
+    </Module>
+  </Document>
+</Export>
