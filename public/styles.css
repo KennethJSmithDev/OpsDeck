@@ -232,3 +232,18 @@ td { color:var(--muted); font-size:10px; }
   .judge-tour-steps,.evidence-grid,.state-legend-grid { grid-template-columns:1fr; }
   .evidence-demo-notice { align-items:flex-start; flex-direction:column; }
 }
+
+
+/* Evaluator persona storytelling */
+.persona-story { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr); gap:18px; margin:14px 0; padding:18px 20px; }
+.persona-story-main h2 { margin:5px 0 8px; font-size:18px; letter-spacing:-.03em; }
+.persona-story-main p { max-width:720px; margin:0; color:var(--muted); font-size:10px; line-height:1.65; }
+.persona-scope { display:grid; gap:11px; align-content:start; }
+.persona-scope > div { display:grid; gap:7px; }
+.persona-scope strong { color:var(--subtle); font-family:"DM Mono",monospace; font-size:9px; font-weight:500; letter-spacing:.04em; text-transform:uppercase; }
+.persona-chips { display:flex; flex-wrap:wrap; gap:5px; }
+.persona-hint { grid-column:1/-1; margin:0; padding-top:12px; border-top:1px solid var(--border); color:var(--subtle); font-size:9px; }
+.persona-hint strong { color:var(--warning); font-family:"DM Mono",monospace; font-size:9px; }
+.source-denied { border-style:dashed; }
+.source-denied strong { color:var(--warning); }
+@media (max-width:820px) { .persona-story { grid-template-columns:1fr; } }
