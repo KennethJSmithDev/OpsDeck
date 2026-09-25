@@ -148,6 +148,25 @@ function connectView() {
     <section class="gate-strip"><div><span class="gate-kicker">M0 PASSED</span><strong>Live API identity + applications</strong></div><div>${badge("M1 read-only", "accent")}</div><p>Connected sessions can browse verified M1 providers. Mutation workflows remain gated until fixture and read-back qualification.</p></section>`);
 }
 
+
+function safeDemoTour() {
+  if (state.info?.systemMode !== "DEMO") return "";
+  return `
+    <section class="panel judge-tour" aria-labelledby="judge-tour-title">
+      <div class="panel-head">
+        <div><div class="panel-kicker">EVALUATOR SHORTCUT</div><h2 id="judge-tour-title">90-second judge tour</h2></div>
+        ${badge("Safe demo", "warning")}
+      </div>
+      <p class="judge-tour-copy">This demo uses deterministic sanitized sample data, but exercises the same UI, mapping, access-boundary, and evidence semantics as OpsDeck. It does not claim a live IRIS connection.</p>
+      <div class="judge-tour-steps">
+        <button class="tour-step" data-route="applications"><span>01</span><strong>Applications</strong><small>Inspect application identity and read-back semantics.</small></button>
+        <button class="tour-step" data-route="access"><span>02</span><strong>Access</strong><small>Follow user, role, resource, and ownership relationships.</small></button>
+        <button class="tour-step" data-route="security"><span>03</span><strong>Boundaries</strong><small>See valid empty and deliberately unavailable sources stay distinct.</small></button>
+        <button class="tour-step" data-route="evidence"><span>04</span><strong>Evidence</strong><small>See what is verified, unavailable, blocked, or still unqualified.</small></button>
+      </div>
+    </section>`;
+}
+
 function overviewView() {
   const info = state.info;
   if (!info) {
@@ -178,7 +197,8 @@ function overviewView() {
       </article>
     </section>
     ${state.error ? `<div class="notice error" role="alert">${esc(state.error)}</div>` : ""}
-    <section class="panel roadmap-panel"><div class="panel-head"><div><div class="panel-kicker">PRODUCT COVERAGE</div><h2>Operations workspace</h2></div>${badge("M0 reproduced · M1 in progress", "warning")}</div><div class="roadmap-grid">${navItems.slice(2).map(([, title], i) => `<div class="roadmap-item"><span class="roadmap-index">${String(i + 2).padStart(2, "0")}</span><strong>${title}</strong><span>${["Users, roles and resources", "Credential metadata", "Task inventory", "System and process views", "Audit and journal sources", "Deferred until completeness"][i]}</span></div>`).join("")}</div><p class="roadmap-note">Live values come from fixed read-only providers. OpsDeck does not substitute fixtures for IRIS data.</p></section>`);
+    ${safeDemoTour()}
+    <section class="panel roadmap-panel"><div class="panel-head"><div><div class="panel-kicker">PRODUCT COVERAGE</div><h2>Operations workspace</h2></div>${badge("M0 reproduced · M1 in progress", "warning")}</div><div class="roadmap-grid">${navItems.slice(2).map(([, title], i) => `<div class="roadmap-item"><span class="roadmap-index">${String(i + 2).padStart(2, "0")}</span><strong>${title}</strong><span>${["Users, roles and resources", "Credential metadata", "Task inventory", "System and process views", "Audit and journal sources", "Qualification and evidence receipts"][i]}</span></div>`).join("")}</div><p class="roadmap-note">Live values come from fixed read-only providers. OpsDeck does not substitute fixtures for IRIS data.</p></section>`);
 }
 
 function pageHeader(title, description) {
@@ -390,9 +410,86 @@ function auditQueryPanel() {
   return `<section class="panel provider-panel audit-query-panel"><div class="panel-head"><div><div class="panel-kicker">BOUNDED ASYNC SEARCH</div><h2>Audit records</h2></div><button class="button secondary" data-run-audit-query ${state.auditQueryBusy ? "disabled" : ""}>${state.auditQueryBusy ? "Checking async task…" : "Run maxRows=1 query"}</button></div>${progress}</section>`;
 }
 
-function gatedView() {
-  const title = navItems.find(([route]) => route === state.route)?.[1] || "Workspace";
-  return shell(`${pageHeader(title, "Local evidence is being added after contest feature completeness.")}<section class="panel gated-panel"><div class="gated-mark">M3</div><h2>Evidence Center is deferred</h2><p>Evidence views will be built after the M1 and M2 acceptance paths are complete and reproducible.</p><button class="button secondary" data-route="overview">Return to overview</button></section>`);
+function evidenceView() {
+  const isDemo = state.info?.systemMode === "DEMO";
+  const readback = state.verification
+    ? (state.verification.matched
+      ? { label: "VERIFIED", tone: "success", detail: `${state.verification.count} web-app identities matched on an independent second read.` }
+      : { label: "MISMATCH", tone: "error", detail: "The second web-app read differed from the displayed state." })
+    : { label: "PENDING", tone: "muted", detail: "No current read-back comparison is available in this session." };
+
+  const cards = [
+    {
+      title: "Web application read-back",
+      state: readback.label,
+      tone: readback.tone,
+      detail: readback.detail,
+      note: isDemo ? "Demo semantics only · live IRIS verification is separately qualified." : "Current session evidence."
+    },
+    {
+      title: "Provider state semantics",
+      state: "PRESERVED",
+      tone: "success",
+      detail: "Valid empty collections, unavailable providers, denied access, and mapping failures remain distinct states.",
+      note: "No fixture fallback is substituted for a failed live provider."
+    },
+    {
+      title: "Audit async handoff",
+      state: "BLOCKED",
+      tone: "warning",
+      detail: "The bounded native query reached HTTP 202, then stopped when IRIS returned a same-origin v1 async-result path while the strict client contract permits v2.",
+      note: "No status GET was guessed, substituted, or followed after that mismatch."
+    },
+    {
+      title: "IPM / ZPM lifecycle",
+      state: "UNVERIFIED",
+      tone: "muted",
+      detail: "No package load, install, uninstall, or clean-reinstall claim is admitted yet.",
+      note: "Packaging remains separate from already reproduced browser capability."
+    }
+  ];
+
+  const cardHtml = cards.map((item) => `
+    <article class="evidence-card">
+      <div class="evidence-card-head"><strong>${esc(item.title)}</strong>${badge(item.state, item.tone)}</div>
+      <p>${esc(item.detail)}</p>
+      <small>${esc(item.note)}</small>
+    </article>`).join("");
+
+  return shell(`
+    ${pageHeader("Evidence", "What OpsDeck can prove, what it cannot, and where qualification deliberately stops.")}
+    ${isDemo ? `<div class="evidence-demo-notice"><strong>SAFE DEMO</strong><span>Sanitized deterministic data. This page demonstrates evidence semantics, not a live IRIS claim.</span></div>` : ""}
+    <section class="panel evidence-flow-panel">
+      <div class="panel-head"><div><div class="panel-kicker">EVIDENCE-GATED OPERATION</div><h2>Observed state stays tied to authority</h2></div>${badge("No shadow state", "accent")}</div>
+      <div class="evidence-flow" aria-label="OpsDeck evidence flow">
+        <div><span>01</span><strong>Request</strong><small>Known operation</small></div>
+        <b>→</b>
+        <div><span>02</span><strong>Bounded provider</strong><small>Allowlisted route</small></div>
+        <b>→</b>
+        <div><span>03</span><strong>IRIS authority</strong><small>Source of truth</small></div>
+        <b>→</b>
+        <div><span>04</span><strong>Rendered state</strong><small>Safe projection</small></div>
+        <b>→</b>
+        <div><span>05</span><strong>Read-back</strong><small>Where qualified</small></div>
+      </div>
+    </section>
+    <section class="evidence-grid">${cardHtml}</section>
+    <section class="panel evidence-legend">
+      <div class="panel-head"><div><div class="panel-kicker">STATE SEMANTICS</div><h2>Absence is not failure, and failure is not absence</h2></div></div>
+      <div class="state-legend-grid">
+        <div>${badge("VERIFIED", "success")}<p>Independent evidence agrees with the displayed state.</p></div>
+        <div>${badge("EMPTY", "accent")}<p>The authoritative provider returned a valid empty collection.</p></div>
+        <div>${badge("UNAVAILABLE", "warning")}<p>The source could not provide a usable result. OpsDeck does not invent one.</p></div>
+        <div>${badge("DENIED", "error")}<p>The current identity lacks authority for the source.</p></div>
+        <div>${badge("UNVERIFIED", "muted")}<p>The behavior has not crossed its required qualification boundary.</p></div>
+      </div>
+      <div class="evidence-actions">
+        <button class="button secondary" data-route="applications">Inspect applications</button>
+        <button class="button secondary" data-route="access">Inspect access relationships</button>
+        <button class="button secondary" data-route="security">Inspect provider boundaries</button>
+      </div>
+    </section>
+  `);
 }
 
 function render() {
@@ -400,7 +497,7 @@ function render() {
   if (!state.connected) app.innerHTML = connectView();
   else if (state.route === "applications") app.innerHTML = applicationsView();
   else if (state.route === "overview") app.innerHTML = overviewView();
-  else if (state.route === "evidence") app.innerHTML = gatedView();
+  else if (state.route === "evidence") app.innerHTML = evidenceView();
   else app.innerHTML = providerDomainView(state.route);
   app.querySelector("#theme-select")?.addEventListener("change", (event) => setTheme(event.target.value));
   app.querySelectorAll("[data-route]").forEach((button) => button.addEventListener("click", () => {
