@@ -6,6 +6,8 @@
   <a href="#current-release"><strong>📦 RELEASE STATUS</strong></a>
   &nbsp;·&nbsp;
   <a href="#development"><strong>🛠️ DEVELOPMENT</strong></a>
+  &nbsp;·&nbsp;
+  <a href="docs/EVALUATOR_GUIDE.md"><strong>🧭 EVALUATOR GUIDE</strong></a>
 </p>
 
 <p align="center">
@@ -37,6 +39,8 @@ The public repository contains the qualified Node-based reference runtime while 
 - **Logs** — audit status/event definitions, task history, and journal-file metadata where available.
 
 Provider errors and unavailable sources are shown separately from valid empty collections. OpsDeck does not substitute fixture data for live IRIS state.
+
+For a conservative boundary-by-boundary record, see [Qualification Status](docs/QUALIFICATION_STATUS.md). For the credential-free review path, see the [Evaluator Guide](docs/EVALUATOR_GUIDE.md).
 
 ## Design
 
@@ -179,13 +183,16 @@ The Node server is the preserved reference/development runtime. The release targ
 - Explicit output allowlists and secret-shaped field rejection in provider mapping.
 - Automated adapter/server/bootstrap tests.
 
-### In qualification for v0.1.0
+### Native milestone and remaining v0.1.0 qualification
 
-- IRIS-native `/opsdeck` hosting.
-- Native authentication/session behavior.
-- Native parity across the accepted management domains.
-- Reproducible native installation.
-- IPM/ZPM packaging.
+Historical local qualification has reproduced IRIS-native `/opsdeck/index.html` hosting, browser authentication, identity/read-back, and selected management-domain reads. Those scoped observations are preserved separately from public-main evaluator work.
+
+Still requiring final qualification:
+
+- fresh native reproduction from the release candidate;
+- remaining provider/log dispositions;
+- reproducible native installation;
+- IPM/ZPM load/install/uninstall/clean-reinstall lifecycle.
 
 This section is intentionally conservative: unfinished work is not presented as released functionality.
 
