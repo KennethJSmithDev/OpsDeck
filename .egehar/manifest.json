@@ -1,0 +1,29 @@
+{
+  "format_version": "0.1.0",
+  "project_id": "OpsDeck-P001",
+  "contract_source": {
+    "repository": "KennethJSmithDev/EGEHAR",
+    "branch": "h001-doctrine-hardening-20260925",
+    "revision": "b549af709ba8f891fbc61308cedf391cb38d5235",
+    "schema_version": "0.1.0"
+  },
+  "authoritative_sources": {
+    "overview": "README.md",
+    "qualification": "docs/QUALIFICATION_STATUS.md",
+    "security": "SECURITY.md"
+  },
+  "operational_records": {
+    "status": ".egehar/status.json",
+    "human_gates": [
+      ".egehar/gates/native-package-lifecycle.json"
+    ],
+    "work_items": [
+      ".egehar/work/remote-release-hardening.json"
+    ]
+  },
+  "rules": [
+    "OpsDeck runtime evidence remains owned by OpsDeck qualification records.",
+    "The public safe demo is not live IRIS evidence.",
+    "The adapter must not widen credential or mutation authority."
+  ]
+}

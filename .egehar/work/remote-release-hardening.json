@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1.0",
+  "record_status": "ACTIVE",
+  "work_id": "OPSDECK-REMOTE-RELEASE-HARDENING",
+  "project_id": "OpsDeck-P001",
+  "state": "READY",
+  "objective": "Keep public documentation, evaluator evidence, and release claims aligned with currently qualified OpsDeck behavior.",
+  "owner": "remote engineering agent",
+  "authority": {
+    "mode": "AUTONOMOUS",
+    "limitations": [
+      "No credentials.",
+      "No mutation widening.",
+      "Do not claim unobserved native behavior."
+    ]
+  },
+  "depends_on": [],
+  "blocks": [],
+  "actions": [
+    "audit docs against qualification status",
+    "preserve explicit unavailable/unverified states",
+    "prepare release evidence structure"
+  ],
+  "evidence_refs": [
+    "docs/QUALIFICATION_STATUS.md",
+    "README.md"
+  ],
+  "next_boundary": "Local native package lifecycle qualification.",
+  "invalidation_identity": {
+    "condition": "qualification status or public release revision changes"
+  }
+}

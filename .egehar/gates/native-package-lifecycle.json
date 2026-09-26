@@ -1,0 +1,25 @@
+{
+  "schema_version": "0.1.0",
+  "record_status": "ACTIVE",
+  "gate_id": "OPSDECK-NATIVE-PACKAGE-LIFECYCLE",
+  "project_id": "OpsDeck-P001",
+  "state": "OPEN",
+  "authority_type": "LOCAL_OBSERVATION",
+  "description": "Qualify the final native IRIS package lifecycle against the actual release environment.",
+  "required_actor": "authorized human/local runtime",
+  "blocks": [
+    "final native package release claim"
+  ],
+  "does_not_block": [
+    "reference-runtime maintenance",
+    "documentation/evaluator work",
+    "read-only remote audits"
+  ],
+  "evidence_refs": [
+    "docs/QUALIFICATION_STATUS.md"
+  ],
+  "next_action": "Run package manifest/load/install/uninstall/clean reinstall/final reproduction and record the results.",
+  "invalidation_identity": {
+    "condition": "release candidate or IRIS target identity changes"
+  }
+}
