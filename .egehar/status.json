@@ -1,0 +1,71 @@
+{
+  "schema_version": "0.1.0",
+  "record_status": "ACTIVE",
+  "status_id": "OPSDECK-STATUS-V0.1",
+  "project_id": "OpsDeck-P001",
+  "evidence_identity": {
+    "repository": "KennethJSmithDev/OpsDeck",
+    "revision": "ddb3c0e2665a853bb854def7c0f18e242db952c6",
+    "sources": [
+      "README.md",
+      "docs/QUALIFICATION_STATUS.md"
+    ]
+  },
+  "current_milestone": {
+    "id": "OPSDECK-V0.1-NATIVE",
+    "label": "Finalize native IRIS package lifecycle for v0.1.0",
+    "state": "ACTIVE"
+  },
+  "epistemic_summary": {
+    "known": [
+      "Reference runtime live IRIS identity/application paths and bounded providers are reproduced.",
+      "Public safe demo uses deterministic sanitized data and is not live IRIS evidence.",
+      "Historical native IRIS observations are preserved separately."
+    ],
+    "inferred": [],
+    "unverified": [
+      "Final native package manifest/load/install/uninstall/clean reinstall/reproduction.",
+      "Completed live audit search.",
+      "Fixed authenticated reader for named log files."
+    ]
+  },
+  "owner_map": [
+    {
+      "scope": "current qualification claims",
+      "owner": "docs/QUALIFICATION_STATUS.md",
+      "source": "docs/QUALIFICATION_STATUS.md"
+    },
+    {
+      "scope": "runtime implementation",
+      "owner": "OpsDeck source/runtime",
+      "source": "src/"
+    },
+    {
+      "scope": "public release orientation",
+      "owner": "README.md",
+      "source": "README.md"
+    }
+  ],
+  "blockers": [
+    "native package lifecycle remains unqualified"
+  ],
+  "human_gates": [
+    "OPSDECK-NATIVE-PACKAGE-LIFECYCLE"
+  ],
+  "continuable_work": [
+    "documentation consistency",
+    "evaluator-safe evidence review",
+    "non-destructive release hardening that does not claim local qualification"
+  ],
+  "next_boundary": "Reproduce native install/uninstall/clean reinstall and preserve exact release evidence.",
+  "authoritative_sources": [
+    "docs/QUALIFICATION_STATUS.md",
+    "README.md"
+  ],
+  "limitations": [
+    "Adapter does not upgrade historical native observations into current release qualification."
+  ],
+  "invalidation_identity": {
+    "condition": "OpsDeck qualification status or release candidate revision changes"
+  }
+}
