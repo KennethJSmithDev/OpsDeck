@@ -39,6 +39,17 @@ const state = {
 
 const nativeMode = location.pathname === "/opsdeck" || location.pathname?.startsWith("/opsdeck/") === true;
 let nativeAuthorization = null;
+let sessionEpoch = 0;
+let nextSnapshot = 0;
+const snapshotIds = new WeakMap();
+function recordHandle(data, index) {
+  if (!snapshotIds.has(data)) snapshotIds.set(data, ++nextSnapshot);
+  return `snapshot:${snapshotIds.get(data)}:${index}`;
+}
+function uniqueRecord(items, predicate) {
+  const matches = (items || []).filter(predicate);
+  return matches.length === 1 ? matches[0] : null;
+}
 const app = document.querySelector("#app");
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -48,6 +59,7 @@ const fmtTime = (value) => value ? new Intl.DateTimeFormat(undefined, {
 }).format(new Date(value)) : "—";
 
 async function requestJson(path, options = {}) {
+  const owner = sessionEpoch;
   let response;
   const headers = { Accept: "application/json", ...(options.headers || {}) };
   if (nativeMode && nativeAuthorization) headers.Authorization = nativeAuthorization;
@@ -60,14 +72,16 @@ async function requestJson(path, options = {}) {
       signal: options.signal || AbortSignal.timeout(20000),
     });
   } catch (error) {
+    if (owner !== sessionEpoch) throw new Error("Previous session request discarded.");
     if (error?.name === "TimeoutError" || error?.name === "AbortError") {
       throw new Error(`Timed out waiting for ${nativeMode ? "IRIS" : "the local OpsDeck proxy"}.`);
     }
     throw new Error(`Could not reach ${nativeMode ? "IRIS" : "the local OpsDeck proxy"}.`);
   }
   const data = await response.json().catch(() => ({}));
+  if (owner !== sessionEpoch) throw new Error("Previous session request discarded.");
   if (!response.ok) {
-    if (nativeMode && response.status === 401) nativeAuthorization = null;
+    if (response.status === 401) { clearSession(); state.error = "Authentication failed (HTTP 401). Sign in again."; render(); }
     const messages = Array.isArray(data.status?.errors) ? data.status.errors
       .map((item) => typeof item === "string" ? item : item?.message || item?.error)
       .filter((item) => typeof item === "string" && item.trim()) : [];
@@ -258,18 +272,19 @@ function pageHeader(title, description) {
 }
 
 function applicationsView() {
-  const selected = state.apps.find((item) => item.name === state.selected) || state.apps[0] || null;
-  const rows = state.apps.map((item) => `<tr class="app-row ${selected?.name === item.name ? "selected" : ""}" tabindex="0" role="button" data-app="${esc(item.name)}" aria-label="Inspect ${esc(item.name)}"><td><span class="app-name">${esc(item.name)}</span><span class="app-sub">${esc(item.dispatchClass || item.type)}</span></td><td><code>${esc(item.namespace)}</code></td><td>${item.enabled ? badge("Enabled", "success") : badge("Disabled", "muted")}</td><td>${esc(item.type)}</td><td>${esc(item.authenticationMethods.join(", ") || "None returned")}</td></tr>`).join("");
+  const selected = state.apps.find((item, index) => recordHandle(state.apps, index) === state.selected) || state.apps[0] || null;
+  const rows = state.apps.map((item, index) => `<tr class="app-row ${selected === item ? "selected" : ""}" tabindex="0" role="button" data-app="${recordHandle(state.apps, index)}" aria-label="Inspect ${esc(item.name)}"><td><span class="app-name">${esc(item.name)}</span><span class="app-sub">${esc(item.dispatchClass || item.type)}</span></td><td><code>${esc(item.namespace)}</code></td><td>${item.enabled ? badge("Enabled", "success") : badge("Disabled", "muted")}</td><td>${esc(item.type)}</td><td>${esc(item.authenticationMethods.join(", ") || "None returned")}</td></tr>`).join("");
   const detail = selected ? state.webAppDetails[selected.name] : null;
   const detailError = selected ? state.webAppDetailErrors[selected.name] : null;
   const restMatches = selected ? restServiceMatches(selected) : [];
   const detailContent = !selected ? `<div class="source-message">Select a web application.</div>` :
+    !uniqueRecord(state.apps, item => item.name === selected.name) ? `<div class="source-message">Detail requires an unambiguous provider name. A scoped detail request is not qualified.</div>` :
     state.webAppDetailLoading === selected.name ? `<div class="source-message">Loading authoritative web-app detail…</div>` :
       detailError ? `<div class="source-message source-error" role="alert"><strong>Detail unavailable</strong><p>${esc(detailError)}</p><code>GET /api/admin/v2/web-app?name=…</code></div>` :
         detail ? `<dl class="detail-grid">${Object.entries(detail.values).map(([key, value]) => `<dt>${esc(key)}</dt><dd>${cellValue(value)}</dd>`).join("")}</dl><div class="inspector-foot">GET /api/admin/v2/web-app · ${esc(detail.ref.provider)} · observed ${fmtTime(detail.ref.observedAt)}</div>` :
           `<p class="app-sub">Expanded configuration is fetched only when requested.</p><button class="button secondary" data-load-webapp-detail="${esc(selected.name)}">Load authoritative detail</button>`;
   const relationshipContent = !selected ? "" : restMatches.length ? restMatches.map(({ sourceId, item }) => {
-    const specKey = `${sourceId}::${item.ref.key}::${item.ref.scope}`;
+    const specKey = JSON.stringify([sourceId, item.ref.key, item.ref.scope]);
     const spec = state.restSpecs[specKey];
     const specError = state.restSpecErrors[specKey];
     const specContent = state.restSpecLoading === specKey ? `<div class="source-message">Loading the authoritative REST specification…</div>` :
@@ -338,17 +353,18 @@ function sourcePanel(sourceId) {
   }
   if (!data) return `<div class="source-message">Select a source to load authoritative IRIS data.</div>`;
   const items = data.items;
-  const selectedKey = state.selectedItems[sourceId] || items[0]?.ref.key;
-  const selected = items.find((item) => item.ref.key === selectedKey) || items[0];
+  const selectedKey = state.selectedItems[sourceId];
+  const selectedIndex = items.findIndex((item, index) => recordHandle(data, index) === selectedKey || (!String(selectedKey).startsWith("snapshot:") && item.ref.key === selectedKey));
+  const selected = items[selectedIndex < 0 ? 0 : selectedIndex];
   const keys = selected ? Object.keys(selected.values) : [];
   const columns = keys.slice(0, 6);
   const visibleColumns = columns.filter((key) => key !== (keys[0] || ""));
-  const rows = items.map((item) => `<tr class="provider-row ${selected?.ref.key === item.ref.key ? "selected" : ""}" tabindex="0" role="button" data-item="${esc(sourceId)}::${esc(item.ref.key)}"><td><strong>${esc(item.ref.label)}</strong><span class="app-sub">${item.ref.scope ? esc(item.ref.scope) : esc(item.ref.kind)}</span></td>${visibleColumns.map((key) => `<td>${cellValue(item.values[key])}</td>`).join("")}</tr>`).join("");
+  const rows = items.map((item, index) => `<tr class="provider-row ${selected === item ? "selected" : ""}" tabindex="0" role="button" data-item="${esc(sourceId)}::${recordHandle(data, index)}"><td><strong>${esc(item.ref.label)}</strong><span class="app-sub">${item.ref.scope ? esc(item.ref.scope) : esc(item.ref.kind)}</span></td>${visibleColumns.map((key) => `<td>${cellValue(item.values[key])}</td>`).join("")}</tr>`).join("");
   const objectMetrics = data.resultType === "object" && selected
     ? `<div class="metric-grid">${Object.entries(selected.values).map(([key, value]) => `<article class="metric-card"><span>${esc(key)}</span><strong>${cellValue(value)}</strong></article>`).join("")}</div>`
     : null;
   const detail = selected && data.resultType !== "object"
-    ? `<aside class="panel inspector provider-inspector"><div class="panel-kicker">AUTHORITATIVE RESOURCE</div><h2 class="inspector-title">${esc(selected.ref.label)}</h2><p class="inspector-sub">Stable key <code>${esc(selected.ref.key)}</code>${selected.ref.scope ? ` · ${esc(selected.ref.scope)}` : ""}</p><dl class="detail-grid">${Object.entries(selected.values).map(([key, value]) => `<dt>${esc(key)}</dt><dd>${cellValue(value)}</dd>`).join("")}</dl><div class="inspector-foot">${esc(selected.ref.provider)} · observed ${fmtTime(selected.ref.observedAt)}</div>${sourceId === "users" ? userDetailContent(selected) : sourceId === "roles" ? roleDetailContent(selected) : sourceId === "resources" ? resourceDetailContent(selected) : sourceId === "tasks" ? taskDetailContent(selected) : ""}</aside>`
+    ? `<aside class="panel inspector provider-inspector"><div class="panel-kicker">AUTHORITATIVE RESOURCE</div><h2 class="inspector-title">${esc(selected.ref.label)}</h2><p class="inspector-sub">Provider key <code>${esc(selected.ref.key)}</code>${selected.ref.scope ? ` · ${esc(selected.ref.scope)}` : ""}</p><dl class="detail-grid">${Object.entries(selected.values).map(([key, value]) => `<dt>${esc(key)}</dt><dd>${cellValue(value)}</dd>`).join("")}</dl><div class="inspector-foot">${esc(selected.ref.provider)} · observed ${fmtTime(selected.ref.observedAt)}</div>${["users", "roles", "resources", "tasks"].includes(sourceId) && items.filter(item => item.ref.key === selected.ref.key).length !== 1 ? "<p class=\"app-sub\">Detail requires an unambiguous provider key; no scoped detail request is qualified.</p>" : sourceId === "users" ? userDetailContent(selected) : sourceId === "roles" ? roleDetailContent(selected) : sourceId === "resources" ? resourceDetailContent(selected) : sourceId === "tasks" ? taskDetailContent(selected) : ""}</aside>`
     : "";
   const verification = state.sourceVerification[sourceId];
   return `<div class="source-toolbar"><div><strong>${data.count ?? 1}</strong><span> ${data.resultType === "array" ? "records returned" : "live object"}</span></div><div>${verification ? badge(verification.matched ? "Second read matched" : "Second read differed", verification.matched ? "success" : "error") : ""} <button class="button quiet" data-refresh-source="${sourceId}">Refresh source</button></div></div>
@@ -547,12 +563,12 @@ function render() {
   app.querySelector("#refresh-button")?.addEventListener("click", () => refreshLive(true));
 }
 
-async function disconnect() {
-  if (!nativeMode) {
-    try { await requestJson("/api/logout", { method: "POST" }); } catch { /* local state is cleared even if the proxy is unavailable */ }
-  }
+function clearSession() {
+  sessionEpoch += 1;
   nativeAuthorization = null;
   state.connected = false;
+  state.auditQuery = null;
+  state.auditQueryBusy = false;
   state.busy = false;
   state.error = "";
   state.info = null;
@@ -571,10 +587,25 @@ async function disconnect() {
   state.sourceTabs = { applications: "restServices", access: "users", security: "walletCollections", tasks: "tasks", system: "systemUsage", logs: "auditEnabled" };
   state.route = "overview";
   history.replaceState(null, "", "#overview");
+}
+
+function expireSession(message) {
+  clearSession();
+  state.error = message;
   render();
 }
 
+async function disconnect() {
+  clearSession();
+  render();
+  if (!nativeMode) {
+    try { await requestJson("/api/logout", { method: "POST" }); } catch { /* state was cleared before the remote request */ }
+  }
+}
+
 async function connect(event) {
+  clearSession();
+  const owner = sessionEpoch;
   event.preventDefault();
   const form = event.currentTarget;
   const passwordInput = form.elements.password;
@@ -602,6 +633,7 @@ async function connect(event) {
       state.busy = false;
       render();
       await refreshLive(true);
+      if (owner !== sessionEpoch) return;
       if (state.connected) ensureRouteSource();
       return;
     }
@@ -609,11 +641,13 @@ async function connect(event) {
       username: form.elements.username.value.trim(),
       password: passwordInput.value,
     };
+    passwordInput.value = "";
     const result = await requestJson("/api/connect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    if (owner !== sessionEpoch) return;
     passwordInput.value = "";
     state.sourceData = {};
     state.sourceErrors = {};
@@ -629,12 +663,11 @@ async function connect(event) {
     state.busy = false;
     render();
     await refreshLive(true);
+    if (owner !== sessionEpoch) return;
   } catch (error) {
+    if (owner !== sessionEpoch) return;
     passwordInput.value = "";
-    state.connected = false;
-    state.busy = false;
-    state.error = error.message;
-    render();
+    expireSession(error.message);
     document.querySelector("#username")?.focus();
   }
 }
@@ -666,7 +699,7 @@ function nativeApiPath(path) {
       const sourceId = url.searchParams.get("source");
       const name = url.searchParams.get("name");
       const namespace = url.searchParams.get("namespace");
-      const service = state.sourceData[sourceId]?.items.find((item) => item.ref.key === name && item.ref.scope === namespace);
+      const service = uniqueRecord(state.sourceData[sourceId]?.items, (item) => item.ref.key === name && item.ref.scope === namespace);
       if (!service || typeof service.values.swaggerSpec !== "string") throw new Error("IRIS did not publish a specification for this discovered service.");
       const origin = location.origin || "http://localhost";
       const spec = new URL(service.values.swaggerSpec, origin);
@@ -679,24 +712,29 @@ function nativeApiPath(path) {
 }
 
 async function refreshLive(compareReadback) {
+  if (!state.connected) return;
+  const owner = sessionEpoch;
   state.busy = true;
   state.error = "";
   state.verification = null;
   try {
     render();
     const infoPayload = await apiPayload("/api/admin/info");
+    if (owner !== sessionEpoch) return;
     state.info = mapServerInfo(infoPayload);
     const listPayload = await apiPayload("/api/admin/v2/web-apps");
+    if (owner !== sessionEpoch) return;
     state.apps = mapWebApps(listPayload);
     state.lastRead = new Date().toISOString();
-    if (!state.selected || !state.apps.some((item) => item.name === state.selected)) {
-      state.selected = state.apps[0]?.name || "";
+    if (!state.selected || !state.apps.some((item, index) => recordHandle(state.apps, index) === state.selected)) {
+      state.selected = state.apps.length ? recordHandle(state.apps, 0) : "";
     }
     render();
 
     if (compareReadback) {
       const firstRead = state.apps;
       const secondPayload = await apiPayload("/api/admin/v2/web-apps");
+    if (owner !== sessionEpoch) return;
       const secondRead = mapWebApps(secondPayload);
       state.verification = {
         matched: sameWebAppState(firstRead, secondRead),
@@ -706,26 +744,28 @@ async function refreshLive(compareReadback) {
       state.lastRead = state.verification.at;
     }
   } catch (error) {
+    if (owner !== sessionEpoch) return;
     state.error = error.message;
     if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) {
-      state.connected = false;
-      state.info = null;
-      state.apps = [];
-      state.verification = null;
+      expireSession(error.message);
     }
   } finally {
+    if (owner !== sessionEpoch) return;
     state.busy = false;
     render();
   }
 }
 
 async function loadSource(sourceId, force = false) {
+  if (!state.connected) return;
+  const owner = sessionEpoch;
   if (!force && (state.sourceData[sourceId] || state.sourceErrors[sourceId])) return;
   state.sourceLoading = sourceId;
   delete state.sourceErrors[sourceId];
   render();
   try {
     const payload = await readJson(`/api/read/${sourceId}`);
+    if (owner !== sessionEpoch) return;
     const previous = state.sourceData[sourceId];
     const current = mapReadOnlySource(sourceId, payload);
     state.sourceData[sourceId] = current;
@@ -736,19 +776,21 @@ async function loadSource(sourceId, force = false) {
     delete state.sourceErrors[sourceId];
     state.lastRead = state.sourceData[sourceId].observedAt;
   } catch (error) {
+    if (owner !== sessionEpoch) return;
     state.sourceErrors[sourceId] = error.message;
     if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) {
-      state.connected = false;
-      state.info = null;
-      state.apps = [];
+      expireSession(error.message);
     }
   } finally {
+    if (owner !== sessionEpoch) return;
     state.sourceLoading = "";
     render();
   }
 }
 
 async function runAuditQuery() {
+  if (!state.connected) return;
+  const owner = sessionEpoch;
   if (state.auditQueryBusy || !state.info?.username) return;
   let stage = "submit";
   let httpStatus = null;
@@ -771,6 +813,8 @@ async function runAuditQuery() {
       method: "POST", cache: "no-store", credentials: "same-origin", headers,
       signal: AbortSignal.timeout(20000),
     });
+    if (owner !== sessionEpoch) return;
+    if (response.status === 401) { clearSession(); state.error = "Authentication failed (HTTP 401). Sign in again."; render(); return; }
     httpStatus = response.status;
     if (response.status === 401 || response.status === 403) {
       state.auditQuery = { state: "denied", stage, httpStatus, message: `IRIS denied the bounded audit query (HTTP ${response.status}).` };
@@ -792,6 +836,7 @@ async function runAuditQuery() {
     const deadline = Date.now() + 30000;
     for (let attempt = 0; attempt < 40 && Date.now() < deadline; attempt += 1) {
       const payload = await requestJson(handle.url, { signal: AbortSignal.timeout(Math.min(5000, Math.max(1, deadline - Date.now()))) });
+    if (owner !== sessionEpoch) return;
       httpStatus = 200;
       stage = "async task contract";
       const mapped = mapAuditAsyncResult(payload, handle.id);
@@ -804,6 +849,7 @@ async function runAuditQuery() {
         };
         render();
         await new Promise((resolve) => setTimeout(resolve, 500));
+        if (owner !== sessionEpoch) return;
         continue;
       }
       if (taskState === "finished") {
@@ -819,6 +865,7 @@ async function runAuditQuery() {
     }
     state.auditQuery = { state: "unavailable", message: "Async task remained nonterminal during the bounded wait. No completion is inferred.", task: state.auditQuery?.task };
   } catch (error) {
+    if (owner !== sessionEpoch) return;
     const denied = error.status === 401 || error.status === 403;
     state.auditQuery = {
       state: denied ? "denied" : "unavailable",
@@ -830,38 +877,44 @@ async function runAuditQuery() {
       failure: ["validate Location", "async task contract"].includes(stage) ? error.message : "The request did not produce a usable async result.",
     };
   } finally {
+    if (owner !== sessionEpoch) return;
     state.auditQueryBusy = false;
     render();
   }
 }
 
 async function loadWebAppDetail(name, force = false) {
+  if (!state.connected) return;
+  const owner = sessionEpoch;
   if (!force && (state.webAppDetails[name] || state.webAppDetailErrors[name])) return;
-  const selected = state.apps.find((item) => item.name === name);
+  const selected = uniqueRecord(state.apps, (item) => item.name === name);
   if (!selected) return;
   state.webAppDetailLoading = name;
   delete state.webAppDetailErrors[name];
   render();
   try {
     const payload = await readJson(`/api/read/webAppDetail?name=${encodeURIComponent(selected.name)}`);
+    if (owner !== sessionEpoch) return;
     state.webAppDetails[name] = mapWebAppDetail(payload, selected);
     state.lastRead = state.webAppDetails[name].ref.observedAt;
   } catch (error) {
+    if (owner !== sessionEpoch) return;
     state.webAppDetailErrors[name] = error.message;
     if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) {
-      state.connected = false;
-      state.info = null;
-      state.apps = [];
+      expireSession(error.message);
     }
   } finally {
+    if (owner !== sessionEpoch) return;
     state.webAppDetailLoading = "";
     render();
   }
 }
 
 async function loadUserDetail(name) {
+  if (!state.connected) return;
+  const owner = sessionEpoch;
   if (state.userDetailLoading) return;
-  const selected = state.sourceData.users?.items.find((item) => item.ref.key === name);
+  const selected = uniqueRecord(state.sourceData.users?.items, (item) => item.ref.key === name);
   if (!selected) return;
   const previous = state.userDetails[name];
   state.userDetailLoading = name;
@@ -869,6 +922,7 @@ async function loadUserDetail(name) {
   render();
   try {
     const payload = await readJson(`/api/read/userDetail?name=${encodeURIComponent(selected.ref.key)}`);
+    if (owner !== sessionEpoch) return;
     const detail = mapSecurityUserDetail(payload, selected);
     state.userDetails[name] = detail;
     if (previous) state.userDetailVerification[name] = {
@@ -877,21 +931,23 @@ async function loadUserDetail(name) {
     };
     state.lastRead = detail.ref.observedAt;
   } catch (error) {
+    if (owner !== sessionEpoch) return;
     state.userDetailErrors[name] = error.message;
     if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) {
-      state.connected = false;
-      state.info = null;
-      state.apps = [];
+      expireSession(error.message);
     }
   } finally {
+    if (owner !== sessionEpoch) return;
     state.userDetailLoading = "";
     render();
   }
 }
 
 async function loadRoleDetail(name) {
+  if (!state.connected) return;
+  const owner = sessionEpoch;
   if (state.roleDetailLoading) return;
-  const selected = state.sourceData.roles?.items.find((item) => item.ref.key === name);
+  const selected = uniqueRecord(state.sourceData.roles?.items, (item) => item.ref.key === name);
   if (!selected) return;
   const previous = state.roleDetails[name];
   state.roleDetailLoading = name;
@@ -899,22 +955,27 @@ async function loadRoleDetail(name) {
   render();
   try {
     const payload = await readJson(`/api/read/roleDetail?name=${encodeURIComponent(selected.ref.key)}`);
+    if (owner !== sessionEpoch) return;
     const detail = mapSecurityRoleDetail(payload, selected);
     state.roleDetails[name] = detail;
     if (previous) state.roleDetailVerification[name] = { matched: sameSecurityRoleDetail(previous, detail), at: detail.ref.observedAt };
     state.lastRead = detail.ref.observedAt;
   } catch (error) {
+    if (owner !== sessionEpoch) return;
     state.roleDetailErrors[name] = error.message;
-    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { expireSession(error.message); }
   } finally {
+    if (owner !== sessionEpoch) return;
     state.roleDetailLoading = "";
     render();
   }
 }
 
 async function loadRoleOwners(name) {
+  if (!state.connected) return;
+  const owner = sessionEpoch;
   if (state.roleOwnerLoading) return;
-  const selected = state.sourceData.roles?.items.find((item) => item.ref.key === name);
+  const selected = uniqueRecord(state.sourceData.roles?.items, (item) => item.ref.key === name);
   if (!selected) return;
   const previous = state.roleOwners[name];
   state.roleOwnerLoading = name;
@@ -923,22 +984,27 @@ async function loadRoleOwners(name) {
   try {
     const query = new URLSearchParams({ name: selected.ref.key, maxRows: "20" });
     const payload = await readJson(`/api/read/roleOwners?${query}`);
+    if (owner !== sessionEpoch) return;
     const owners = mapSecurityRoleOwners(payload, selected);
     state.roleOwners[name] = owners;
     if (previous) state.roleOwnerVerification[name] = { matched: sameSecurityRoleOwners(previous, owners), at: new Date().toISOString() };
     state.lastRead = new Date().toISOString();
   } catch (error) {
+    if (owner !== sessionEpoch) return;
     state.roleOwnerErrors[name] = error.message;
-    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { expireSession(error.message); }
   } finally {
+    if (owner !== sessionEpoch) return;
     state.roleOwnerLoading = "";
     render();
   }
 }
 
 async function loadResourceDetail(name) {
+  if (!state.connected) return;
+  const owner = sessionEpoch;
   if (state.resourceDetailLoading) return;
-  const selected = state.sourceData.resources?.items.find((item) => item.ref.key === name);
+  const selected = uniqueRecord(state.sourceData.resources?.items, (item) => item.ref.key === name);
   if (!selected) return;
   const previous = state.resourceDetails[name];
   state.resourceDetailLoading = name;
@@ -946,22 +1012,27 @@ async function loadResourceDetail(name) {
   render();
   try {
     const payload = await readJson(`/api/read/resourceDetail?name=${encodeURIComponent(selected.ref.key)}`);
+    if (owner !== sessionEpoch) return;
     const detail = mapSecurityResourceDetail(payload, selected);
     state.resourceDetails[name] = detail;
     if (previous) state.resourceDetailVerification[name] = { matched: sameSecurityResourceDetail(previous, detail), at: detail.ref.observedAt };
     state.lastRead = detail.ref.observedAt;
   } catch (error) {
+    if (owner !== sessionEpoch) return;
     state.resourceDetailErrors[name] = error.message;
-    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { expireSession(error.message); }
   } finally {
+    if (owner !== sessionEpoch) return;
     state.resourceDetailLoading = "";
     render();
   }
 }
 
 async function loadTaskDetail(id) {
+  if (!state.connected) return;
+  const owner = sessionEpoch;
   if (state.taskDetailLoading) return;
-  const selected = state.sourceData.tasks?.items.find((item) => item.ref.key === id);
+  const selected = uniqueRecord(state.sourceData.tasks?.items, (item) => item.ref.key === id);
   if (!selected) return;
   const previous = state.taskDetails[id];
   state.taskDetailLoading = id;
@@ -969,23 +1040,28 @@ async function loadTaskDetail(id) {
   render();
   try {
     const payload = await readJson(`/api/read/taskDetail?id=${encodeURIComponent(id)}`);
+    if (owner !== sessionEpoch) return;
     const detail = mapTaskDetail(payload, selected);
     state.taskDetails[id] = detail;
     if (previous) state.taskDetailVerification[id] = { matched: sameTaskDetail(previous, detail), at: detail.ref.observedAt };
     state.lastRead = detail.ref.observedAt;
   } catch (error) {
+    if (owner !== sessionEpoch) return;
     state.taskDetailErrors[id] = error.message;
-    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { state.connected = false; state.info = null; state.apps = []; }
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) { expireSession(error.message); }
   } finally {
+    if (owner !== sessionEpoch) return;
     state.taskDetailLoading = "";
     render();
   }
 }
 
 async function loadRestSpec(specKey, force = false) {
+  if (!state.connected) return;
+  const owner = sessionEpoch;
   if (!force && (state.restSpecs[specKey] || state.restSpecErrors[specKey])) return;
-  const [sourceId, name, namespace] = specKey.split("::");
-  const service = state.sourceData[sourceId]?.items.find((item) => item.ref.key === name && item.ref.scope === namespace);
+  const [sourceId, name, namespace] = JSON.parse(specKey);
+  const service = uniqueRecord(state.sourceData[sourceId]?.items, (item) => item.ref.key === name && item.ref.scope === namespace);
   if (!service) return;
   state.restSpecLoading = specKey;
   delete state.restSpecErrors[specKey];
@@ -993,16 +1069,17 @@ async function loadRestSpec(specKey, force = false) {
   try {
     const query = new URLSearchParams({ source: sourceId, name, namespace });
     const payload = await readJson(`/api/read/restServiceSpec?${query}`);
+    if (owner !== sessionEpoch) return;
     state.restSpecs[specKey] = mapRestServiceSpec(payload, service.ref);
     state.lastRead = state.restSpecs[specKey].ref.observedAt;
   } catch (error) {
+    if (owner !== sessionEpoch) return;
     state.restSpecErrors[specKey] = error.message;
     if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) {
-      state.connected = false;
-      state.info = null;
-      state.apps = [];
+      expireSession(error.message);
     }
   } finally {
+    if (owner !== sessionEpoch) return;
     state.restSpecLoading = "";
     render();
   }
@@ -1017,6 +1094,7 @@ function ensureRouteSource() {
 }
 
 async function restoreSession() {
+  const owner = sessionEpoch;
   if (nativeMode) {
     state.connected = false;
     state.busy = false;
@@ -1025,15 +1103,14 @@ async function restoreSession() {
   }
   try {
     await requestJson("/api/session");
+    if (owner !== sessionEpoch) return;
     state.connected = true;
     await refreshLive(true);
+    if (owner !== sessionEpoch) return;
     ensureRouteSource();
   } catch {
-    state.connected = false;
-    state.busy = false;
-    state.info = null;
-    state.apps = [];
-    state.verification = null;
+    if (owner !== sessionEpoch) return;
+    clearSession();
     render();
   }
 }
