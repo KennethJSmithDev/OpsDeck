@@ -6,7 +6,11 @@
 
 ## Integrated final candidate — 2026-09-30
 
-This tree reconciles native-iris-pivot at d793ef14c39c7c89d2f2cfc55dfb86582f9c94da with main at ddb3c0e2665a853bb854def7c0f18e242db952c6. It preserves same-origin native reads, in-memory credentials, sign-out, fixed providers and strict audit boundaries, and adds the main evaluator tour, persona descriptions, Evidence view and responsive styles. The package identity is opsdeck 0.2.0. Static/unit/browser fixture checks qualify only their tested contracts. Final authenticated package lifecycle and source/runtime parity remain PENDING_HUMAN_LOCAL_EXECUTION. The historical bundle and prior SHA remain evidence, not qualification of this integrated tree.
+This tree reconciles native-iris-pivot at d793ef14c39c7c89d2f2cfc55dfb86582f9c94da with main at ddb3c0e2665a853bb854def7c0f18e242db952c6. It preserves same-origin native reads, in-memory credentials, sign-out, fixed providers and strict audit boundaries, and adds the main evaluator tour, persona descriptions, Evidence view and responsive styles. The package identity is opsdeck 0.2.0. Static/unit/browser fixture checks qualify only their tested contracts. R3 is ATTEMPTED / INCONCLUSIVE; final authenticated package lifecycle and source/runtime parity remain unqualified. The historical bundle and prior SHA remain evidence, not qualification of this integrated tree.
+
+### Current release preparation — 2026-09-30
+
+The repaired Terminal runner's bounded real identity probe launched and exited with code 1. A capture existed, but no attempt-specific returned identity or completion marker was observed. Authentication remains INCONCLUSIVE; no IPM command or package mutation was requested by this identity-only probe. The earlier lifecycle attempt reached authenticated application capture and stopped in IPM preflight with possible partial bootstrap state. That historical uncertainty remains unresolved and prohibits automatic bootstrap or lifecycle retry. Runtime browser observations must identify the installed bundle; they do not qualify the current packaged assets.
 
 The safe demo uses deterministic sanitized data and four authority personas. It does not prove live IRIS permissions, package installation or audit/log completion. See [Evaluator Guide](EVALUATOR_GUIDE.md).
 

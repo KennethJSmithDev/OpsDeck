@@ -22,9 +22,11 @@
 
 OpsDeck is being developed for the **InterSystems Programming Contest: Build Your Own Management Portal (2026)**.
 
-## Current milestone — lifecycle qualification pending
+## Current milestone — lifecycle qualification inconclusive
 
 The repository version is **0.2.0 candidate**. The project has a proven Node reference workflow and a separately qualified slice of IRIS-native hosting and reads. IRIS-native hosting does not depend on Node at runtime. Native package installation and complete v0.1 provider parity are not qualified, so this repository does not claim an installable IPM/ZPM release.
+
+R3 has been attempted and remains **INCONCLUSIVE**. Local-source loading and future registry installation are separate gates. See the prepared [native installation guide](docs/NATIVE_INSTALL.md) and [0.2.0 release notes](docs/RELEASE_0_2_0.md); neither claims a successful final package lifecycle or public registry availability.
 
 ### Capability status
 

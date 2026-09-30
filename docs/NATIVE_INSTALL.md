@@ -17,19 +17,28 @@ The package declares exactly these four files under the instance CSP directory a
 
 ## Local source installation proposal
 
-Clone/check out the exact candidate revision. In the supported IRIS Terminal, select `%SYS` using the normal local workflow, enter the IPM prompt with `zpm`, then use:
+Obtain the public source with ordinary Git, then check out the release revision identified in the release notes. The proposed source workflow requires no private qualification scripts, personal credentials, Codex tools or developer-specific directories:
+
+```powershell
+git clone https://github.com/KennethJSmithDev/OpsDeck.git
+cd OpsDeck
+git checkout <published-release-revision>
+```
+
+Do not use the placeholder until that revision is public. In the supported IRIS Terminal, select `%SYS` using the normal local workflow, enter the IPM prompt with `zpm`, then use:
 
 ```text
 load C:\path\to\OpsDeck
-install opsdeck
 list-installed opsdeck
 ```
 
-The expected identity is `opsdeck 0.2.0`. Check command results; the existence of `/opsdeck` alone cannot prove installation. The controlled R3 run must validate these commands on the final candidate before this section is promoted to tested guidance.
+The expected identity is `opsdeck 0.2.0`. `load` takes the source directory containing `module.xml`; `install opsdeck` obtains a package from a configured repository and is a separate distribution test. Do not add that registry command to this source workflow. Check load success, registered version, application configuration and deployed resource bytes; the existence of `/opsdeck` alone cannot prove installation. The controlled local qualification must validate this workflow before it is described as tested guidance. See the [official IPM command descriptions](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=AIPM).
+
+If IPM is absent or its state is uncertain, stop and ask the instance administrator to resolve it using supported instructions. OpsDeck does not authorize automatic bootstrap, Python changes or registry reconfiguration. An existing class alone does not establish a usable package manager.
 
 ## Public package installation proposal
 
-After a qualified 0.2.0 package is actually published, the intended public workflow is `zpm "install opsdeck"`. The public registry path/version is not verified yet. Do not use this instruction as evidence that a package is currently available.
+After a qualified 0.2.0 package is actually published, verify the intended registry contains that exact version before using its supported version selector. The future registry workflow is separate from public-source `load`. Public registry availability is not verified; an Open Exchange release announcement alone does not establish it.
 
 ## Open and authenticate
 
