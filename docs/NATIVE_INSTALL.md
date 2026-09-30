@@ -22,10 +22,10 @@ Obtain the public source with ordinary Git, then check out the release revision 
 ```powershell
 git clone https://github.com/KennethJSmithDev/OpsDeck.git
 cd OpsDeck
-git checkout <published-release-revision>
+git checkout v0.2.0
 ```
 
-Do not use the placeholder until that revision is public. In the supported IRIS Terminal, select `%SYS` using the normal local workflow, enter the IPM prompt with `zpm`, then use:
+The `v0.2.0` tag is a future publication target, not currently verified as available. Use this checkout only after the qualified release/tag is public. In the supported IRIS Terminal, select `%SYS` using the normal local workflow, enter the IPM prompt with `zpm`, then use:
 
 ```text
 load C:\path\to\OpsDeck
