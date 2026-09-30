@@ -12,7 +12,7 @@
 
 ## Qualification statement
 
-Safe automated/static checks apply to this candidate tree. Historical native browser evidence applies to the previously installed bundle. R3 has been attempted and is INCONCLUSIVE. The current bounded Terminal identity probe exited nonzero without returned identity or completion; it did not qualify authentication or inspect IPM. Final local-source materialization/registration, operational checks, uninstall/removal, clean source reinstall and source/runtime parity remain unqualified. Registry installation is a separate distribution gate.
+Safe automated/static checks apply to this candidate tree. Historical native browser evidence applies to the previously installed bundle. R3 has been attempted and is INCONCLUSIVE. The repaired Terminal capture path now verifies authenticated identity and namespace with attempt-specific completion. Read-only inspection confirms IRIS 2026.2 Build 221U and package-manager class presence, but an IPM version call throws exception code -99; usability and prior possible partial setup remain unresolved. Final local-source materialization/registration, operational checks, uninstall/removal, clean source reinstall and source/runtime parity remain unqualified. Registry installation is a separate distribution gate.
 
 **Conditional after a complete final R3 PASS:** the exact candidate package lifecycle and four-file parity may be described as reproduced on the receipt's IRIS build, namespace, IPM version and environment. Preserve that receipt and identify the tested SHA. This does not qualify public-registry installation until publication and a registry install are independently confirmed.
 
