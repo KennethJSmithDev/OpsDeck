@@ -10,7 +10,7 @@ When reporting a security-sensitive problem, provide only the minimum informatio
 
 ## Scope
 
-OpsDeck v0.1 is designed as a read-only management interface over explicitly registered InterSystems IRIS providers. Security-sensitive design goals include:
+OpsDeck 0.2.0 candidate is designed as a read-only management interface over explicitly registered InterSystems IRIS providers. Security-sensitive design goals include:
 
 - no credentials committed to source control;
 - no arbitrary upstream proxy targets;
@@ -19,8 +19,8 @@ OpsDeck v0.1 is designed as a read-only management interface over explicitly reg
 - visible failure when an authoritative provider is unavailable;
 - no intentional rendering of password, secret, token, or private-key values.
 
-The Node runtime in this repository is a local reference/development path. The IRIS-native deployment path is being qualified separately for v0.1.0.
+The Node runtime in this repository is a local reference/development path. The IRIS-native deployment path is being qualified for the integrated 0.2.0 candidate.
 
 ## Supported versions
 
-Security support currently follows the latest published OpsDeck v0.1.x release. Pre-release and development snapshots may change without compatibility guarantees.
+Security support currently follows the latest published OpsDeck release; 0.2.0 remains a candidate until qualification. Pre-release and development snapshots may change without compatibility guarantees.

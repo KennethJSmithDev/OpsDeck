@@ -1,12 +1,19 @@
 # OpsDeck qualification status
 
-**Repository version:** `0.1.0`
+**Repository version:** `0.2.0` (release candidate)
 
-**Native qualification branch:** `native-iris-pivot`
+**Native qualification branch:** `release/native-ipm-0.2.0`
+
+## Integrated final candidate — 2026-09-30
+
+This tree reconciles native-iris-pivot at d793ef14c39c7c89d2f2cfc55dfb86582f9c94da with main at ddb3c0e2665a853bb854def7c0f18e242db952c6. It preserves same-origin native reads, in-memory credentials, sign-out, fixed providers and strict audit boundaries, and adds the main evaluator tour, persona descriptions, Evidence view and responsive styles. The package identity is opsdeck 0.2.0. Static/unit/browser fixture checks qualify only their tested contracts. Final authenticated package lifecycle and source/runtime parity remain PENDING_HUMAN_LOCAL_EXECUTION. The historical bundle and prior SHA remain evidence, not qualification of this integrated tree.
+
+The safe demo uses deterministic sanitized data and four authority personas. It does not prove live IRIS permissions, package installation or audit/log completion. See [Evaluator Guide](EVALUATOR_GUIDE.md).
+
 
 **Status:** reference workflow reproduced; native browser slice reproduced; M1 remains partial. The package lifecycle remains unqualified until the full cycle passes.
 
-### Current native candidate reproduction — 2026-09-25
+### Current native candidate reproduction â€” 2026-09-25
 
 - Candidate branch and base commit: `native-iris-pivot` at `64141ec7eae0e96f7b94b5d6b1f46d2346866741`.
 - `npm test`: 32 passed, 0 failed. JavaScript syntax checks and `git diff --check` passed on the candidate working tree.
@@ -47,7 +54,7 @@ This record applies EGEHAR's evidence rule: a result admits only the boundary th
 
 ## UNVERIFIED
 
-- Whether `/api/admin/v1/async-result?id=…` is the supported status resource returned by the v2 audit POST, a compatibility route, or an IRIS defect.
+- Whether `/api/admin/v1/async-result?id=â€¦` is the supported status resource returned by the v2 audit POST, a compatibility route, or an IRIS defect.
 - Any async status response, task state, terminal result shape, bounded record count, or continuation/pagination behavior for the audit query.
 - Authenticated OpsDeck readers for `messages.log` and `SystemMonitor.log`; only their existence and metadata were inspected.
 - The full declared v0.1 Logs baseline and full M1 acceptance.
@@ -59,7 +66,7 @@ This record applies EGEHAR's evidence rule: a result admits only the boundary th
 
 ### Audit async result
 
-**Earliest failing boundary:** bounded authenticated audit `POST` → HTTP 202 → sanitized, same-origin `Location` → strict route validation rejects the path as `unexpected-path`. No GET was attempted after rejection.
+**Earliest failing boundary:** bounded authenticated audit `POST` â†’ HTTP 202 â†’ sanitized, same-origin `Location` â†’ strict route validation rejects the path as `unexpected-path`. No GET was attempted after rejection.
 
 **Attempted:** one bounded query (current test user, rolling ten-minute interval, `maxRows=1`); sanitized inspection of the returned URL structure; comparison with the checked-in SysAdmin operation inventory, which lists both v1 and v2 async-result GET paths.
 

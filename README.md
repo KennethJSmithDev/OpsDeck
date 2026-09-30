@@ -6,10 +6,12 @@
   <a href="#project-status"><strong>📋 PROJECT STATUS</strong></a>
   &nbsp;·&nbsp;
   <a href="#development"><strong>🛠️ DEVELOPMENT</strong></a>
+  &nbsp;·&nbsp;
+  <a href="docs/EVALUATOR_GUIDE.md"><strong>🧭 EVALUATOR GUIDE</strong></a>
 </p>
 
 <p align="center">
-  <sub>Interactive sanitized sample data · No IRIS connection or credentials required</sub>
+  <sub>Interactive sanitized sample data · No IRIS connection or credentials required · Includes a 90-second evaluator tour and evidence center</sub>
 </p>
 
 <p align="center">
@@ -20,9 +22,9 @@
 
 OpsDeck is being developed for the **InterSystems Programming Contest: Build Your Own Management Portal (2026)**.
 
-## Current milestone
+## Current milestone — lifecycle qualification pending
 
-The repository version is **0.1.0**. The project has a proven Node reference workflow and a separately qualified slice of IRIS-native hosting and reads. IRIS-native hosting does not depend on Node at runtime. Native package installation and complete v0.1 provider parity are not qualified, so this repository does not claim an installable IPM/ZPM release.
+The repository version is **0.2.0 candidate**. The project has a proven Node reference workflow and a separately qualified slice of IRIS-native hosting and reads. IRIS-native hosting does not depend on Node at runtime. Native package installation and complete v0.1 provider parity are not qualified, so this repository does not claim an installable IPM/ZPM release.
 
 ### Capability status
 
@@ -48,6 +50,8 @@ These are scoped claims, not a single pass/fail label for the whole product. Ful
 
 Provider errors and unavailable sources are shown separately from valid empty collections. OpsDeck does not substitute fixture data for live IRIS state.
 
+For a conservative boundary-by-boundary record, see [Qualification Status](docs/QUALIFICATION_STATUS.md). For the credential-free review path, see the [Evaluator Guide](docs/EVALUATOR_GUIDE.md).
+
 ## Design
 
 OpsDeck follows a deliberately thin architecture:
@@ -67,6 +71,10 @@ independent authoritative read-back where qualified
 ```
 
 IRIS remains the source of truth. OpsDeck keeps provider-owned identities and scopes rather than creating a second operational state store.
+
+## Native installation plan
+
+The native release target is an IPM package served by IRIS itself, with no Node runtime needed. The [native installation guide](docs/NATIVE_INSTALL.md) documents prerequisites, the proposed load/install/uninstall workflow, authentication, and recovery boundaries. **These package commands are pending final R3 qualification and public registry publication.** Use the safe demo or the proven Node reference instructions below until that gate passes.
 
 ## Requirements
 
@@ -175,6 +183,8 @@ Run the automated suite with `npm test`. It covers reference-server behavior and
 - Automated provider, server, and bootstrap tests.
 
 ### Pending qualification
+
+The integrated 0.2.0 candidate combines the native browser path and evaluator improvements. Historical native observations apply to the previously installed bundle; this final tree has not yet been installed or lifecycle-qualified.
 
 - Audit async result retrieval: the bounded query returns HTTP 202 with a same-origin `Location` at `/api/admin/v1/async-result`; the current validator requires `/api/admin/v2/async-result` and rejects the observed path. No status GET or result was followed because the route equivalence is not established.
 - OpsDeck providers for fixed-source `messages.log` and `SystemMonitor.log` reads.

@@ -1,4 +1,4 @@
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=native-pivot-audit-location";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.2.0";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -37,7 +37,7 @@ const state = {
   auditQuery: null, auditQueryBusy: false,
 };
 
-const nativeMode = location.pathname?.startsWith("/opsdeck") === true;
+const nativeMode = location.pathname === "/opsdeck" || location.pathname?.startsWith("/opsdeck/") === true;
 let nativeAuthorization = null;
 const app = document.querySelector("#app");
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -96,15 +96,16 @@ function shell(content) {
   const user = state.info ? esc(state.info.username) : "Not connected";
   const version = state.info ? esc(state.info.serverVersion) : "Local instance not verified";
   const connected = state.connected;
+  const demoMode = state.info?.systemMode === "DEMO";
   return `
     <div class="shell">
       <header class="topbar">
         <a class="brand" href="#overview" aria-label="OpsDeck overview"><span class="brand-mark">OD</span><span>OpsDeck</span></a>
-        <div class="instance-line"><span class="instance-label">IRIS instance</span><span class="instance-value">${version}</span></div>
+        <div class="instance-line"><span class="instance-label">${demoMode ? "Demo dataset" : "IRIS instance"}</span><span class="instance-value">${version}</span></div>
         <div class="top-actions">
-          <span class="connection-state">${badge(connected ? "Live session" : "Disconnected", connected ? "success" : "muted")}</span>
+          <span class="connection-state">${badge(connected ? (demoMode ? "Safe demo" : "Live session") : "Disconnected", connected ? (demoMode ? "warning" : "success") : "muted")}</span>
           ${connected ? `<span class="user-chip">${user}</span>` : ""}
-          ${connected ? '<button class="button quiet" id="disconnect-button" type="button">Sign out</button>' : ""}
+          ${connected && !demoMode ? '<button class="button quiet" id="disconnect-button" type="button">Sign out</button>' : ""}
           <label class="theme-picker"><span class="sr-only">Color theme</span><select id="theme-select" aria-label="Color theme"><option value="dark" ${state.theme === "dark" ? "selected" : ""}>Dark</option><option value="light" ${state.theme === "light" ? "selected" : ""}>Light</option><option value="system" ${state.theme === "system" ? "selected" : ""}>System</option></select></label>
         </div>
       </header>
@@ -112,13 +113,13 @@ function shell(content) {
         <div class="nav-caption">WORKSPACE</div>
         ${navItems.map(([route, label], index) => {
           const active = state.route === route;
-          const available = route !== "evidence";
-          return `<button class="nav-item ${active ? "active" : ""} ${available ? "" : "gated"}" data-route="${route}" ${available ? "" : 'aria-label="' + label + ', planned after contest completeness"'}><span class="nav-index">${String(index + 1).padStart(2, "0")}</span><span>${label}</span>${available ? "" : '<span class="nav-lock" aria-hidden="true">M3</span>'}</button>`;
+          const available = true;
+          return `<button class="nav-item ${active ? "active" : ""}" data-route="${route}"><span class="nav-index">${String(index + 1).padStart(2, "0")}</span><span>${label}</span></button>`;
         }).join("")}
-        <div class="sidebar-note"><span class="note-dot"></span><span>Live reads · M1</span></div>
+        <div class="sidebar-note"><span class="note-dot"></span><span>${demoMode ? "Safe demo · sanitized" : "Live reads · M1"}</span></div>
       </aside>
       <main class="workspace">${content}</main>
-      <footer class="statusbar"><span><i class="status-dot ${connected ? "online" : ""}"></i>${connected ? "IRIS connection active" : "Connect to your local IRIS instance"}</span><span>${nativeMode ? "Same-origin session · credentials remain in tab memory" : "Loopback session · credentials are not saved"}</span><span>Last read ${fmtTime(state.lastRead)}</span></footer>
+      <footer class="statusbar"><span><i class="status-dot ${connected ? "online" : ""}"></i>${connected ? (demoMode ? "Safe demo provider active" : "IRIS connection active") : "Connect to your local IRIS instance"}</span><span>${demoMode ? "Sanitized deterministic data · no IRIS connection" : nativeMode ? "Same-origin session · credentials remain in tab memory" : "Loopback session · credentials are not saved"}</span><span>Last read ${fmtTime(state.lastRead)}</span></footer>
     </div>`;
 }
 
@@ -138,7 +139,7 @@ function connectView() {
         <p class="card-copy">Use an account allowed to read server information and web applications.</p>
         ${error}
         <label for="username">Username</label>
-        <input id="username" name="username" value="${nativeMode ? "" : "_SYSTEM"}" autocomplete="off" required maxlength="128">
+        <input id="username" name="username" autocomplete="username" required maxlength="128">
         <label for="password">Password</label>
         <input id="password" name="password" type="password" autocomplete="off" required maxlength="512">
         <button class="button primary connect-button" type="submit" ${state.busy ? "disabled" : ""}>${state.busy ? '<span class="spinner"></span>Checking connection…' : "Connect to local IRIS"}</button>
@@ -148,17 +149,85 @@ function connectView() {
     <section class="gate-strip"><div><span class="gate-kicker">M0 PASSED</span><strong>Live API identity + applications</strong></div><div>${badge("M1 read-only", "accent")}</div><p>Connected sessions can browse verified M1 providers. Mutation workflows remain gated until fixture and read-back qualification.</p></section>`);
 }
 
+
+
+function demoPersonaProfile() {
+  if (state.info?.systemMode !== "DEMO") return null;
+  const profiles = {
+    DemoOperator: {
+      label: "Operations",
+      mission: "Inspect runtime health, scheduled work, applications, and operational logs without security-administration access.",
+      allowed: ["Applications", "Tasks", "System", "Logs"],
+      withheld: ["Access", "Security"],
+    },
+    DemoSecurity: {
+      label: "Security Administrator",
+      mission: "Inspect identities, roles, resources, credential metadata, applications, and security-relevant logs.",
+      allowed: ["Applications", "Access", "Security", "Logs"],
+      withheld: ["Tasks", "System"],
+    },
+    DemoAppAdmin: {
+      label: "Application Administrator",
+      mission: "Inspect application registration and REST relationships while unrelated administrative domains remain outside the persona.",
+      allowed: ["Applications"],
+      withheld: ["Access", "Security", "Tasks", "System", "Logs"],
+    },
+    DemoRestricted: {
+      label: "Restricted User",
+      mission: "Demonstrate that insufficient authority is visible as an access boundary rather than being misreported as empty operational state.",
+      allowed: ["Overview"],
+      withheld: ["Applications", "Access", "Security", "Tasks", "System", "Logs"],
+    },
+  };
+  return profiles[state.info.username] || null;
+}
+
+function demoPersonaCard() {
+  const profile = demoPersonaProfile();
+  if (!profile) return "";
+  const chips = (items, tone) => items.map((item) => badge(item, tone)).join("");
+  return `
+    <section class="panel persona-story" aria-labelledby="persona-story-title">
+      <div class="persona-story-main">
+        <div class="panel-kicker">CURRENT DEMO PERSONA</div>
+        <h2 id="persona-story-title">${esc(profile.label)}</h2>
+        <p>${esc(profile.mission)}</p>
+      </div>
+      <div class="persona-scope">
+        <div><strong>In scope</strong><span class="persona-chips">${chips(profile.allowed, "success")}</span></div>
+        <div><strong>Withheld by persona</strong><span class="persona-chips">${chips(profile.withheld, "muted")}</span></div>
+      </div>
+      <p class="persona-hint">Use the <strong>DEMO ACCESS</strong> selector above to switch identities. The dataset stays deterministic; only authority changes.</p>
+    </section>`;
+}
+
+function safeDemoTour() {
+  if (state.info?.systemMode !== "DEMO") return "";
+  return `
+    <section class="panel judge-tour" aria-labelledby="judge-tour-title">
+      <div class="panel-head"><div><div class="panel-kicker">EVALUATOR SHORTCUT</div><h2 id="judge-tour-title">90-second judge tour</h2></div>${badge("Safe demo", "warning")}</div>
+      <p class="judge-tour-copy">This demo uses deterministic sanitized sample data, but exercises the same UI, mapping, access-boundary, and evidence semantics as OpsDeck. It does not claim a live IRIS connection.</p>
+      <div class="judge-tour-steps">
+        <button class="tour-step" data-route="applications"><span>01</span><strong>Applications</strong><small>Inspect application identity and read-back semantics.</small></button>
+        <button class="tour-step" data-route="access"><span>02</span><strong>Access</strong><small>Follow user, role, resource, and ownership relationships.</small></button>
+        <button class="tour-step" data-route="security"><span>03</span><strong>Boundaries</strong><small>See valid empty and deliberately unavailable sources stay distinct.</small></button>
+        <button class="tour-step" data-route="evidence"><span>04</span><strong>Evidence</strong><small>See what is verified, unavailable, blocked, or still unqualified.</small></button>
+      </div>
+    </section>`;
+}
+
 function overviewView() {
   const info = state.info;
   if (!info) {
     return shell(`${pageHeader("Overview", "Loading the live identity and application state.")}<section class="panel empty-state" role="status"><div class="panel-kicker">RESTORING SESSION</div><h2>Checking IRIS state</h2><p>The session is valid. OpsDeck is reading the authoritative identity and web-application list.</p></section>`);
   }
   const privilegeCount = info.privileges ? Object.values(info.privileges).filter(Boolean).length : null;
+  const demoMode = info.systemMode === "DEMO";
   return shell(`
-    ${pageHeader("Overview", "A verified view of the connected instance.")}
+    ${pageHeader("Overview", demoMode ? "Explore the evaluator-safe dataset and OpsDeck evidence semantics." : "A verified view of the connected instance.")}
     <section class="overview-grid">
       <article class="panel identity-panel">
-        <div class="panel-head"><div><div class="panel-kicker">CONNECTED INSTANCE</div><h2>Server identity</h2></div>${badge("Live", "success")}</div>
+        <div class="panel-head"><div><div class="panel-kicker">${demoMode ? "SANITIZED DEMO IDENTITY" : "CONNECTED INSTANCE"}</div><h2>Server identity</h2></div>${badge(demoMode ? "Demo" : "Live", demoMode ? "warning" : "success")}</div>
         <dl class="identity-grid">
           <dt>Server</dt><dd>${esc(info.serverVersion)}</dd>
           <dt>Product</dt><dd>${esc(info.product)}</dd>
@@ -170,19 +239,22 @@ function overviewView() {
         <div class="panel-foot">Identity source <code>GET /api/admin/info</code> · ${fmtTime(info.observedAt)}</div>
       </article>
       <article class="panel read-panel">
-        <div class="panel-head"><div><div class="panel-kicker">AUTHORITATIVE READ</div><h2>Web applications</h2></div><button class="button quiet" id="refresh-button" ${state.busy ? "disabled" : ""}>Refresh</button></div>
+        <div class="panel-head"><div><div class="panel-kicker">${demoMode ? "DEMO CONTRACT READ" : "AUTHORITATIVE READ"}</div><h2>Web applications</h2></div><button class="button quiet" id="refresh-button" ${state.busy ? "disabled" : ""}>Refresh</button></div>
         <div class="read-metric"><strong>${state.apps.length}</strong><span>applications returned</span></div>
         <p class="read-summary">${state.apps.length ? `First resource <code>${esc(state.apps[0].name)}</code> in namespace <code>${esc(state.apps[0].namespace)}</code>.` : "The live API returned an empty collection."}</p>
-        <div class="readback-row">${state.verification ? badge(state.verification.matched ? "Read-back verified" : "Read-back mismatch", state.verification.matched ? "success" : "error") : badge("Read-back pending", "muted")}<span>${state.verification ? `${state.verification.count} entries compared at ${fmtTime(state.verification.at)}` : "A second read follows each refresh."}</span></div>
+        <div class="readback-row">${state.verification ? badge(state.verification.matched ? (demoMode ? "Demo repeat matched" : "Read-back verified") : "Read-back mismatch", state.verification.matched ? "success" : "error") : badge("Read-back pending", "muted")}<span>${state.verification ? `${state.verification.count} entries compared at ${fmtTime(state.verification.at)}` : "A second read follows each refresh."}</span></div>
         <div class="panel-foot">List source <code>GET /api/admin/v2/web-apps</code></div>
       </article>
     </section>
     ${state.error ? `<div class="notice error" role="alert">${esc(state.error)}</div>` : ""}
-    <section class="panel roadmap-panel"><div class="panel-head"><div><div class="panel-kicker">PRODUCT COVERAGE</div><h2>Operations workspace</h2></div>${badge("M0 reproduced · M1 in progress", "warning")}</div><div class="roadmap-grid">${navItems.slice(2).map(([, title], i) => `<div class="roadmap-item"><span class="roadmap-index">${String(i + 2).padStart(2, "0")}</span><strong>${title}</strong><span>${["Users, roles and resources", "Credential metadata", "Task inventory", "System and process views", "Audit and journal sources", "Deferred until completeness"][i]}</span></div>`).join("")}</div><p class="roadmap-note">Live values come from fixed read-only providers. OpsDeck does not substitute fixtures for IRIS data.</p></section>`);
+    ${safeDemoTour()}
+    ${demoPersonaCard()}
+    <section class="panel roadmap-panel"><div class="panel-head"><div><div class="panel-kicker">PRODUCT COVERAGE</div><h2>Operations workspace</h2></div>${badge(demoMode ? "Evaluator-safe surface" : "M0 reproduced · M1 in progress", demoMode ? "accent" : "warning")}</div><div class="roadmap-grid">${navItems.slice(2).map(([, title], i) => `<div class="roadmap-item"><span class="roadmap-index">${String(i + 2).padStart(2, "0")}</span><strong>${title}</strong><span>${["Users, roles and resources", "Credential metadata", "Task inventory", "System and process views", "Audit and journal sources", "Qualification and evidence receipts"][i]}</span></div>`).join("")}</div><p class="roadmap-note">${demoMode ? "Evaluator mode uses a deterministic demo provider. Live OpsDeck uses fixed read-only providers and never substitutes demo records for failed IRIS reads." : "Live values come from fixed read-only providers. OpsDeck does not substitute fixtures for IRIS data."}</p></section>`);
 }
 
 function pageHeader(title, description) {
-  return `<div class="page-header"><div><div class="eyebrow"><span class="eyebrow-rule"></span>OPSDECK WORKSPACE</div><h1>${title}</h1><p>${description}</p></div><div class="page-header-meta">${badge("IRIS 2026.2", "accent")}</div></div>`;
+  const demoMode = state.info?.systemMode === "DEMO";
+  return `<div class="page-header"><div><div class="eyebrow"><span class="eyebrow-rule"></span>OPSDECK WORKSPACE</div><h1>${title}</h1><p>${description}</p></div><div class="page-header-meta">${demoMode ? badge("Evaluator mode", "warning") : badge("IRIS 2026.2", "accent")}</div></div>`;
 }
 
 function applicationsView() {
@@ -255,7 +327,10 @@ function sourcePanel(sourceId) {
   const data = state.sourceData[sourceId];
   const error = state.sourceErrors[sourceId];
   if (state.sourceLoading === sourceId) return `<div class="source-message">Loading the selected live source…</div>`;
-  if (error) return `<div class="source-message source-error" role="alert"><strong>Source unavailable</strong><p>${esc(error)}</p><code>GET ${esc(source.path)}</code><button class="button quiet" data-refresh-source="${sourceId}">Retry source</button></div>`;
+  if (error) {
+    const denied = /does not have authority|HTTP 403|denied/i.test(error);
+    return `<div class="source-message source-error ${denied ? "source-denied" : ""}" role="alert"><strong>${denied ? (state.info?.systemMode === "DEMO" ? "Access denied by persona" : "Access denied by IRIS") : "Source unavailable"}</strong><p>${esc(error)}</p><code>GET ${esc(source.path)}</code><button class="button quiet" data-refresh-source="${sourceId}">Retry source</button></div>`;
+  }
   if (sourceId === "alerts") {
     if (!data) return `<div class="source-message"><strong>Stateful alert feed</strong><p>IRIS returns alerts since the previous feed read. OpsDeck does not poll this source automatically; requesting a batch advances that read boundary.</p><button class="button secondary" data-load-alerts>Read alert batch</button><div class="panel-foot">GET <code>${esc(source.path)}</code> · ${esc(source.requiredPrivilege)} · iris-monitor-api</div></div>`;
     const fieldShapes = data.items.map((item) => `<li><strong>${esc(item.ref.label)}</strong><span>${item.values.observedFields.length ? item.values.observedFields.map((field) => `<code>${esc(field)}</code>`).join(" ") : "No fields returned"}</span></li>`).join("");
@@ -384,9 +459,31 @@ function auditQueryPanel() {
   return `<section class="panel provider-panel audit-query-panel"><div class="panel-head"><div><div class="panel-kicker">BLOCKED / UNVERIFIED</div><h2>Audit records</h2></div></div><p class="source-message">Audit search can be accepted by IRIS, but asynchronous result retrieval is not qualified. OpsDeck does not display audit records or claim a completed read.</p></section>`;
 }
 
-function gatedView() {
-  const title = navItems.find(([route]) => route === state.route)?.[1] || "Workspace";
-  return shell(`${pageHeader(title, "Local evidence is being added after contest feature completeness.")}<section class="panel gated-panel"><div class="gated-mark">M3</div><h2>Evidence Center is deferred</h2><p>Evidence views will be built after the M1 and M2 acceptance paths are complete and reproducible.</p><button class="button secondary" data-route="overview">Return to overview</button></section>`);
+function evidenceView() {
+  const isDemo = state.info?.systemMode === "DEMO";
+  const readback = state.verification
+    ? (state.verification.matched
+      ? { label: "VERIFIED", tone: "success", detail: `${state.verification.count} web-app identities matched on an independent second read.` }
+      : { label: "MISMATCH", tone: "error", detail: "The second web-app read differed from the displayed state." })
+    : { label: "PENDING", tone: "muted", detail: "No current read-back comparison is available in this session." };
+  const cards = [
+    { title: "Web application read-back", state: readback.label, tone: readback.tone, detail: readback.detail, note: isDemo ? "Demo semantics only · live IRIS verification is separately qualified." : "Current session evidence." },
+    { title: "Provider state semantics", state: "PRESERVED", tone: "success", detail: "Valid empty collections, unavailable providers, denied access, and mapping failures remain distinct states.", note: "No fixture fallback is substituted for a failed live provider." },
+    { title: "Audit async handoff", state: "BLOCKED", tone: "warning", detail: "The bounded native query reached HTTP 202, then stopped when IRIS returned a same-origin v1 async-result path while the strict client contract permits v2.", note: "No status GET was guessed, substituted, or followed after that mismatch." },
+    { title: "IPM / ZPM lifecycle", state: "UNVERIFIED", tone: "muted", detail: "No package load, install, uninstall, or clean-reinstall claim is admitted yet.", note: "Packaging remains separate from already reproduced browser capability." }
+  ];
+  const cardHtml = cards.map((item) => `<article class="evidence-card"><div class="evidence-card-head"><strong>${esc(item.title)}</strong>${badge(item.state, item.tone)}</div><p>${esc(item.detail)}</p><small>${esc(item.note)}</small></article>`).join("");
+  return shell(`
+    ${pageHeader("Evidence", "What OpsDeck can prove, what it cannot, and where qualification deliberately stops.")}
+    ${isDemo ? `<div class="evidence-demo-notice"><strong>SAFE DEMO</strong><span>Sanitized deterministic data. This page demonstrates evidence semantics, not a live IRIS claim.</span></div>` : ""}
+    <section class="panel evidence-flow-panel"><div class="panel-head"><div><div class="panel-kicker">EVIDENCE-GATED OPERATION</div><h2>Observed state stays tied to authority</h2></div>${badge("No shadow state", "accent")}</div>
+      <div class="evidence-flow" aria-label="OpsDeck evidence flow"><div><span>01</span><strong>Request</strong><small>Known operation</small></div><b>→</b><div><span>02</span><strong>Bounded provider</strong><small>Allowlisted route</small></div><b>→</b><div><span>03</span><strong>IRIS authority</strong><small>Source of truth</small></div><b>→</b><div><span>04</span><strong>Rendered state</strong><small>Safe projection</small></div><b>→</b><div><span>05</span><strong>Read-back</strong><small>Where qualified</small></div></div>
+    </section>
+    <section class="evidence-grid">${cardHtml}</section>
+    <section class="panel evidence-legend"><div class="panel-head"><div><div class="panel-kicker">STATE SEMANTICS</div><h2>Absence is not failure, and failure is not absence</h2></div></div>
+      <div class="state-legend-grid"><div>${badge("VERIFIED", "success")}<p>Independent evidence agrees with the displayed state.</p></div><div>${badge("EMPTY", "accent")}<p>The authoritative provider returned a valid empty collection.</p></div><div>${badge("UNAVAILABLE", "warning")}<p>The source could not provide a usable result. OpsDeck does not invent one.</p></div><div>${badge("DENIED", "error")}<p>The current identity lacks authority for the source.</p></div><div>${badge("UNVERIFIED", "muted")}<p>The behavior has not crossed its required qualification boundary.</p></div></div>
+      <div class="evidence-actions"><button class="button secondary" data-route="applications">Inspect applications</button><button class="button secondary" data-route="access">Inspect access relationships</button><button class="button secondary" data-route="security">Inspect provider boundaries</button></div>
+    </section>`);
 }
 
 function render() {
@@ -394,7 +491,7 @@ function render() {
   if (!state.connected) app.innerHTML = connectView();
   else if (state.route === "applications") app.innerHTML = applicationsView();
   else if (state.route === "overview") app.innerHTML = overviewView();
-  else if (state.route === "evidence") app.innerHTML = gatedView();
+  else if (state.route === "evidence") app.innerHTML = evidenceView();
   else app.innerHTML = providerDomainView(state.route);
   app.querySelector("#theme-select")?.addEventListener("change", (event) => setTheme(event.target.value));
   app.querySelectorAll("[data-route]").forEach((button) => button.addEventListener("click", () => {
@@ -588,8 +685,8 @@ async function refreshLive(compareReadback) {
   try {
     render();
     const infoPayload = await apiPayload("/api/admin/info");
-    const listPayload = await apiPayload("/api/admin/v2/web-apps");
     state.info = mapServerInfo(infoPayload);
+    const listPayload = await apiPayload("/api/admin/v2/web-apps");
     state.apps = mapWebApps(listPayload);
     state.lastRead = new Date().toISOString();
     if (!state.selected || !state.apps.some((item) => item.name === state.selected)) {

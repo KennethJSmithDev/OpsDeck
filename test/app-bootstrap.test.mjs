@@ -17,9 +17,9 @@ const info = {
 test("frontend assets resolve from the current application path", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
-  assert.match(html, /href="\.\/styles\.css\?v=native-pivot"/u);
-  assert.match(html, /src="\.\/app\.js\?v=native-pivot-audit-location"/u);
-  assert.match(app, /from "\.\/iris-provider\.js\?v=native-pivot-audit-location"/u);
+  assert.match(html, /href="\.\/styles\.css\?v=opsdeck-0.2.0"/u);
+  assert.match(html, /src="\.\/app\.js\?v=opsdeck-0.2.0"/u);
+  assert.match(app, /from "\.\/iris-provider\.js\?v=opsdeck-0.2.0"/u);
 });
 const apps = {
   status: { errors: [], summary: "" }, console: [],
