@@ -49,9 +49,11 @@ The installed native v0.2.0 application was checked across eight routes at 320, 
 
 ## v0.2.1 development qualification note
 
-The installed v0.2.1 candidate has passed a read-only identity gate and representative desktop browser checks against its exact installed bytes. The historical v0.2.0 responsive matrix remains accepted for v0.2.0 only.
+The installed v0.2.1 candidate passed its read-only identity gate, representative desktop browser checks, and all 48 individual route-at-width observations at 320, 390, 600, 820, 1024, and 1440 CSS px.
 
-The exact 0.2.1 responsive matrix at 320, 390, 600, 820, 1024, and 1440 CSS px has **not yet been rerun** because the attached browser controls did not expose an exact viewport-size setter. Approximate widths were deliberately not substituted.
+The separate no-reload Applications resize path is **not accepted**. During in-place narrowing from wide state, both inventory tables retained a 660 px minimum width and caused document-level horizontal overflow at 320, 390, and 600 CSS px. The selected `/opsdeck` resource remained preserved.
+
+The historical v0.2.0 responsive matrix remains accepted for v0.2.0 only. v0.2.1 remains a development candidate until the transition defect is corrected and requalified.
 
 ## What the demo proves
 
