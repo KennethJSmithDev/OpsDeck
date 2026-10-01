@@ -137,9 +137,26 @@ Known:
 - hardened 16-stage lifecycle passes for the exact Phase C candidate;
 - post-lifecycle identity/hash/proof/sibling gate passes.
 
-Remaining Phase C gate:
+### Phase C installed-native browser qualification
 
-- installed-native browser/responsive qualification after human sign-in.
+**PASS for the first bounded capability-aware UI slice.**
+
+Against the exact installed Phase C candidate:
+
+- all 48 route-at-width samples passed across 320, 390, 600, 820, 1024, and 1440 CSS px;
+- every sample had document `scrollWidth == clientWidth`;
+- no ordinary horizontal scrollers were observed;
+- Applications preserved the selected `/opsdeck` resource across route revisits and the no-reload responsive sequence;
+- the no-reload sequence `1440 → 320 → 390 → 600 → 820 → 1024 → 1440` passed;
+- narrow inventory tables computed `min-width: 0px`;
+- Evidence retained the intended historical v0.2.0 lifecycle wording;
+- sign-out removed the live OpsDeck identity and returned to the disconnected connect form.
+
+After sign-out, Edge displayed browser-managed autofill values in the disconnected credential fields. These were identified as browser autofill state, not retained live OpsDeck identity/session state. The autofill distinction is recorded as a browser boundary, not an OpsDeck session-clearing failure.
+
+The viewport emulation override was cleared. DevTools remained docked, so the post-clear viewport was not treated as normal-layout evidence.
+
+This accepts the first bounded Phase C capability-aware navigation/projection slice. It does **not** claim the entire 0.3 roadmap is complete.
 
 No public Phase C release claim is made.
 
@@ -168,10 +185,10 @@ The current strict client permits the expected v2 status route and rejected the 
 
 ## Next boundary
 
-Complete installed-native browser/responsive qualification for the exact Phase C candidate after human sign-in.
+Preserve the accepted first Phase C slice and its evidence before expanding capability-aware behavior.
 
-Do not broaden Phase C authority merely to make the UI projection pass. Preserve the accepted 0.2.1 distribution-fidelity milestone and v0.2.0 historical evidence.
+Continue 0.3 only through separately scoped, deterministic projection work that preserves the same authority invariants. Do not interpret this first-slice PASS as completion of the full 0.3 milestone.
 
-If Phase C browser qualification passes, preserve the candidate/evidence before any public merge/tag/release decision.
+Any public merge/tag/release decision remains separate.
 
 See [Roadmap](ROADMAP.md).
