@@ -16,9 +16,8 @@ test("inventory panel changes from a table to labeled cards at its usable width"
   assert.match(css, /\.table-panel\s*\{[^}]*container:\s*inventory\s*\/\s*inline-size/s);
   const cardMode = css.slice(css.indexOf("@container inventory (max-width:700px)"), css.indexOf("@container source-panel (max-width:760px)"));
   assert.match(cardMode, /table\s*\{[^}]*min-width:\s*0[^}]*display:\s*block/s);
-  const compactSafety = cardMode.slice(cardMode.indexOf("@media (max-width:700px)"));
-  assert.match(compactSafety, /\.apps-layout \.panel\.table-panel table,\s*\.provider-layout \.panel\.table-panel table\s*\{[^}]*min-width:\s*0/s);
-  assert.match(compactSafety, /@media\s*\(min-width:\s*746px\)\s*\{\s*\.apps-layout \.panel\.table-panel table,\s*\.provider-layout \.panel\.table-panel table\s*\{[^}]*min-width:\s*660px/s);
+  assert.match(css, /(^|\n)table\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0/s);
+  assert.doesNotMatch(css, /(?:^|\n)\s*table\s*\{[^}]*min-width:\s*660px/s);
   assert.match(css, /\.app-row,\.provider-row\s*\{[^}]*display:\s*grid/s);
   assert.match(app, /data-label="Web application"/);
   assert.match(app, /data-label="Namespace"/);

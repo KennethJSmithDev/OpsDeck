@@ -88,7 +88,7 @@ a { color:inherit; text-decoration:none; }
 .table-panel { min-width:0; overflow:visible; }
 .table-panel { container:inventory / inline-size; }
 .table-wrap { min-width:0; overflow:visible; }
-table { width:100%; min-width:660px; border-collapse:collapse; }
+table { width:100%; min-width:0; border-collapse:collapse; }
 th,td { padding:10px 11px; border-bottom:1px solid var(--border); text-align:left; vertical-align:middle; }
 th { position:sticky; top:0; color:var(--subtle); background:var(--surface); font-family:"DM Mono",monospace; font-size:9px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; }
 td { color:var(--muted); font-size:10px; }
@@ -339,16 +339,6 @@ td { color:var(--muted); font-size:10px; }
   .app-row td:nth-child(n+4),.provider-row td:nth-child(n+5) { display:none; }
   tbody tr:has(.empty-cell) { display:block; }
   .empty-cell { display:block; padding:16px; }
-}
-/* At compact viewport widths, keep the inventory table safe even if the
-   container-query card-mode override is not recalculated during a live resize. */
-@media (max-width:700px) {
-  .apps-layout .panel.table-panel table,
-  .provider-layout .panel.table-panel table { min-width:0; }
-}
-@media (min-width:746px) {
-  .apps-layout .panel.table-panel table,
-  .provider-layout .panel.table-panel table { min-width:660px; }
 }
 @container source-panel (max-width:760px) {
   .source-tabs { gap:8px; }
