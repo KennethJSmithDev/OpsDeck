@@ -22,26 +22,24 @@ Future work builds from that accepted foundation rather than reopening it withou
 
 Objective: make a normal public checkout produce the exact package bytes that are qualified.
 
-Checkout representation is already verified for the frozen candidate under normal Windows Git settings.
+Checkout representation is verified for the frozen candidate under normal Windows Git settings.
 
-Native qualification is currently **FAILED / UNRESOLVED** because:
+The exact 0.2.1 local-source lifecycle has also passed after qualification-tooling defects were localized and corrected.
 
-- the IPM load result was not semantically captured;
-- legacy recovery then mutated package/app state;
-- an unrelated CSP sibling inventory digest changed;
-- no item-level pre-capture sibling rows survive to identify the delta.
-
-Do not retry until those boundaries are localized/reconciled.
-
-Acceptance still requires:
+Accepted so far:
 
 - exact fresh-checkout source hashes;
 - source → deployed byte parity;
-- lifecycle reproduction;
-- installed-native smoke;
-- responsive regression where raw installed bytes changed;
+- load/registration;
+- uninstall/removal;
 - unrelated-state preservation;
-- sanitized receipt.
+- clean same-source reload;
+- 82/82 regressions;
+- sanitized/private evidence preservation.
+
+Remaining acceptance gate:
+
+- installed-native browser/responsive requalification for the changed raw resource bytes.
 
 Public-registry installation remains a separate gate.
 
