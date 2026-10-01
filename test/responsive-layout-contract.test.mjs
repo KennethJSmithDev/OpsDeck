@@ -18,6 +18,7 @@ test("inventory panel changes from a table to labeled cards at its usable width"
   assert.match(cardMode, /table\s*\{[^}]*min-width:\s*0[^}]*display:\s*block/s);
   const compactSafety = cardMode.slice(cardMode.indexOf("@media (max-width:700px)"));
   assert.match(compactSafety, /\.apps-layout \.panel\.table-panel table,\s*\.provider-layout \.panel\.table-panel table\s*\{[^}]*min-width:\s*0/s);
+  assert.match(compactSafety, /@media\s*\(min-width:\s*746px\)\s*\{\s*\.apps-layout \.panel\.table-panel table,\s*\.provider-layout \.panel\.table-panel table\s*\{[^}]*min-width:\s*660px/s);
   assert.match(css, /\.app-row,\.provider-row\s*\{[^}]*display:\s*grid/s);
   assert.match(app, /data-label="Web application"/);
   assert.match(app, /data-label="Namespace"/);

@@ -346,6 +346,10 @@ td { color:var(--muted); font-size:10px; }
   .apps-layout .panel.table-panel table,
   .provider-layout .panel.table-panel table { min-width:0; }
 }
+@media (min-width:746px) {
+  .apps-layout .panel.table-panel table,
+  .provider-layout .panel.table-panel table { min-width:660px; }
+}
 @container source-panel (max-width:760px) {
   .source-tabs { gap:8px; }
   .source-tab { flex:1 1 150px; max-width:100%; min-height:44px; }
