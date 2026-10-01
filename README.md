@@ -52,7 +52,9 @@ After those fixes and a verified restore of the accepted `0.2.0` baseline, the e
 
 Installed-native desktop/browser requalification has now passed its read-only identity gate and representative live-route checks against the exact installed 0.2.1 bytes. Applications, Access, Tasks, Security, Logs status, Evidence classification, and sign-out were exercised; System counters produced a differing second sample and remain correctly non-stable.
 
-The remaining gate is the exact responsive matrix at 320, 390, 600, 820, 1024, and 1440 CSS px plus wide → narrow → wide state preservation. The attached browser tooling could not set exact CSS viewport widths, so that boundary remains **UNVERIFIED**, not failed. No v0.2.1 release claim is made until it closes.
+The exact responsive-width matrix is now measurable. All 48 route-at-width observations passed when each route rendered at its target width, but the no-reload Applications transition **failed** at 320, 390, and 600 CSS px: both inventory tables retained a computed 660 px minimum width and forced document-level horizontal overflow. The selected `/opsdeck` resource and route were preserved.
+
+The responsive browser gate is therefore **FAIL**, not merely unverified. The owning boundary is localized to inventory-table responsive styling during in-place resize; the exact invalidation trigger is not yet established. No v0.2.1 release claim is made until a separately authorized correction is requalified.
 
 See [Qualification Status](docs/QUALIFICATION_STATUS.md).
 
@@ -82,7 +84,7 @@ See [Qualification Status](docs/QUALIFICATION_STATUS.md).
 |---|---|---|
 | Native IRIS browser | Sign-in, identity, application read-back, selected management views, sign-out, and responsive behavior reproduced on IRIS 2026.2 | M1 remains partial; audit async result retrieval, Messages, and System Monitor readers remain unqualified/deferred |
 | v0.2.0 local-source lifecycle | Load, registration, deployed hashes, HTTP checks, uninstall/removal, unrelated-state preservation, clean reload | Exact core IPM version, fresh public-checkout parity, and public-registry installation remain unverified |
-| v0.2.1 development candidate | LF checkout parity, exact local-source lifecycle, 82/82 regressions, identity gate, and representative installed-native desktop checks passed | Exact responsive-width matrix and wide → narrow → wide state preservation remain unverified; not a release |
+| v0.2.1 development candidate | LF checkout parity, exact local-source lifecycle, 82/82 regressions, identity gate, representative desktop checks, and all 48 route-at-width samples passed | No-reload Applications resize fails at 320/390/600 px because inventory tables retain a 660 px minimum; responsive gate FAIL; not a release |
 | Safe demo | Deterministic sanitized evaluator data, authority personas, responsive UI, Evidence semantics | Demo data is not live IRIS evidence |
 | ObjectScript / CallIn execution | No execution bridge is present | No arbitrary native execution capability is claimed |
 
