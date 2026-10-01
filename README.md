@@ -76,7 +76,19 @@ Current bounded implementation:
 - exact candidate lifecycle: PASS;
 - post-lifecycle installed identity/hash gate: PASS.
 
-The remaining Phase C gate is installed-native browser/responsive qualification after human sign-in.
+The installed-native Phase C browser/responsive gate has now passed against the exact candidate bytes:
+
+- all 48 route-at-width samples passed at 320, 390, 600, 820, 1024, and 1440 CSS px;
+- the no-reload Applications sequence `1440 → 320 → 390 → 600 → 820 → 1024 → 1440` passed;
+- the selected `/opsdeck` resource remained in place;
+- inventory tables computed `min-width: 0px` at narrow widths;
+- zero document overflow and zero ordinary horizontal scrollers were observed;
+- Evidence retained the intended historical v0.2.0 wording;
+- sign-out removed the live identity and returned to the disconnected form.
+
+Residual credential values in the disconnected form were identified as browser-owned autofill, not retained OpsDeck session state.
+
+This accepts the **first bounded Phase C / 0.3 capability-aware UI slice**. It does not mean the entire 0.3 roadmap is complete.
 
 See [Qualification Status](docs/QUALIFICATION_STATUS.md).
 
