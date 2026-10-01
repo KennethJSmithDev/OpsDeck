@@ -40,17 +40,17 @@ The controlled local-source lifecycle reproduced load, registration, bounded nat
 
 The published `v0.2.0` tag is preserved exactly.
 
-A `0.2.1` development candidate corrected the Windows checkout line-ending contract: under `core.autocrlf=true`, all five package inputs matched their raw Git blobs.
+A frozen `0.2.1` development candidate corrected the Windows checkout line-ending contract: under `core.autocrlf=true`, all five package inputs matched their raw Git blobs.
 
-Its native lifecycle is **not qualified**.
+The earlier lifecycle stop was traced to qualification-tooling defects rather than an observed product defect:
 
-The qualification attempt stopped after:
+- sibling inventory rows were identical as sets; the digest mismatch came from PowerShell-version-dependent sort ordering;
+- package result markers needed strict standalone-line framing and durable private capture;
+- path and empty-array comparisons in recovery validation needed canonical handling.
 
-- an ambiguous IPM `LOAD_INITIAL` result whose exact operation marker/output was not preserved;
-- legacy recovery removed package registration and `/opsdeck`;
-- a stable CSP sibling-inventory digest difference was observed outside `CSP\opsdeck`, but the pre-capture item-level rows were not retained, so the delta cannot yet be localized.
+After those fixes and a verified restore of the accepted `0.2.0` baseline, the exact `0.2.1` local-source lifecycle passed end to end: load, registration, `/opsdeck`, deployed hash checks, uninstall/removal, unrelated-state preservation, clean reload, and **82/82** regressions.
 
-No v0.2.1 release claim is made. No new lifecycle attempt should run until those two diagnostic boundaries are resolved.
+Installed-native browser/responsive requalification for the changed raw bytes is still pending in the latest preserved status. No v0.2.1 release claim is made until that gate closes.
 
 See [Qualification Status](docs/QUALIFICATION_STATUS.md).
 
@@ -80,7 +80,7 @@ See [Qualification Status](docs/QUALIFICATION_STATUS.md).
 |---|---|---|
 | Native IRIS browser | Sign-in, identity, application read-back, selected management views, sign-out, and responsive behavior reproduced on IRIS 2026.2 | M1 remains partial; audit async result retrieval, Messages, and System Monitor readers remain unqualified/deferred |
 | v0.2.0 local-source lifecycle | Load, registration, deployed hashes, HTTP checks, uninstall/removal, unrelated-state preservation, clean reload | Exact core IPM version, fresh public-checkout parity, and public-registry installation remain unverified |
-| v0.2.1 development candidate | LF checkout representation matches Git blobs under normal Windows Git settings | Native lifecycle is FAILED / UNRESOLVED; not a release |
+| v0.2.1 development candidate | LF checkout representation matches Git blobs; exact local-source lifecycle passed with 82/82 regressions | Installed-native browser/responsive requalification remains pending; not a release |
 | Safe demo | Deterministic sanitized evaluator data, authority personas, responsive UI, Evidence semantics | Demo data is not live IRIS evidence |
 | ObjectScript / CallIn execution | No execution bridge is present | No arbitrary native execution capability is claimed |
 
