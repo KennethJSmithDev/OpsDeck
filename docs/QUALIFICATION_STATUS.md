@@ -75,26 +75,47 @@ The candidate verified:
 
 ### Native lifecycle result
 
-**FAILED / UNRESOLVED. No v0.2.1 qualification claim.**
+**PASS for the exact frozen 0.2.1 candidate. Browser/responsive requalification remains pending.**
 
-The attempt stopped because:
+The earlier failure state was resolved as qualification-tooling defects:
 
-1. `LOAD_INITIAL` completed Terminal transport but did not preserve the required exact `P001_OP_LOAD_INITIAL=1` operation marker;
-2. the retained sanitized receipt does not contain the raw IPM output needed to classify the operation result;
-3. legacy failure recovery attempted uninstall despite the ambiguous result;
-4. post-recovery registration and `/opsdeck` were absent;
-5. package-owned resource hashes were restored and proof inventory matched;
-6. an independent CSP sibling inventory outside `CSP\opsdeck` changed digest while retaining the same 1,504-entry count;
-7. no item-level pre-capture sibling rows survive, so the changed item cannot currently be identified.
+- the apparent sibling-inventory change was version-dependent `Sort-Object` ordering; corrected cross-engine comparison showed the same 1,504 rows as sets;
+- package-operation markers could be glued to IPM output without a leading newline;
+- a post-verdict array comparison produced a false negative;
+- application-path comparison did not canonicalize both slash styles;
+- empty collection properties could collapse to `$null` during validation.
 
-No baseline restoration or new lifecycle attempt should occur until both the sibling delta and the IPM result-capture path are resolved.
+The harness was hardened to:
+
+- use standalone operation-marker framing;
+- preserve raw private captures on unresolved semantic results;
+- stop before automatic recovery on ambiguous mutations;
+- retain item-level sibling rows with ordinal/version-independent sorting;
+- canonicalize path separators and empty collection values;
+- self-test in Windows PowerShell 5.1 and PowerShell 7.6.5.
+
+The accepted 0.2.0 baseline was then restored and verified before a fresh 0.2.1 run.
+
+The fresh 0.2.1 lifecycle passed:
+
+- exact local-source load;
+- `opsdeck@0.2.1` registration;
+- authoritative `/opsdeck`;
+- deployed resource hashes matching the candidate;
+- bounded native smoke;
+- uninstall/removal;
+- proof and sibling preservation;
+- clean same-source reload;
+- **82/82** regressions.
+
+Because the installed raw browser/provider bytes changed from the previously qualified CRLF representation, the installed-native browser and responsive matrix must still be rerun before 0.2.1 can be accepted for release.
 
 ## UNVERIFIED / DEFERRED
 
 - exact core IPM version used by the accepted v0.2.0 lifecycle;
 - fresh-checkout parity for public v0.2.0;
 - public registry availability/installation;
-- v0.2.1 native lifecycle;
+- v0.2.1 installed-native browser/responsive requalification;
 - audit asynchronous result retrieval;
 - authenticated bounded readers for `messages.log` and `SystemMonitor.log`;
 - broad mutation workflows;
@@ -114,12 +135,8 @@ The current strict client permits the expected v2 status route and rejected the 
 
 ## Next boundary
 
-Read-only diagnosis only:
+Complete installed-native browser/responsive requalification against the exact 0.2.1 bytes.
 
-- localize or reconcile the sibling-inventory difference;
-- recover or otherwise establish the IPM lifecycle result boundary without speculative mutation;
-- repair qualification tooling only after the owning failure is evidenced.
-
-After distribution fidelity is accepted, the next product-facing milestone is the capability-aware morphing UI.
+If that passes, preserve the accepted 0.2.1 candidate and proceed to the capability-aware morphing UI on a separate feature branch.
 
 See [Roadmap](ROADMAP.md).
