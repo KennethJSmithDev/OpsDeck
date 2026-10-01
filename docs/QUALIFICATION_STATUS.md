@@ -111,17 +111,17 @@ The fresh 0.2.1 lifecycle passed:
 
 ### Installed-native browser result
 
-**PARTIAL PASS. Responsive matrix still UNVERIFIED.**
+**FAIL for the exact frozen 0.2.1 candidate. Phase C remains gated.**
 
-A read-only identity gate against the installed 0.2.1 state passed:
+The pre-browser read-only identity gate passed:
 
 - `opsdeck@0.2.1` registered in `%SYS`;
-- `/opsdeck` present and enabled;
-- all four deployed resource hashes matched the frozen candidate and lifecycle receipt;
+- `/opsdeck` present, enabled, and matched authoritative application detail;
+- all four deployed asset hashes matched the frozen candidate and lifecycle receipt;
 - proof inventory matched its saved snapshot;
 - the 1,504-row sibling inventory matched the saved post-lifecycle snapshot item-for-item.
 
-The existing authenticated native browser session then reproduced:
+Representative installed-native browser checks also passed:
 
 - live identity `OpsDeckTest` on IRIS 2026.2 Build 221U;
 - Overview with 23 applications;
@@ -131,24 +131,56 @@ The existing authenticated native browser session then reproduced:
 - Security as a valid matched empty collection;
 - Logs audit status with matching second read while audit-record retrieval remained explicitly blocked/unqualified;
 - Evidence wording correctly describing the shipped v0.2.0 lifecycle as historical qualification;
-- Sign out clearing the connected identity and returning to the disconnected connect screen.
+- Sign out clearing the connected identity and authenticated route state.
 
-System usage produced a differing second sample during observation. No stability/equality claim is made for changing counters.
+System usage produced a differing second sample during observation. No stable-equality claim is made for changing counters.
 
-At the available 1912 px viewport, representative routes had matching document/client widths and no ordinary horizontal scrollers.
+Exact viewport control was then established for:
 
-The required exact 320, 390, 600, 820, 1024, and 1440 CSS px checks could not be run because the attached Edge controls exposed no exact viewport setter; keyboard zoom did not change the measured CSS viewport. Approximate widths were deliberately not substituted.
+`320, 390, 600, 820, 1024, 1440 CSS px`
 
-Therefore the exact responsive-width matrix, wide → narrow → wide behavior, and selected-resource preservation across that transition remain **UNVERIFIED** for the installed 0.2.1 raw bytes.
+All **48 route-at-width observations** rendered at their requested width with:
 
-0.2.1 is not release-qualified until that gate passes.
+- zero document-level horizontal overflow;
+- zero ordinary horizontal scrollers;
+- expected route hash.
+
+However, the separate no-reload Applications transition failed:
+
+`1440 → 320 → 390 → 600 → 820 → 1024 → 1440`
+
+The selected `/opsdeck` resource and Applications route were preserved without reload, but at 320, 390, and 600 CSS px:
+
+- document scroll width was 714 px;
+- client widths were 305, 375, and 585 px respectively;
+- both inventory tables retained computed `min-width: 660px`;
+- no ordinary horizontal scroller contained the overflow.
+
+The localized elements are:
+
+- `.apps-layout .panel.table-panel table`
+- `.provider-layout .panel.table-panel table`
+
+The base stylesheet sets `table { min-width:660px }`, while the responsive inventory container rule is intended to set the table minimum to zero below 700 px. On the failed in-place resize path the card-style container rules applied, but the 660 px table minimum remained stale. A route re-render at the same width, or a scroll-driven layout recalculation, cleared the table minimum to zero and removed the overflow.
+
+Therefore:
+
+- route-at-width rendering is accepted at the observed boundary;
+- selected-resource preservation across the transition is accepted;
+- the **responsive no-reload transition gate is FAIL**;
+- the owning product boundary is responsive inventory-table styling;
+- the precise style/layout invalidation trigger remains unverified;
+- no product source was changed during qualification;
+- Phase C has not started.
+
+A separately authorized responsive-fix candidate is required before 0.2.1 can be release-qualified.
 
 ## UNVERIFIED / DEFERRED
 
 - exact core IPM version used by the accepted v0.2.0 lifecycle;
 - fresh-checkout parity for public v0.2.0;
 - public registry availability/installation;
-- v0.2.1 exact responsive-width matrix and wide → narrow → wide state-preservation requalification;
+- v0.2.1 responsive no-reload transition correction and requalification;
 - audit asynchronous result retrieval;
 - authenticated bounded readers for `messages.log` and `SystemMonitor.log`;
 - broad mutation workflows;
@@ -168,10 +200,10 @@ The current strict client permits the expected v2 status route and rejected the 
 
 ## Next boundary
 
-Provide a browser-control path that can set the exact requested CSS viewport widths, then complete the 320/390/600/820/1024/1440 matrix and wide → narrow → wide state-preservation check against the still-installed exact 0.2.1 bytes.
+Keep the frozen commit `69e1215febab5008fc0542d96c0e921f638b4502` and accepted v0.2.0 evidence unchanged.
 
-No package reinstall or product mutation is required merely to close this UI evidence gap.
+Create a separate responsive-fix branch only under explicit authorization. Localize and correct the stale inventory-table minimum-width behavior with the smallest justified product change, then rerun the affected installed-native browser/responsive evidence against the corrected exact bytes.
 
-If that passes, preserve the accepted 0.2.1 candidate and proceed to the capability-aware morphing UI on a separate feature branch.
+Do not start Phase C until the browser gate explicitly passes.
 
 See [Roadmap](ROADMAP.md).
