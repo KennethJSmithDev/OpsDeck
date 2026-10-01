@@ -37,9 +37,20 @@ Accepted so far:
 - 82/82 regressions;
 - sanitized/private evidence preservation.
 
+Accepted additionally:
+
+- installed-state identity/hash gate;
+- representative installed-native desktop route checks;
+- Applications/Access/Tasks/Security/Logs read-back behavior;
+- Evidence historical wording classification;
+- sign-out/session-clear behavior.
+
 Remaining acceptance gate:
 
-- installed-native browser/responsive requalification for the changed raw resource bytes.
+- exact 320/390/600/820/1024/1440 CSS px responsive matrix;
+- wide → narrow → wide without reload;
+- selected-resource preservation across that transition;
+- zero measured document overflow / ordinary horizontal scrollers at those exact widths.
 
 Public-registry installation remains a separate gate.
 
