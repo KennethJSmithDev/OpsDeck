@@ -8,7 +8,7 @@ The demo is intentionally labeled as sanitized sample data and does not pretend 
 
 ## Phone and tablet use
 
-At supported phone widths, normal OpsDeck workflows use vertical scrolling only; ordinary operational data does not require horizontal panning. Overview, Applications, and Access remain in the compact navigation. More opens Security, Tasks, System, Logs, and Evidence in a vertical list, subject to the selected demo persona's authority. Dense inventories become summary records, with the full returned record in the inspector below the list. Desktop keeps the wider table and sidebar layout. This contract covers supported rendered OpsDeck views and does not claim that every conceivable provider payload is width-safe.
+OpsDeck responds to usable workspace width, whether the window belongs to a phone, tablet, or resized desktop. Normal workflows use vertical scrolling only; ordinary operational data does not require horizontal panning. Overview, Applications, and Access remain in compact navigation. More opens Security, Tasks, System, Logs, and Evidence in a vertical list, subject to the selected demo persona's authority. Dense inventories become summary records when their own panel cannot comfortably fit the meaningful columns, with the full returned record in the inspector below the list. Wider workspaces keep the sidebar and table layout when those views fit. This contract covers supported rendered OpsDeck views and does not claim every conceivable provider payload is width-safe.
 
 ## 90-second path
 

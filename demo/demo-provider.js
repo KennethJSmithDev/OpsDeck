@@ -198,12 +198,12 @@
     html[data-theme="light"] #opsdeck-safe-demo-banner{background:#fff8e8;color:#7a4d00}
     html[data-theme="light"] #opsdeck-demo-persona{background:rgba(255,248,232,.96);color:#7a4d00}
     html[data-theme="light"] #opsdeck-demo-persona select{background:#fff;color:#7a4d00}
+    body:has(#opsdeck-demo-persona){display:flex;flex-direction:column}
+    #opsdeck-safe-demo-banner,#opsdeck-demo-persona{position:static;transform:none;align-self:center;max-width:calc(100% - 12px);margin:5px auto 0}
+    body:has(#opsdeck-demo-persona) #app{order:2;min-width:0}
+    body:has(#opsdeck-demo-persona) .demo-repo-link{order:3;position:static;align-self:center;margin:12px auto;min-height:44px}
     @media(max-width:820px){
-      body:has(#opsdeck-demo-persona){display:flex;flex-direction:column}
-      #opsdeck-safe-demo-banner,#opsdeck-demo-persona{position:static;transform:none;align-self:center;max-width:calc(100% - 12px);margin:5px auto 0}
       #opsdeck-demo-persona select{min-width:0;max-width:100%;min-height:44px;font-size:16px}
-      body:has(#opsdeck-demo-persona) #app{order:2;min-width:0}
-      body:has(#opsdeck-demo-persona) .demo-repo-link{order:3;position:static;align-self:center;margin:12px auto;min-height:44px}
     }
   `;
   document.head.appendChild(style);
