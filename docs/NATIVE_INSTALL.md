@@ -89,18 +89,21 @@ Verify:
 
 Do not claim registry installation merely because an Open Exchange release or approval exists. Verify the exact registry/version and install it on a clean target first.
 
-## Current 0.2.1 diagnostic boundary
+## Current 0.2.1 development boundary
 
-The next patch candidate is frozen locally and its LF checkout representation matched Git blobs. Its lifecycle attempt did **not** qualify:
+The frozen 0.2.1 candidate verified canonical LF checkout bytes under normal Windows Git settings.
 
-- `LOAD_INITIAL` completed Terminal transport but lacked the required exact operation marker;
-- legacy recovery then attempted uninstall;
-- registration and `/opsdeck` were absent afterward;
-- package-owned resource bytes were restored;
-- the unrelated CSP sibling inventory digest changed while retaining the same entry count;
-- the pre-capture record did not retain item-level sibling rows, so the delta is not localized.
+The earlier failed qualification was localized to harness behavior:
 
-No new lifecycle attempt should run until the sibling delta and ambiguous IPM result path are resolved.
+- sibling inventory rows were identical across PowerShell 5.1 and 7.6.5; only sort order differed;
+- package-operation markers required explicit standalone-line framing;
+- failed semantic checks now preserve raw private captures and stop before automatic recovery;
+- sibling pre-capture now retains item-level rows using version-independent ordering;
+- path separators and empty-array application fields are compared canonically.
+
+After restoring and verifying the accepted 0.2.0 baseline, the exact 0.2.1 local-source lifecycle passed end to end, including source load, registration, deployed hash parity, uninstall/removal, unrelated-state preservation, clean reload, and 82/82 regressions.
+
+The remaining gate is installed-native browser/responsive requalification for the changed raw resource bytes. Until that passes, 0.2.1 is still a development candidate and not a release.
 
 ## Troubleshooting rules
 
