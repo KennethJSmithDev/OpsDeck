@@ -285,7 +285,7 @@ td { color:var(--muted); font-size:10px; }
   .top-actions { gap:6px; }
   .theme-picker select { min-height:44px; padding-left:7px; font-size:16px; }
   .topbar .button { padding:0 8px; }
-  .user-chip { max-width:76px; }
+  .user-chip { max-width:110px; }
   .workspace { padding:18px 14px 28px; }
   .page-header h1 { font-size:24px; }
   .panel-head { margin-bottom:14px; }

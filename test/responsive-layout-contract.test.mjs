@@ -32,6 +32,14 @@ test("source tabs wrap, and normal operational regions do not create horizontal 
   assert.doesNotMatch(css.match(/\.workspace\s*\{[^}]*\}/s)?.[0] || "", /overflow-x?\s*:\s*auto/);
 });
 
+test("server and username labels wrap instead of truncating useful identity text", () => {
+  for (const selector of [".instance-value", ".user-chip"]) {
+    const rule = css.match(new RegExp(`${selector.replaceAll(".", "\\.")}\\s*\\{[^}]*\\}`, "s"))?.[0] || "";
+    assert.match(rule, /overflow-wrap:\s*anywhere/);
+    assert.doesNotMatch(rule, /text-overflow:\s*ellipsis|white-space:\s*nowrap|overflow:\s*hidden/);
+  }
+});
+
 test("compact shell navigation collapses at a width that preserves workspace room", () => {
   assert.match(css, /@media\s*\(max-width:\s*980px\)/);
   assert.match(css, /\.nav-secondary\s*\{\s*display:\s*none/);
