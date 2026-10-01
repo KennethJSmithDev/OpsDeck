@@ -43,9 +43,25 @@ Public-registry installation remains a separate distribution gate.
 
 The earlier failed responsive specimen is preserved as historical evidence rather than rewritten.
 
-## 0.3 — capability-aware morphing UI — ACTIVE LOCAL QUALIFICATION
+## 0.3 — capability-aware morphing UI — FIRST BOUNDED SLICE ACCEPTED
 
-Local implementation exists on a separate feature branch from the accepted 0.2.1 foundation. Local regression and exact lifecycle checks pass; installed-native browser qualification remains pending human sign-in.
+The first deterministic capability-aware navigation/projection slice is implemented on a separate feature branch from the accepted 0.2.1 foundation.
+
+Accepted for this slice:
+
+- 88/88 local regressions;
+- syntax/responsive contract/diff checks;
+- fresh-checkout package-input parity;
+- exact 16-stage lifecycle;
+- installed identity/hash/proof/sibling gate;
+- 48/48 installed-native route-at-width samples;
+- no-reload responsive Applications sequence;
+- selected-resource preservation;
+- zero document overflow / ordinary horizontal scrollers;
+- Evidence historical wording classification;
+- sign-out/live-identity clearing.
+
+This is **not** completion of the full 0.3 milestone. It establishes the first qualified projection seam from which the remaining 0.3 behavior can be built.
 
 Objective: project one canonical OpsDeck interface according to:
 
