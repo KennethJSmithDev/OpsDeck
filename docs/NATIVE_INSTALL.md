@@ -1,23 +1,43 @@
-# Native IRIS installation — 0.2.0 candidate
+# Native IRIS installation — v0.2.0 source release
 
-**Status:** The controlled local-source load, uninstall/removal, and clean same-source reload passed for the tested 0.2.0 candidate on IRIS 2026.2 Build 221U. The exact core IPM version, fresh public-checkout workflow, and registry publication remain unverified. The public tag is not yet available.
+## Status
+
+The controlled local-source lifecycle passed for the tested OpsDeck 0.2.0 package source on native Windows IRIS 2026.2 Build 221U in `%SYS`.
+
+The public `v0.2.0` source tag is available.
+
+Two distribution boundaries remain separate from that local-source qualification:
+
+1. **Fresh-checkout byte parity:** a Windows clone with `core.autocrlf=true` materialized two packaged JavaScript/CSS files with CRLF line endings, producing working-tree hashes different from the lifecycle receipt. Git object blobs match the tested source commit. This is checkout representation variance, not proof of a runtime failure.
+2. **Public registry installation:** Open Exchange / Package Manager publication and installation have not yet been independently verified.
+
+The published `v0.2.0` tag will not be moved. The next patch candidate normalizes the checkout contract and must requalify the exact fresh-checkout bytes.
 
 ## Prerequisites
 
-- A running native Windows InterSystems IRIS Community Edition instance. Historical selected browser reads were observed on IRIS 2026.2; other builds are not qualified.
-- Supported local operator access to the IRIS Terminal and an installed InterSystems Package Manager (IPM, formerly ZPM) in `%SYS`.
-- An identity authorized for package installation and web-application configuration. Use your existing administrator-approved account; this project does not require enabling Atelier or changing IRIS security.
-- A separate account with the management API permissions needed for the read views you intend to inspect. Installation authority and ordinary viewing authority are different.
+- A running InterSystems IRIS instance. The qualified lifecycle used native Windows IRIS 2026.2 Build 221U.
+- Supported local access to the IRIS Terminal and an installed InterSystems Package Manager (IPM, formerly ZPM) in `%SYS`.
+- An identity authorized for package installation and web-application configuration.
+- A separate least-privilege application identity for the management information you intend to inspect.
 
-## Protect an existing /opsdeck installation
+Installation authority and ordinary viewing authority are different.
 
-Before load/install/uninstall, capture the authoritative `/opsdeck` web-application definition and back up any existing `app.js`, `index.html`, `styles.css`, and `iris-provider.js`. A pre-existing application is operator-owned and may be replaced or removed by the package lifecycle. Preserve its roles, authentication, resource, path, namespace, session/cookie settings and other returned properties. Do not proceed if its ownership or restoration path is unknown.
+## Protect an existing /opsdeck application
 
-The package declares exactly these four files under the instance CSP directory and the `/opsdeck` application in `%SYS`. It does not own `proof/`, arbitrary sibling files, credentials, IRIS configuration or management APIs. Do not recursively delete the CSP directory to uninstall OpsDeck.
+Before load/uninstall operations, capture the authoritative `/opsdeck` web-application definition and back up any existing package-owned files:
 
-## Local source workflow and public-checkout boundary
+- `app.js`
+- `index.html`
+- `styles.css`
+- `iris-provider.js`
 
-Obtain the public source with ordinary Git, then check out the release revision identified in the release notes. The proposed source workflow requires no private qualification scripts, personal credentials, Codex tools or developer-specific directories:
+A pre-existing application is operator-owned and may be replaced or removed by the package lifecycle. Do not proceed if its ownership or restoration path is unknown.
+
+The package owns exactly those four browser resources plus the `/opsdeck` application. It does not own arbitrary siblings, credentials, proof artifacts, or unrelated IRIS configuration.
+
+## Source workflow
+
+Clone the repository and select the published source release:
 
 ```powershell
 git clone https://github.com/KennethJSmithDev/OpsDeck.git
@@ -25,42 +45,70 @@ cd OpsDeck
 git checkout v0.2.0
 ```
 
-The public checkout and tag workflow have not yet been independently exercised. After the reviewed source release is public, use the release tag and follow this source-based workflow. In the supported IRIS Terminal, select `%SYS` using the normal local workflow, enter the IPM prompt with `zpm`, then use:
+In IRIS Terminal, select `%SYS`, enter the IPM prompt with `zpm`, then load the source directory containing `module.xml`:
 
 ```text
 load C:\path\to\OpsDeck
 ```
 
-The expected identity is `opsdeck 0.2.0`. `load` takes the source directory containing `module.xml`; `install opsdeck` obtains a package from a configured repository and is a separate distribution test. Do not add that registry command to this source workflow. The local-source lifecycle was reproduced on the exact candidate; this fresh public-checkout path still needs independent verification. Confirm the registered version, application configuration, and deployed resource bytes; `/opsdeck` alone does not prove package registration. See the [official IPM command descriptions](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=AIPM).
+The expected module identity is:
 
-If IPM is absent or its state is uncertain, stop and ask the instance administrator to resolve it using supported instructions. OpsDeck does not authorize automatic bootstrap, Python changes or registry reconfiguration. An existing class alone does not establish a usable package manager.
+```text
+opsdeck 0.2.0
+```
 
-## Public package installation proposal
+A successful page request alone does not prove package registration. Verify the installed module, `/opsdeck` definition, and deployed resources.
 
-After a qualified 0.2.0 package is actually published, verify the intended registry contains that exact version before using its supported version selector. The future registry workflow is separate from public-source `load`. Public registry availability is not verified; an Open Exchange release announcement alone does not establish it.
+### Fresh Windows checkout note
+
+The v0.2.0 tag has a known line-ending representation variance under a normal Windows checkout with `core.autocrlf=true`. The Git blobs match the tested source, but two materialized working-tree files can differ byte-for-byte from the lifecycle receipt.
+
+Treat that as a distribution-fidelity limitation. Do not reinterpret it as evidence that the native application failed at runtime.
 
 ## Open and authenticate
 
-Open `http://127.0.0.1:52773/opsdeck/index.html`, adjusting the instance HTTP port. The explicit index URL is canonical; no root redirect is promised. IRIS serves the browser app directly; Node is unnecessary for native hosting.
+Open:
 
-IRIS may apply its configured web-application authentication before the browser app loads. The app then uses the account entered in its sign-in form for bounded same-origin management API reads. A successful static-page request does not prove API authority. Credentials remain in tab memory, are not intentionally saved in browser storage, and are cleared by Sign out. Use a private workstation session or appropriately configured HTTPS for non-local access; never publish management ports as part of this guide.
+```text
+http://127.0.0.1:52773/opsdeck/index.html
+```
+
+Adjust the port for the local IRIS instance.
+
+IRIS may apply its configured web-application authentication before the page loads. OpsDeck then uses the account entered in its sign-in form for bounded same-origin management reads.
+
+Credentials remain in tab memory, are not intentionally persisted in browser storage, and are cleared by Sign out.
 
 ## Uninstall
 
-In the IPM prompt in `%SYS`:
+From the IPM prompt in `%SYS`:
 
 ```text
 uninstall opsdeck
 ```
 
-Verify the application and four package files are removed, the package is absent, and unrelated `proof/` artifacts survive. If you replaced a manual installation, restore its captured application definition and file bytes using supported IRIS administration. Package cache/registry recovery and hidden server-managed properties can require operator judgment; automatic rollback is not a guarantee.
+Verify:
+
+- package registration is absent;
+- `/opsdeck` is removed as expected;
+- the four package-owned resources are removed;
+- unrelated sibling/proof content remains intact.
+
+If a pre-existing manual installation was replaced, restore it from the captured pre-state using supported IRIS administration.
+
+## Public Package Manager boundary
+
+`install opsdeck` is a **different distribution path** from local-source `load`.
+
+Do not claim registry installation merely because an Open Exchange release exists or publication is pending. First verify that the intended registry exposes the exact release, then install it on a clean target and preserve the resulting evidence.
 
 ## Troubleshooting boundaries
 
-- A command failure or missing success evidence is a failed/inconclusive stage, even if the page returns HTTP 200.
-- HTTP 401: check the chosen account and existing instance authentication configuration. HTTP 403: the identity may lack authority for the selected read; do not broaden privileges automatically.
-- HTTP 404/static asset failure: inspect the expected `%SYS` app definition, CSP physical path and exact four target files.
-- Disk hashes must match source after installation; browser cache cannot explain mismatched disk bytes.
-- Do not enable Atelier, add credential transports, weaken Locked Down settings, or retry ambiguous destructive steps automatically.
+- Missing semantic success evidence is a failed/inconclusive stage even when transport succeeds.
+- HTTP 401 means authentication needs investigation.
+- HTTP 403 means the current identity may lack authority; do not automatically broaden privileges.
+- HTTP 404/static failure should be localized to the web-application definition, physical path, and exact package resources.
+- Browser cache cannot explain mismatched disk bytes.
+- Do not enable unrelated services, weaken Locked Down settings, or automatically retry ambiguous destructive operations.
 
-The [README](../README.md) Node reference workflow and the clearly labelled safe demo remain available for exploration. The installed native application and local-source lifecycle have been qualified at the scope stated above; fresh public-checkout and registry installation remain separate unverified distribution paths.
+For the latest evidence boundary, see [Qualification Status](QUALIFICATION_STATUS.md).
