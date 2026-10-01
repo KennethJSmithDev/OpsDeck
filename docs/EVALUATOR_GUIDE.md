@@ -1,14 +1,10 @@
 # Evaluator Guide
 
-OpsDeck can be evaluated without credentials through the public safe demo:
+OpsDeck can be explored without credentials through the public safe demo:
 
 https://kennethjsmithdev.github.io/OpsDeck/
 
-The demo is intentionally labeled as sanitized sample data and does not pretend to be a live IRIS instance.
-
-## Phone and tablet use
-
-OpsDeck responds to usable workspace width, whether the window belongs to a phone, tablet, or resized desktop. Normal workflows use vertical scrolling only; ordinary operational data does not require horizontal panning. Overview, Applications, and Access remain in compact navigation. More opens Security, Tasks, System, Logs, and Evidence in a vertical list, subject to the selected demo persona's authority. Dense inventories become summary records when their own panel cannot comfortably fit the meaningful columns, with the full returned record in the inspector below the list. Wider workspaces keep the sidebar and table layout when those views fit. This contract covers supported rendered OpsDeck views and does not claim every conceivable provider payload is width-safe.
+The demo is intentionally labeled as sanitized sample data and never pretends to be a live IRIS instance.
 
 ## 90-second path
 
@@ -16,35 +12,50 @@ OpsDeck responds to usable workspace width, whether the window belongs to a phon
 
 Start with the evaluator tour and current demo persona.
 
-Notice that OpsDeck presents authority scope explicitly rather than making every management surface appear universally available.
+Notice that OpsDeck presents authority scope explicitly instead of making every management surface appear universally available.
 
 ### 2. Applications
 
 Inspect application and REST-service information.
 
-The UI is designed around bounded provider-owned identities rather than a mirrored administrative database.
+The UI uses bounded provider-owned identity rather than a mirrored administrative database.
 
 ### 3. Access
 
-Switch among the demo personas and inspect how the available surface changes.
+Switch among demo personas and inspect how the available surface changes.
 
-The dataset stays deterministic; authority changes.
+The deterministic dataset stays the same; the projected authority changes.
 
-### 4. Provider boundaries
+### 4. Provider-state semantics
 
 OpsDeck treats these as different states:
 
 - valid empty;
 - source unavailable;
-- access denied.
+- access denied;
+- failed;
+- unverified.
 
-They are not rendered as interchangeable generic errors.
+They are not rendered as one generic error.
 
 ### 5. Evidence
 
-Open the Evidence view.
+Open the Evidence route.
 
-It shows the product's central rule: state what can be proved, what is blocked, and what remains unverified.
+This is the product's central rule: state what can be proved, what is blocked, and where qualification deliberately stops.
+
+## Responsive behavior
+
+OpsDeck responds to usable workspace width rather than assuming a particular device class.
+
+- Overview, Applications, and Access remain in compact navigation.
+- **More** exposes Security, Tasks, System, Logs, and Evidence when the primary row no longer fits.
+- Dense inventories change representation when meaningful columns cannot fit.
+- Inspectors stack below lists at constrained widths.
+- Source tabs wrap instead of requiring horizontal panning.
+- Ordinary tested workflows use vertical scrolling only.
+
+The installed native application was checked across eight routes at 320, 390, 600, 820, 1024, and 1440 CSS px with zero measured document horizontal overflow.
 
 ## What the demo proves
 
@@ -65,10 +76,10 @@ It does not prove:
 - native installation;
 - package lifecycle;
 - live audit retrieval;
-- live log-file reads;
-- any mutation.
+- live named-log readers;
+- mutation behavior.
 
-See [Qualification Status](QUALIFICATION_STATUS.md) for the current live/native evidence boundary.
+Those claims require their own evidence. Native/package qualification is recorded in [Qualification Status](QUALIFICATION_STATUS.md).
 
 ## Architecture at a glance
 
@@ -90,6 +101,8 @@ The safe demo substitutes a deterministic demo provider **only in evaluator mode
 
 ## Current product direction
 
-The final shipping target is an IRIS-native application served from `/opsdeck`, with the public Node server retained as a compact reference/development runtime.
+v0.2.0 established the native IRIS-hosted baseline.
 
-Final installation claims will be published only after the native package lifecycle is reproduced.
+The next product-facing direction is a **capability-aware morphing UI** that projects the same canonical application differently according to observed authority, provider availability, task context, and workspace width without inventing permissions or duplicating authoritative state.
+
+See [Roadmap](ROADMAP.md).
