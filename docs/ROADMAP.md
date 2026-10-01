@@ -45,12 +45,17 @@ Accepted additionally:
 - Evidence historical wording classification;
 - sign-out/session-clear behavior.
 
+Responsive qualification result:
+
+- all 48 individual route-at-width observations passed at 320/390/600/820/1024/1440 CSS px;
+- selected `/opsdeck` state survives the no-reload Applications transition;
+- the no-reload transition nevertheless fails at 320/390/600 px because inventory tables retain a stale 660 px minimum width and create document-level overflow.
+
 Remaining acceptance gate:
 
-- exact 320/390/600/820/1024/1440 CSS px responsive matrix;
-- wide → narrow → wide without reload;
-- selected-resource preservation across that transition;
-- zero measured document overflow / ordinary horizontal scrollers at those exact widths.
+- smallest justified responsive fix on a separate authorized branch;
+- rerun the affected no-reload transition and exact-width browser checks against the corrected bytes;
+- explicit installed-native browser PASS.
 
 Public-registry installation remains a separate gate.
 
