@@ -1,21 +1,66 @@
-# OpsDeck 0.2.0 — release candidate notes
+# OpsDeck 0.2.0 — shipped release record
 
-**Prepared 2026-10-01. Tested package source SHA:** `1663869af14673f027efb63a986ac5c1e50a8ac1`. Manifest/resource fingerprint is listed in the qualification record. This release copy is prepared for review and has not been tagged, released, or published.
+**Published:** 2026-10-01  
+**Tag:** `v0.2.0`  
+**Release commit:** `23215459096cb47d255c45b1e6e86687f3d8e93a`  
+**Tested package source:** `1663869af14673f027efb63a986ac5c1e50a8ac1`
 
-## Candidate changes
+## What shipped
 
-- Reconciles native IRIS browser hosting and same-origin read routes with the newer evaluator tour, authority personas, Evidence view, and responsive styles.
-- Preserves native tab-memory authentication, sign-out, safe-field mappings, fixed read providers, independent web-application read-back, and explicitly opt-in stateful alerts.
-- Distinguishes native IRIS access denial from synthetic demo persona denial; restricted demo identity remains visible when Applications is denied.
-- Packages four explicit browser assets and `/opsdeck` in `%SYS`; package identity is `opsdeck 0.2.0`.
-- Uses consistent asset query versions and documents existing-app ownership, installation proposals, uninstall and recovery boundaries.
+- Native IRIS browser hosting at `/opsdeck/index.html`.
+- Same-origin management reads with tab-memory authentication and explicit sign-out.
+- Overview, Applications, Access, Security, Tasks, System, Logs, and Evidence routes.
+- Independent web-application read-back where qualified.
+- Available-width responsive layouts, compact navigation, More overflow menu, stacked inspectors, reflowing inventories, and wrapped source tabs.
+- Safe deterministic demo with evaluator personas and an Evidence view.
+- IPM source package `opsdeck 0.2.0`.
 
-## Qualification statement
+## Qualification
 
-The 16-stage controlled local-source lifecycle passed for candidate SHA 1663869af14673f027efb63a986ac5c1e50a8ac1, package opsdeck 0.2.0, on IRIS 2026.2 Build 221U in %SYS. The exact four source/runtime hashes matched through load, uninstall/removal, and clean same-source reload; proof/ and CSP siblings were preserved. Bounded OpsDeckTest operational checks and 82/82 regressions passed. The installed native browser rendered the corrected Evidence card; the eight routes had zero measured document horizontal overflow at 320, 390, 600, 820, 1024, and 1440 CSS px. This is local-source qualification only. The exact core IPM version, fresh public-checkout installation, and public-registry installation remain unverified. No tag or public release exists.
+The controlled local-source lifecycle passed on native Windows IRIS 2026.2 Build 221U in `%SYS`.
 
-**Distribution boundary:** The tested claim is local-source lifecycle qualification on the recorded IRIS build. Exact core IPM version, fresh public-checkout installation, public-registry availability, and registry installation remain unverified. Do not advertise `install opsdeck` until the intended registry and version are independently confirmed.
+The lifecycle verified:
+
+- source load;
+- package registration;
+- authoritative `/opsdeck` definition;
+- deployed package resource hashes;
+- bounded operational HTTP behavior;
+- uninstall/removal;
+- unrelated proof/sibling preservation;
+- clean same-source reload;
+- 82/82 product regression tests.
+
+The installed application was then exercised as `OpsDeckTest`.
+
+Eight routes were checked at 320, 390, 600, 820, 1024, and 1440 CSS px with zero measured document horizontal overflow. A no-reload wide → narrow → wide resize preserved selected Applications state and compact navigation.
+
+## Post-release distribution finding
+
+A fresh Windows clone of `v0.2.0` with `core.autocrlf=true` materialized `public/app.js` and `public/styles.css` with CRLF line endings.
+
+Their working-tree hashes differ from the lifecycle receipt. The Git object blobs match the tested source commit.
+
+This establishes a **checkout representation variance**. It does not establish a runtime failure.
+
+Consequences:
+
+- do not move the published `v0.2.0` tag;
+- retain the accepted local-source lifecycle evidence for its tested source identity;
+- do not claim exact fresh-checkout byte parity for v0.2.0;
+- normalize the checkout contract in a new patch candidate and requalify those exact bytes.
 
 ## Retained limits
 
-Selected read views do not establish full Management Portal parity. Audit async result retrieval, Messages and System Monitor readers remain unqualified/deferred. No mutation workflows, ObjectScript execution bridge, CallIn, Docker parity, cross-platform compatibility or formal least-privilege proof is claimed. Demo personas are synthetic authority illustrations.
+The following are not claimed by v0.2.0:
+
+- public-registry installation;
+- exact core IPM version;
+- audit async result retrieval;
+- Messages or System Monitor log readers;
+- broad mutation workflows;
+- arbitrary ObjectScript/CallIn execution;
+- Docker parity;
+- full Management Portal parity.
+
+For current status, see [Qualification Status](QUALIFICATION_STATUS.md).
