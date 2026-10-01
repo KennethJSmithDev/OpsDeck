@@ -1,14 +1,10 @@
 # Evaluator Guide
 
-OpsDeck can be evaluated without credentials through the public safe demo:
+Explore OpsDeck without credentials:
 
 https://kennethjsmithdev.github.io/OpsDeck/
 
-The demo is intentionally labeled as sanitized sample data and does not pretend to be a live IRIS instance.
-
-## Phone and tablet use
-
-OpsDeck responds to usable workspace width, whether the window belongs to a phone, tablet, or resized desktop. Normal workflows use vertical scrolling only; ordinary operational data does not require horizontal panning. Overview, Applications, and Access remain in compact navigation. More opens Security, Tasks, System, Logs, and Evidence in a vertical list, subject to the selected demo persona's authority. Dense inventories become summary records when their own panel cannot comfortably fit the meaningful columns, with the full returned record in the inspector below the list. Wider workspaces keep the sidebar and table layout when those views fit. This contract covers supported rendered OpsDeck views and does not claim every conceivable provider payload is width-safe.
+The safe demo uses deterministic sanitized data. It demonstrates the interface and evidence semantics, not live IRIS permissions or data.
 
 ## 90-second path
 
@@ -16,39 +12,59 @@ OpsDeck responds to usable workspace width, whether the window belongs to a phon
 
 Start with the evaluator tour and current demo persona.
 
-Notice that OpsDeck presents authority scope explicitly rather than making every management surface appear universally available.
-
 ### 2. Applications
 
 Inspect application and REST-service information.
 
-The UI is designed around bounded provider-owned identities rather than a mirrored administrative database.
-
 ### 3. Access
 
-Switch among the demo personas and inspect how the available surface changes.
+Switch demo personas and notice that the dataset remains deterministic while the projected authority changes.
 
-The dataset stays deterministic; authority changes.
+### 4. Provider-state semantics
 
-### 4. Provider boundaries
-
-OpsDeck treats these as different states:
+OpsDeck keeps these distinct:
 
 - valid empty;
-- source unavailable;
-- access denied.
-
-They are not rendered as interchangeable generic errors.
+- unavailable;
+- denied;
+- failed;
+- unverified.
 
 ### 5. Evidence
 
-Open the Evidence view.
+Open Evidence. This is the product's central rule: state what can be proved, what is blocked, and where qualification deliberately stops.
 
-It shows the product's central rule: state what can be proved, what is blocked, and what remains unverified.
+## Responsive behavior
+
+OpsDeck responds to usable workspace width rather than assuming a device class.
+
+- compact navigation moves secondary routes under **More**;
+- dense inventories change representation when columns no longer fit;
+- inspectors stack below lists;
+- source tabs wrap;
+- ordinary tested workflows avoid horizontal panning.
+
+The installed native v0.2.0 application was checked across eight routes at 320, 390, 600, 820, 1024, and 1440 CSS px with zero measured document horizontal overflow. A wide → narrow → wide sequence preserved the selected Applications state without reload.
+
+
+## v0.2.1 qualification note
+
+The corrected local OpsDeck 0.2.1 candidate is **ACCEPTED** for distribution fidelity.
+
+Its installed-native qualification passed:
+
+- 48 route-at-width samples across 320/390/600/820/1024/1440 CSS px;
+- zero document overflow;
+- zero ordinary horizontal scrollers;
+- no-reload Applications resize sequence with `/opsdeck` selection preserved;
+- computed inventory-table minimum width of 0 px throughout the corrected sequence;
+- sign-out/session clearing.
+
+This is accepted local engineering evidence. It does not claim public-registry installation or a published v0.2.1 release.
+
+Phase C / capability-aware morphing UI now has a **first bounded accepted slice** under local qualification. That slice passed its exact lifecycle plus installed-native browser/responsive checks. It remains development state and is not part of the public v0.2.0 release.
 
 ## What the demo proves
-
-The demo is useful evidence for:
 
 - interface organization;
 - responsive presentation;
@@ -59,18 +75,16 @@ The demo is useful evidence for:
 
 ## What the demo does not prove
 
-It does not prove:
-
 - live IRIS connectivity;
 - native installation;
 - package lifecycle;
 - live audit retrieval;
-- live log-file reads;
-- any mutation.
+- live named-log readers;
+- mutation behavior.
 
-See [Qualification Status](QUALIFICATION_STATUS.md) for the current live/native evidence boundary.
+Those claims have separate evidence. See [Qualification Status](QUALIFICATION_STATUS.md).
 
-## Architecture at a glance
+## Architecture
 
 ```text
 User
@@ -86,10 +100,12 @@ rendered state
 independent read-back where qualified
 ```
 
-The safe demo substitutes a deterministic demo provider **only in evaluator mode**. Failed live IRIS reads are not replaced with demo records.
+The safe demo substitutes a deterministic demo provider **only in evaluator mode**. Failed live reads are never replaced with demo records.
 
-## Current product direction
+## Current direction
 
-The final shipping target is an IRIS-native application served from `/opsdeck`, with the public Node server retained as a compact reference/development runtime.
+v0.2.0 established the native IRIS-hosted baseline.
 
-Final installation claims will be published only after the native package lifecycle is reproduced.
+The current product-facing development direction is the capability-aware morphing UI: one canonical interface projected from observed authority, provider availability, context, and workspace width without turning presentation into a second authorization model.
+
+See [Roadmap](ROADMAP.md).
