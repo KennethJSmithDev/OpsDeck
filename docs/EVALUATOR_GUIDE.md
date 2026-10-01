@@ -47,13 +47,22 @@ OpsDeck responds to usable workspace width rather than assuming a device class.
 The installed native v0.2.0 application was checked across eight routes at 320, 390, 600, 820, 1024, and 1440 CSS px with zero measured document horizontal overflow. A wide → narrow → wide sequence preserved the selected Applications state without reload.
 
 
-## v0.2.1 development qualification note
+## v0.2.1 qualification note
 
-The installed v0.2.1 candidate passed its read-only identity gate, representative desktop browser checks, and all 48 individual route-at-width observations at 320, 390, 600, 820, 1024, and 1440 CSS px.
+The corrected local OpsDeck 0.2.1 candidate is **ACCEPTED** for distribution fidelity.
 
-The separate no-reload Applications resize path is **not accepted**. During in-place narrowing from wide state, both inventory tables retained a 660 px minimum width and caused document-level horizontal overflow at 320, 390, and 600 CSS px. The selected `/opsdeck` resource remained preserved.
+Its installed-native qualification passed:
 
-The historical v0.2.0 responsive matrix remains accepted for v0.2.0 only. v0.2.1 remains a development candidate until the transition defect is corrected and requalified.
+- 48 route-at-width samples across 320/390/600/820/1024/1440 CSS px;
+- zero document overflow;
+- zero ordinary horizontal scrollers;
+- no-reload Applications resize sequence with `/opsdeck` selection preserved;
+- computed inventory-table minimum width of 0 px throughout the corrected sequence;
+- sign-out/session clearing.
+
+This is accepted local engineering evidence. It does not claim public-registry installation or a published v0.2.1 release.
+
+Phase C / capability-aware morphing UI is now under separate local qualification and is not yet part of the public release.
 
 ## What the demo proves
 
