@@ -45,7 +45,9 @@ test("server and username labels wrap instead of truncating useful identity text
 
 test("compact shell navigation collapses at a width that preserves workspace room", () => {
   assert.match(css, /@media\s*\(max-width:\s*980px\)/);
+  assert.match(css, /\.nav-item\s*\{[^}]*flex-wrap:\s*wrap/s);
   assert.match(css, /\.nav-secondary\s*\{\s*display:\s*none/);
   assert.match(css, /\.sidebar\.more-open\s+\.nav-secondary\s*\{\s*display:\s*flex/);
   assert.match(app, /aria-expanded="\$\{state\.mobileMoreOpen\}"/);
+  assert.match(app, /querySelector\("#mobile-more"\)\?\.addEventListener\("click"/);
 });

@@ -13,6 +13,106 @@ const domainSources = {
   system: ["systemUsage", "processes", "databases", "devices"],
   logs: ["auditEnabled", "auditEvents", "taskHistory", "journalFiles", "alerts"],
 };
+
+// Product qualification maturity is separate from observed IRIS authority/provider results.
+const unqualifiedRouteCapabilities = Object.freeze({
+  logs: Object.freeze(["Audit records", "messages.log", "SystemMonitor.log"]),
+});
+const navigationContextRoutes = Object.freeze({
+  access: ["security"], security: ["access"], system: ["logs"], logs: ["evidence"],
+});
+
+function isAuthorityDenial(error) {
+  return /does not have authority|HTTP 403|denied/i.test(String(error || ""));
+}
+
+function providerUiEvidence(model, sourceId) {
+  if (sourceId === "identity") {
+    if (model.info) return { status: "SUPPORTED", detail: "Identity was observed in the current session." };
+    if (model.error) return { status: isAuthorityDenial(model.error) ? "DENIED" : "UNAVAILABLE", detail: model.error };
+    return { status: "UNKNOWN", detail: "Identity has not been observed in this session." };
+  }
+  if (sourceId === "webApps") {
+    if (model.verification) return model.verification.matched
+      ? { status: "SUPPORTED", detail: "The current web-application result matched its independent read-back." }
+      : { status: "PARTIAL", detail: "The current web-application result differed from its independent read-back." };
+    if (model.error) return { status: isAuthorityDenial(model.error) ? "DENIED" : "UNAVAILABLE", detail: model.error };
+    return { status: "UNKNOWN", detail: "No current web-application read-back is available." };
+  }
+  if (!Object.hasOwn(READ_ONLY_SOURCES, sourceId)) {
+    return { status: "UNSUPPORTED", detail: "No fixed provider is registered for this source." };
+  }
+  if (Object.hasOwn(model.sourceData || {}, sourceId) && model.sourceData[sourceId]) {
+    // A valid empty collection is still an observed, available provider result.
+    return { status: "SUPPORTED", detail: `${READ_ONLY_SOURCES[sourceId].label} returned a mapped result.` };
+  }
+  if (Object.hasOwn(model.sourceErrors || {}, sourceId)) {
+    const error = model.sourceErrors[sourceId];
+    return { status: isAuthorityDenial(error) ? "DENIED" : "UNAVAILABLE", detail: String(error) };
+  }
+  return {
+    status: "UNKNOWN",
+    detail: model.sourceLoading === sourceId ? `${READ_ONLY_SOURCES[sourceId].label} is being read.` : `${READ_ONLY_SOURCES[sourceId].label} has not been read in this session.`,
+  };
+}
+
+function routeUiEvidence(model, route) {
+  let sourceIds;
+  if (route === "overview") sourceIds = ["identity", "webApps"];
+  else if (route === "applications") sourceIds = ["webApps", ...domainSources.applications];
+  else if (route === "evidence") sourceIds = ["webApps"];
+  else if (domainSources[route]) sourceIds = domainSources[route];
+  else return { status: "UNSUPPORTED", sources: [], qualifications: [], detail: "No OpsDeck route or provider is registered for this destination." };
+
+  const sources = sourceIds.map((id) => ({ id, label: id === "identity" ? "Server identity" : id === "webApps" ? "Web applications" : READ_ONLY_SOURCES[id]?.label || id, ...providerUiEvidence(model, id) }));
+  const observed = sources.filter((source) => source.status !== "UNKNOWN");
+  let status = "UNKNOWN";
+  if (observed.length === sources.length && observed.every((source) => source.status === "SUPPORTED")) status = "SUPPORTED";
+  else if (observed.length === sources.length && observed.length > 0 && observed.every((source) => source.status === "DENIED")) status = "DENIED";
+  else if (observed.length === sources.length && observed.length > 0 && observed.every((source) => source.status === "UNAVAILABLE")) status = "UNAVAILABLE";
+  else if (observed.length > 0) status = "PARTIAL";
+
+  const qualifications = (unqualifiedRouteCapabilities[route] || []).map((label) => ({ label, status: "UNQUALIFIED" }));
+  const detail = [
+    ...sources.map((source) => `${source.label}: ${source.status.toLowerCase()}`),
+    ...qualifications.map((item) => `${item.label}: unqualified`),
+  ].join("; ");
+  return { status, sources, qualifications, detail };
+}
+
+function relatedNavigationRoutes(model, route) {
+  const related = [...(navigationContextRoutes[route] || [])];
+  if (route === "applications" && model.selected) related.unshift("evidence");
+  if (route === "access" && model.selectedItems?.[model.sourceTabs?.access]) related.unshift("security");
+  if (route === "tasks" && model.selectedItems?.tasks) related.unshift("logs");
+  const activeSources = domainSources[route] || [];
+  if (activeSources.some((sourceId) => Object.hasOwn(model.sourceErrors || {}, sourceId))) related.unshift("evidence");
+  return [...new Set(related)].filter((item) => item !== route && navItems.some(([id]) => id === item));
+}
+
+function projectUiNavigation(model, viewportWidth = 1024, compactLayout = viewportWidth <= 980) {
+  const activeRoute = navItems.some(([route]) => route === model.route) ? model.route : "overview";
+  const related = relatedNavigationRoutes(model, activeRoute);
+  const order = [
+    "overview",
+    ...(activeRoute === "overview" ? [] : [activeRoute]),
+    ...related,
+    ...navItems.map(([route]) => route),
+  ].filter((route, index, all) => all.indexOf(route) === index);
+  const primaryCount = compactLayout ? 3 : order.length;
+  const items = order.map((route, index) => {
+    const [, label] = navItems.find(([id]) => id === route);
+    const evidence = routeUiEvidence(model, route);
+    return { route, label, evidence, active: route === activeRoute, contextual: related.includes(route) && route !== activeRoute, primary: index < primaryCount };
+  });
+  return {
+    viewportWidth,
+    layout: compactLayout ? "compact" : "wide",
+    items,
+    primaryRoutes: items.filter((item) => item.primary).map((item) => item.route),
+    moreRoutes: items.filter((item) => !item.primary).map((item) => item.route),
+  };
+}
 const state = {
   route: location.hash.slice(1) || "overview",
   theme: localStorage.getItem("opsdeck.theme") || "dark",
@@ -35,7 +135,7 @@ const state = {
   taskDetails: {}, taskDetailErrors: {}, taskDetailLoading: "", taskDetailVerification: {},
   restSpecs: {}, restSpecErrors: {}, restSpecLoading: "",
   auditQuery: null, auditQueryBusy: false,
-  mobileMoreOpen: navItems.slice(3).some(([route]) => route === location.hash.slice(1)),
+  mobileMoreOpen: false,
 };
 
 const nativeMode = location.pathname === "/opsdeck" || location.pathname?.startsWith("/opsdeck/") === true;
@@ -126,11 +226,16 @@ function shell(content) {
       </header>
       <aside class="sidebar ${state.mobileMoreOpen ? "more-open" : ""}" id="mobile-secondary-nav" aria-label="Primary navigation">
         <div class="nav-caption">WORKSPACE</div>
-        ${navItems.map(([route, label], index) => {
-          const active = state.route === route;
-          return `<button class="nav-item ${index < 3 ? "nav-primary" : "nav-secondary"} ${active ? "active" : ""}" data-route="${route}" ${active ? 'aria-current="page"' : ""}><span class="nav-index">${String(index + 1).padStart(2, "0")}</span><span>${label}</span></button>`;
-        }).join("")}
-        <button class="nav-item nav-more ${navItems.slice(3).some(([route]) => route === state.route) ? "active" : ""}" id="mobile-more" type="button" aria-expanded="${state.mobileMoreOpen}" aria-controls="mobile-secondary-nav">More</button>
+        ${(() => {
+          const projection = projectUiNavigation(state, document.documentElement.clientWidth || 1024, compactNavigationQuery.matches);
+          return projection.items.map((item, index) => {
+            const stateClass = item.evidence.status.toLowerCase().replaceAll("_", "-");
+            const qualification = item.evidence.qualifications.length ? item.evidence.qualifications.map((entry) => entry.label).join(", ") : "";
+            const statusText = `${item.label}: ${item.evidence.status}${qualification ? ` · unqualified: ${qualification}` : ""}`;
+            return `<button class="nav-item ${item.primary ? "nav-primary" : "nav-secondary"} ${item.active ? "active" : ""} ${item.contextual ? "nav-contextual" : ""}" data-route="${item.route}" data-capability-state="${item.evidence.status.toLowerCase()}" data-context-priority="${item.contextual}" aria-label="${esc(`${item.label}. ${statusText}. Route visibility does not grant IRIS authority.`)}" title="${esc(`${statusText}. ${item.evidence.detail}`)}" ${item.active ? 'aria-current="page"' : ""}><span class="nav-index">${String(navItems.findIndex(([route]) => route === item.route) + 1).padStart(2, "0")}</span><span class="nav-label">${esc(item.label)}</span><span class="nav-capability badge ${item.evidence.status === "SUPPORTED" ? "success" : ["DENIED", "UNAVAILABLE"].includes(item.evidence.status) ? "error" : ["PARTIAL", "UNQUALIFIED"].includes(item.evidence.status) || qualification ? "warning" : "muted"}"><span class="nav-capability-dot" aria-hidden="true"></span><span class="nav-capability-label">${esc(item.evidence.status)}</span></span>${qualification ? `<span class="nav-qualification badge warning" title="${esc(`${qualification} remains unqualified`)}"><span class="nav-qualification-label">Unqualified</span></span>` : ""}</button>`;
+          }).join("");
+        })()}
+        ${compactNavigationQuery.matches ? `<button class="nav-item nav-more" id="mobile-more" type="button" aria-expanded="${state.mobileMoreOpen}" aria-controls="mobile-secondary-nav">More</button>` : ""}
         <div class="sidebar-note"><span class="note-dot"></span><span>${demoMode ? "Safe demo · sanitized" : "Live reads · M1"}</span></div>
       </aside>
       <main class="workspace">${content}</main>
@@ -344,7 +449,7 @@ function sourcePanel(sourceId) {
   const error = state.sourceErrors[sourceId];
   if (state.sourceLoading === sourceId) return `<div class="source-message">Loading the selected live source…</div>`;
   if (error) {
-    const denied = /does not have authority|HTTP 403|denied/i.test(error);
+    const denied = isAuthorityDenial(error);
     return `<div class="source-message source-error ${denied ? "source-denied" : ""}" role="alert"><strong>${denied ? (state.info?.systemMode === "DEMO" ? "Access denied by persona" : "Access denied by IRIS") : "Source unavailable"}</strong><p>${esc(error)}</p><code>GET ${esc(source.path)}</code><button class="button quiet" data-refresh-source="${sourceId}">Retry source</button></div>`;
   }
   if (sourceId === "alerts") {
@@ -520,7 +625,7 @@ function render() {
   });
   app.querySelectorAll("[data-route]").forEach((button) => button.addEventListener("click", () => {
     state.route = button.dataset.route;
-    state.mobileMoreOpen = navItems.slice(3).some(([route]) => route === state.route);
+    state.mobileMoreOpen = false;
     location.hash = state.route;
     render();
     ensureRouteSource();
@@ -1128,10 +1233,16 @@ addEventListener("hashchange", () => {
   const route = location.hash.slice(1);
   if (navItems.some(([item]) => item === route)) {
     state.route = route;
-    state.mobileMoreOpen = navItems.slice(3).some(([item]) => item === route);
+    // The active route is promoted into the visible primary set by the projection.
+    state.mobileMoreOpen = false;
   }
   render();
   ensureRouteSource();
+});
+const compactNavigationQuery = matchMedia("(max-width: 980px)");
+compactNavigationQuery.addEventListener("change", (event) => {
+  if (!event.matches) state.mobileMoreOpen = false;
+  render();
 });
 if (state.theme === "system") matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => setTheme("system"));
 setTheme(state.theme);
