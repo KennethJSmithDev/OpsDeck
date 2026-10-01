@@ -95,7 +95,7 @@ The frozen 0.2.1 candidate verified canonical LF checkout bytes under normal Win
 
 The earlier failed qualification was localized to harness behavior:
 
-- sibling inventory rows were identical across PowerShell 5.1 and 7.6.5; only sort order differed;
+- the same current 1,504 sibling rows reproduce the historical ACD0 digest under Windows PowerShell 5.1 ordering and the F94A digest under PowerShell 7.6.5 ordering; the historical 09:20 item rows were not retained, so this reconciles the digest discrepancy without proving the absence of transient activity in that earlier window;
 - package-operation markers required explicit standalone-line framing;
 - failed semantic checks now preserve raw private captures and stop before automatic recovery;
 - sibling pre-capture now retains item-level rows using version-independent ordering;
