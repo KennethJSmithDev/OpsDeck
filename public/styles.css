@@ -340,6 +340,12 @@ td { color:var(--muted); font-size:10px; }
   tbody tr:has(.empty-cell) { display:block; }
   .empty-cell { display:block; padding:16px; }
 }
+/* At compact viewport widths, keep the inventory table safe even if the
+   container-query card-mode override is not recalculated during a live resize. */
+@media (max-width:700px) {
+  .apps-layout .panel.table-panel table,
+  .provider-layout .panel.table-panel table { min-width:0; }
+}
 @container source-panel (max-width:760px) {
   .source-tabs { gap:8px; }
   .source-tab { flex:1 1 150px; max-width:100%; min-height:44px; }
