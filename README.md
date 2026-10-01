@@ -44,7 +44,7 @@ A frozen `0.2.1` development candidate corrected the Windows checkout line-endin
 
 The earlier lifecycle stop was traced to qualification-tooling defects rather than an observed product defect:
 
-- sibling inventory rows were identical as sets; the digest mismatch came from PowerShell-version-dependent sort ordering;
+- the ACD0/F94A sibling digest discrepancy was reproduced from the same current 1,504-row inventory by PowerShell-version-dependent sort ordering; the exact 09:20 item rows were not retained, so transient activity in that historical window cannot be reconstructed;
 - package result markers needed strict standalone-line framing and durable private capture;
 - path and empty-array comparisons in recovery validation needed canonical handling.
 
