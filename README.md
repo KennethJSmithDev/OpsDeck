@@ -38,23 +38,45 @@ The controlled local-source lifecycle reproduced load, registration, bounded nat
 
 ### Active development boundary
 
-The published `v0.2.0` tag is preserved exactly.
+The published `v0.2.0` release remains unchanged.
 
-A frozen `0.2.1` development candidate corrected the Windows checkout line-ending contract: under `core.autocrlf=true`, all five package inputs matched their raw Git blobs.
+**OpsDeck 0.2.1 distribution fidelity is ACCEPTED locally** at corrected candidate:
 
-The earlier lifecycle stop was traced to qualification-tooling defects rather than an observed product defect:
+`50205ed79dbd80a768d67c2455d514c09bbc5999`
 
-- the ACD0/F94A sibling digest discrepancy was reproduced from the same current 1,504-row inventory by PowerShell-version-dependent sort ordering; the exact 09:20 item rows were not retained, so transient activity in that historical window cannot be reconstructed;
-- package result markers needed strict standalone-line framing and durable private capture;
-- path and empty-array comparisons in recovery validation needed canonical handling.
+on `fix/0.2.1-responsive-inventory-reflow`.
 
-After those fixes and a verified restore of the accepted `0.2.0` baseline, the exact `0.2.1` local-source lifecycle passed end to end: load, registration, `/opsdeck`, deployed hash checks, uninstall/removal, unrelated-state preservation, clean reload, and **82/82** regressions.
+The accepted candidate:
 
-Installed-native desktop/browser requalification has now passed its read-only identity gate and representative live-route checks against the exact installed 0.2.1 bytes. Applications, Access, Tasks, Security, Logs status, Evidence classification, and sign-out were exercised; System counters produced a differing second sample and remain correctly non-stable.
+- reproduces all five package-input Git blobs from a fresh Windows checkout with `core.autocrlf=true`;
+- passes the controlled 16-stage local-source lifecycle;
+- preserves proof and all 1,504 canonical sibling rows;
+- cleanly uninstalls and reloads from the same source;
+- passes **82/82** regressions;
+- passes all **48** installed-native route-at-width samples at 320, 390, 600, 820, 1024, and 1440 CSS px;
+- passes the no-reload Applications sequence `1440 → 320 → 390 → 600 → 820 → 1024 → 1440`;
+- preserves the selected `/opsdeck` resource with zero document overflow and zero ordinary horizontal scrollers.
 
-The exact responsive-width matrix is now measurable. All 48 route-at-width observations passed when each route rendered at its target width, but the no-reload Applications transition **failed** at 320, 390, and 600 CSS px: both inventory tables retained a computed 660 px minimum width and forced document-level horizontal overflow. The selected `/opsdeck` resource and route were preserved.
+The earlier responsive-failure specimen `69e1215f...` remains preserved as historical evidence.
 
-The responsive browser gate is therefore **FAIL**, not merely unverified. The owning boundary is localized to inventory-table responsive styling during in-place resize; the exact invalidation trigger is not yet established. No v0.2.1 release claim is made until a separately authorized correction is requalified.
+**0.2.1 is accepted engineering state, not yet a published release.** No tag/release/Open Exchange publication is claimed for it.
+
+### Current feature work
+
+Phase C / **0.3 capability-aware morphing UI** has started on a separate local branch from the accepted 0.2.1 foundation.
+
+Current bounded implementation:
+
+- deterministic navigation projection from existing observed provider/read-back state, route/resource/task context, and compact/wide layout;
+- denied, unavailable, unknown, and product-unqualified states remain explicit;
+- route visibility does not grant IRIS authority;
+- safe demo and live mode use the same projection mechanism without persona-name or privilege-flag inference;
+- local tests: **88/88 PASS**;
+- syntax, responsive contract, and `git diff --check`: PASS;
+- exact candidate lifecycle: PASS;
+- post-lifecycle installed identity/hash gate: PASS.
+
+The remaining Phase C gate is installed-native browser/responsive qualification after human sign-in.
 
 See [Qualification Status](docs/QUALIFICATION_STATUS.md).
 
@@ -84,7 +106,7 @@ See [Qualification Status](docs/QUALIFICATION_STATUS.md).
 |---|---|---|
 | Native IRIS browser | Sign-in, identity, application read-back, selected management views, sign-out, and responsive behavior reproduced on IRIS 2026.2 | M1 remains partial; audit async result retrieval, Messages, and System Monitor readers remain unqualified/deferred |
 | v0.2.0 local-source lifecycle | Load, registration, deployed hashes, HTTP checks, uninstall/removal, unrelated-state preservation, clean reload | Exact core IPM version, fresh public-checkout parity, and public-registry installation remain unverified |
-| v0.2.1 development candidate | LF checkout parity, exact local-source lifecycle, 82/82 regressions, identity gate, representative desktop checks, and all 48 route-at-width samples passed | No-reload Applications resize fails at 320/390/600 px because inventory tables retain a 660 px minimum; responsive gate FAIL; not a release |
+| v0.2.1 accepted local candidate | Fresh-checkout parity, 16-stage lifecycle, 82/82 regressions, 48 route-width samples, and no-reload responsive sequence PASS | Accepted engineering state; public tag/release and registry install remain separate gates |
 | Safe demo | Deterministic sanitized evaluator data, authority personas, responsive UI, Evidence semantics | Demo data is not live IRIS evidence |
 | ObjectScript / CallIn execution | No execution bridge is present | No arbitrary native execution capability is claimed |
 
