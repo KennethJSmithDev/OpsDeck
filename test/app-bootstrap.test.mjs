@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
-import { mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES } from "../src/iris-provider.js";
+import { mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "../src/iris-provider.js";
 
 const appSource = (await readFile(new URL("../public/app.js", import.meta.url), "utf8"))
   .replace(/^import \{[^\n]+\} from "(?:\/iris-provider\.js|\.\/iris-provider\.js)(?:\?[^"]*)?";\s*/u, "");
@@ -18,8 +18,8 @@ test("frontend assets resolve from the current application path", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
   assert.match(html, /href="\.\/styles\.css\?v=opsdeck-0.2.1"/u);
-  assert.match(html, /src="\.\/app\.js\?v=opsdeck-0.2.0"/u);
-  assert.match(app, /from "\.\/iris-provider\.js\?v=opsdeck-0.2.0"/u);
+  assert.match(html, /src="\.\/app\.js\?v=opsdeck-0.2.1"/u);
+  assert.match(app, /from "\.\/iris-provider\.js\?v=opsdeck-0.2.1"/u);
 });
 const apps = {
   status: { errors: [], summary: "" }, console: [],
@@ -117,7 +117,7 @@ test("native IRIS login reads same-origin APIs with in-memory Basic auth and no 
   const context = {
     AbortSignal, Date, Intl, Object, String, TextEncoder, URL, btoa,
     document,
-    location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test" },
+    location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test", href: "http://iris.test/opsdeck/index.html" },
     history: { replaceState() {} },
     localStorage: { getItem: () => "dark", setItem() {} },
     matchMedia: () => ({ matches: false, addEventListener() {} }),
@@ -209,6 +209,80 @@ test("native API object errors become useful text instead of [object Object]", a
   while (!rendered.html.includes("No matching endpoint.") && Date.now() < errorDeadline) await new Promise((resolve) => setTimeout(resolve, 5));
   assert.match(rendered.html, /No matching endpoint\./u);
   assert.doesNotMatch(rendered.html, /\[object Object\]/u);
+});
+
+test("audit query is an explicit bounded read and displays only reviewed fields", async () => {
+  let submit;
+  let logsClick;
+  let runAuditClick;
+  const rendered = { html: "" };
+  const form = {
+    elements: { username: { value: "SyntheticUser" }, password: { value: "synthetic-passphrase" } },
+    addEventListener(type, listener) { if (type === "submit") submit = listener; },
+  };
+  const calls = [];
+  const app = {
+    set innerHTML(value) { rendered.html = value; },
+    querySelector(selector) { return selector === "#connect-form" ? form : null; },
+    querySelectorAll(selector) {
+      if (selector === "[data-route]") return [{ dataset: { route: "logs" }, addEventListener(type, listener) { if (type === "click") logsClick = listener; } }];
+      if (selector === "[data-run-audit-query]") return [{ addEventListener(type, listener) { if (type === "click") runAuditClick = listener; } }];
+      return [];
+    },
+  };
+  const userInfo = { ...info, result: { ...info.result, username: "SyntheticUser" } };
+  const context = {
+    AbortSignal, Date, Intl, Object, String, TextEncoder, URL, URLSearchParams, btoa,
+    document: { querySelector(selector) { return selector === "#app" ? app : null; }, documentElement: { dataset: {} } },
+    location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test", href: "http://iris.test/opsdeck/index.html" },
+    history: { replaceState() {} },
+    localStorage: { getItem: () => "dark", setItem() {} },
+    matchMedia: () => ({ matches: false, addEventListener() {} }),
+    addEventListener() {},
+    fetch: async (path, options = {}) => {
+      calls.push({ path, options });
+      if (path === "/api/admin/info") return { ok: true, status: 200, json: async () => userInfo };
+      if (path === "/api/admin/v2/web-apps") return { ok: true, status: 200, json: async () => apps };
+      if (path === "/api/admin/v2/security/audit/enabled") return { ok: true, status: 200, json: async () => ({ status: { errors: [] }, result: { Enabled: true } }) };
+      if (path.startsWith("/api/admin/v2/security/audit/records?")) return {
+        ok: true, status: 202,
+        headers: { get(name) { return name.toLowerCase() === "location" ? "/api/admin/v1/async-result?id=synthetic-task-id" : null; } },
+      };
+      if (path === "/api/admin/v1/async-result?id=synthetic-task-id") return {
+        ok: true, status: 200, json: async () => ({ status: { errors: [] }, console: [], result: {
+          TaskName: "ListAuditRecords", State: "Finished", Result: [
+            { TimeStamp: "observed-time", Event: "Login", EventSource: "System", UserName: "SyntheticUser", PID: 17, Namespace: "%SYS", Description: "private audit detail must not render" },
+            { Event: "extra row must be truncated" },
+          ],
+        } }),
+      };
+      assert.fail(`unexpected request ${path}`);
+    },
+    mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
+    inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS,
+  };
+  vm.runInNewContext(appSource, context, { filename: "public/app.js" });
+  await submit({ preventDefault() {}, currentTarget: form });
+  logsClick();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(calls.filter(({ path }) => path.startsWith("/api/admin/v2/security/audit/records?")).length, 0, "opening Logs does not submit an audit query");
+  assert.match(rendered.html, /Read recent records · max 1/u);
+  runAuditClick();
+  const deadline = Date.now() + 500;
+  while (!rendered.html.includes("identity: validated-location") && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5));
+  const submitCall = calls.find(({ path }) => path.startsWith("/api/admin/v2/security/audit/records?"));
+  assert.ok(submitCall);
+  const query = new URL(submitCall.path, "http://iris.test").searchParams;
+  assert.equal(query.get("usernames"), "SyntheticUser");
+  assert.equal(query.get("maxRows"), "1");
+  assert.equal(new Date(query.get("endDateTime")).getTime() - new Date(query.get("beginDateTime")).getTime(), 10 * 60 * 1000);
+  assert.equal(submitCall.options.method, "POST");
+  assert.equal(calls.filter(({ path }) => path === "/api/admin/v1/async-result?id=synthetic-task-id").length, 1);
+  const readCall = calls.find(({ path }) => path === "/api/admin/v1/async-result?id=synthetic-task-id");
+  assert.equal(readCall.options.redirect, "error");
+  assert.match(rendered.html, /Task state: Finished · identity: validated-location/u);
+  assert.match(rendered.html, /Login/u);
+  assert.doesNotMatch(rendered.html, /private audit detail must not render|synthetic-task-id|extra row must be truncated/u);
 });
 
 test("alerts are opt-in stateful reads and unqualified record values stay hidden", async () => {

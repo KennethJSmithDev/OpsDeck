@@ -220,10 +220,16 @@ test("maps direct REST discovery arrays and object-valued monitor results", () =
 
 test("validates the async audit Location and extracts its documented id", () => {
   assert.deepEqual(validateAuditLocation("/api/admin/v2/async-result?id=abc-123", "http://127.0.0.1:52773/opsdeck/index.html"), {
-    url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123",
+    url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123", pathname: "/api/admin/v2/async-result", apiVersion: "v2",
   });
   assert.deepEqual(validateAuditLocation("http://127.0.0.1:52773/api/admin/v2/async-result?id=abc-123", "http://127.0.0.1:52773/opsdeck/index.html"), {
-    url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123",
+    url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123", pathname: "/api/admin/v2/async-result", apiVersion: "v2",
+  });
+  assert.deepEqual(validateAuditLocation("/api/admin/v1/async-result?id=iris-task-7", "http://127.0.0.1:52773/opsdeck/index.html"), {
+    url: "/api/admin/v1/async-result?id=iris-task-7", id: "iris-task-7", pathname: "/api/admin/v1/async-result", apiVersion: "v1",
+  });
+  assert.deepEqual(validateAuditLocation("http://127.0.0.1:52773/api/admin/v1/async-result?id=iris-task-7", "http://127.0.0.1:52773/opsdeck/index.html"), {
+    url: "/api/admin/v1/async-result?id=iris-task-7", id: "iris-task-7", pathname: "/api/admin/v1/async-result", apiVersion: "v1",
   });
   assert.throws(() => validateAuditLocation(null, "http://127.0.0.1:52773/opsdeck/index.html"), /omitted/);
   assert.throws(() => validateAuditLocation("", "http://127.0.0.1:52773/opsdeck/index.html"), /omitted/);
@@ -253,6 +259,10 @@ test("inspects only sanitized async Location structure and never returns the id 
     idParameterState: "single-nonempty", fragmentPresent: false, userinfoPresent: false, rejectionReasons: [],
   });
   assert.equal(JSON.stringify(shape).includes("secret-task-id"), false);
+  const legacyShape = inspectAuditLocation("/api/admin/v1/async-result?id=private-id", "http://127.0.0.1:52773/opsdeck/index.html");
+  assert.equal(legacyShape.apiVersion, "v1");
+  assert.deepEqual(legacyShape.rejectionReasons, []);
+  assert.equal(JSON.stringify(legacyShape).includes("private-id"), false);
 });
 
 test("rejects unsafe async Location identity and origin structures", () => {
@@ -307,6 +317,24 @@ test("maps failed/canceled async tasks and rejects identity or Result contract d
   assert.equal(mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Canceled" }), "g-4").task.state, "Canceled");
   assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "other", State: "Finished", Result: [] }), "g-4"), /identity/);
   assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Finished", Result: {} }), "g-4"), /array/);
+});
+
+test("maps the documented IRIS 2026.2 v1 task shape using its validated Location identity", () => {
+  const base = "http://127.0.0.1:52773/opsdeck/index.html";
+  const handle = validateAuditLocation("/api/admin/v1/async-result?id=opaque-task-42", base);
+  assert.throws(() => { handle.url = "/api/admin/v1/async-result?id=other"; }, TypeError);
+  const mapped = mapAuditAsyncResult(envelope({
+    TaskName: "ListAuditRecords", State: "Finished", Result: [], TimeFinished: "now",
+  }), handle);
+  assert.deepEqual(mapped.task, { idVerified: true, identitySource: "validated-location", state: "Finished", TaskName: "ListAuditRecords", TimeFinished: "now" });
+  assert.deepEqual(mapped.result, []);
+  assert.equal(mapped.resultCount, 0);
+  assert.equal(JSON.stringify(mapped).includes("opaque-task-42"), false);
+
+  const v2Handle = validateAuditLocation("/api/admin/v2/async-result?id=opaque-task-42", base);
+  assert.throws(() => mapAuditAsyncResult(envelope({ State: "Finished", Result: [] }), v2Handle), /omitted its verifiable identity/);
+  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "different-task", State: "Finished", Result: [] }), handle), /did not match/);
+  assert.throws(() => mapAuditAsyncResult(envelope({ State: "Finished", Result: [] }), { id: "opaque-task-42", pathname: "/api/admin/v1/async-result", apiVersion: "v1" }), /was not validated/);
 });
 
 test("enforces fixed log source identities and bounded sanitized output", () => {

@@ -30,7 +30,11 @@ export const READ_ONLY_SOURCES = Object.freeze({
 });
 
 export const AUDIT_QUERY_MAX_ROWS = 1;
-const ASYNC_RESULT_PATH = "/api/admin/v2/async-result";
+const ASYNC_RESULT_PATHS = Object.freeze({
+  "/api/admin/v1/async-result": "v1",
+  "/api/admin/v2/async-result": "v2",
+});
+const validatedAuditLocations = new WeakSet();
 const AUDIT_RECORD_SAFE_FIELDS = Object.freeze(["TimeStamp", "Event", "EventSource", "UserName", "PID", "Namespace"]);
 
 export function inspectAuditLocation(locationHeader, pageUrl) {
@@ -76,6 +80,7 @@ export function inspectAuditLocation(locationHeader, pageUrl) {
     schemeRelationship: location.protocol === base.protocol ? "same" : "different",
     portRelationship: effectivePort(location) === effectivePort(base) ? "same" : "different",
     pathname: location.pathname.slice(0, 512),
+    apiVersion: ASYNC_RESULT_PATHS[location.pathname] || null,
     pathEncodingOrNormalizationChanged: rawPath !== location.pathname,
     queryParameterNames,
     idCount: idValues.length,
@@ -90,7 +95,7 @@ export function inspectAuditLocation(locationHeader, pageUrl) {
   };
   shape.rejectionReasons = [
     !shape.sameOrigin && "origin-mismatch",
-    shape.pathname !== ASYNC_RESULT_PATH && "unexpected-path",
+    !Object.hasOwn(ASYNC_RESULT_PATHS, shape.pathname) && "unexpected-path",
     shape.fragmentPresent && "fragment-present",
     shape.userinfoPresent && "userinfo-present",
     shape.malformedPercentEscape && "malformed-percent-escape",
@@ -110,7 +115,7 @@ export function validateAuditLocation(locationHeader, pageUrl) {
   if (typeof locationHeader !== "string" || !locationHeader.trim()) throw new Error("IRIS audit query omitted its async Location.");
   const shape = inspectAuditLocation(locationHeader, pageUrl);
   if (!shape.parseable) throw new Error("IRIS returned an invalid async Location.");
-  if (!shape.sameOrigin || shape.pathname !== ASYNC_RESULT_PATH || shape.fragmentPresent || shape.userinfoPresent ||
+  if (!shape.sameOrigin || !Object.hasOwn(ASYNC_RESULT_PATHS, shape.pathname) || shape.fragmentPresent || shape.userinfoPresent ||
       shape.malformedPercentEscape || shape.pathEncodingOrNormalizationChanged || shape.queryNameEncodingChanged ||
       shape.idValuePercentEncoded || shape.queryParameterNames.length !== 1 || shape.queryParameterNames[0] !== "id" || shape.idCount !== 1 || !shape.idNonempty || !shape.idLengthValid) {
     throw new Error("IRIS returned an unsafe async Location.");
@@ -118,17 +123,34 @@ export function validateAuditLocation(locationHeader, pageUrl) {
   const base = new URL(pageUrl);
   const location = new URL(locationHeader, base);
   const id = location.searchParams.get("id");
-  return { url: `${location.pathname}${location.search}`, id };
+  const handle = Object.freeze({ url: `${location.pathname}${location.search}`, id, pathname: location.pathname, apiVersion: ASYNC_RESULT_PATHS[location.pathname] });
+  validatedAuditLocations.add(handle);
+  return handle;
 }
 
-export function mapAuditAsyncResult(payload, taskId) {
+export function mapAuditAsyncResult(payload, identity) {
   const task = requireRecord(unwrapIrisResult(payload), "IRIS async-result task");
+  const handle = typeof identity === "string" ? null : requireRecord(identity, "Validated IRIS async-result Location");
+  if (handle && !validatedAuditLocations.has(handle)) throw new Error("IRIS async-result Location was not validated.");
+  const taskId = handle ? handle.id : identity;
+  if (typeof taskId !== "string" || !taskId) throw new Error("IRIS async-result identity was not validated.");
   const state = task.State;
   const states = ["Queued", "Running", "Finished", "Failed", "Canceled", "Paused"];
   if (!states.includes(state)) throw new Error("IRIS async-result returned an unknown state.");
-  if (typeof task.GUID !== "string" || task.GUID !== taskId) throw new Error("IRIS async-result identity did not match its Location id.");
+  let identitySource;
+  if (Object.hasOwn(task, "GUID")) {
+    if (typeof task.GUID !== "string" || task.GUID !== taskId) throw new Error("IRIS async-result identity did not match its Location id.");
+    identitySource = "response-guid";
+  } else if (handle?.apiVersion === "v1" && handle.pathname === "/api/admin/v1/async-result") {
+    // IRIS 2026.2's documented v1 resource omits GUID from its task body. The
+    // task identity is therefore bound to the exact validated Location used
+    // for this GET, rather than being represented as a body-level match.
+    identitySource = "validated-location";
+  } else {
+    throw new Error("IRIS async-result omitted its verifiable identity.");
+  }
   const fields = ["TaskName", "TimeQueued", "TimeStarted", "TimeFinished", "FailureReason"];
-  const safeTask = { idVerified: true, state };
+  const safeTask = { idVerified: true, identitySource, state };
   for (const field of fields) {
     if (Object.hasOwn(task, field) && (task[field] === null || ["string", "number", "boolean"].includes(typeof task[field]))) {
       safeTask[field] = field === "FailureReason" ? (task[field] ? "IRIS reported a task failure." : "") : task[field];
