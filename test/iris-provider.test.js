@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, sameWebAppState } from "../src/iris-provider.js";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, sameWebAppState, READ_ONLY_SOURCES, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, mapFixedLogResult, AUDIT_QUERY_MAX_ROWS } from "../src/iris-provider.js";
 
 const envelope = (result, errors = []) => ({ status: { errors, summary: "" }, console: [], result });
 
@@ -216,6 +216,135 @@ test("maps direct REST discovery arrays and object-valued monitor results", () =
   const usage = mapReadOnlySource("systemUsage", envelope({ AllGlobalReferences: 12, LastUpdate: "now", SecretToken: "ignored" }));
   assert.equal(usage.resultType, "object");
   assert.deepEqual(usage.items[0].values, { AllGlobalReferences: 12, LastUpdate: "now" });
+});
+
+test("validates the async audit Location and extracts its documented id", () => {
+  assert.deepEqual(validateAuditLocation("/api/admin/v2/async-result?id=abc-123", "http://127.0.0.1:52773/opsdeck/index.html"), {
+    url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123",
+  });
+  assert.deepEqual(validateAuditLocation("http://127.0.0.1:52773/api/admin/v2/async-result?id=abc-123", "http://127.0.0.1:52773/opsdeck/index.html"), {
+    url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123",
+  });
+  assert.throws(() => validateAuditLocation(null, "http://127.0.0.1:52773/opsdeck/index.html"), /omitted/);
+  assert.throws(() => validateAuditLocation("", "http://127.0.0.1:52773/opsdeck/index.html"), /omitted/);
+  assert.throws(() => validateAuditLocation("https://attacker.invalid/api/admin/v2/async-result?id=x", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result/other?id=x", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result?id=x&id=y", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
+  assert.throws(() => validateAuditLocation("//attacker.invalid/api/admin/v2/async-result?id=x", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
+  assert.throws(() => validateAuditLocation("http://user:secret@127.0.0.1:52773/api/admin/v2/async-result?id=x", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result?%69d=x", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result?id=a%2Fb", "http://127.0.0.1:52773/opsdeck/index.html"), /unsafe/);
+});
+
+test("inspects only sanitized async Location structure and never returns the id value", () => {
+  const shape = inspectAuditLocation("/api/admin/v2/async-result?id=secret-task-id", "http://127.0.0.1:52773/opsdeck/index.html");
+  assert.deepEqual({
+    form: shape.form, scheme: shape.scheme, authorityPresent: shape.authorityPresent,
+    sameOrigin: shape.sameOrigin, hostnameRelationship: shape.hostnameRelationship,
+    schemeRelationship: shape.schemeRelationship, portRelationship: shape.portRelationship,
+    pathname: shape.pathname, queryParameterNames: shape.queryParameterNames,
+    idCount: shape.idCount, idParameterState: shape.idParameterState,
+    fragmentPresent: shape.fragmentPresent, userinfoPresent: shape.userinfoPresent,
+    rejectionReasons: shape.rejectionReasons,
+  }, {
+    form: "relative", scheme: "http", authorityPresent: false,
+    sameOrigin: true, hostnameRelationship: "same", schemeRelationship: "same", portRelationship: "same",
+    pathname: "/api/admin/v2/async-result", queryParameterNames: ["id"], idCount: 1,
+    idParameterState: "single-nonempty", fragmentPresent: false, userinfoPresent: false, rejectionReasons: [],
+  });
+  assert.equal(JSON.stringify(shape).includes("secret-task-id"), false);
+});
+
+test("rejects unsafe async Location identity and origin structures", () => {
+  const base = "http://127.0.0.1:52773/opsdeck/index.html";
+  assert.throws(() => validateAuditLocation("https://attacker.invalid/api/admin/v2/async-result?id=x", base), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result/other?id=x", base), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result", base), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result?id=x&id=y", base), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/async-result?id=x&other=y", base), /unsafe/);
+  assert.throws(() => validateAuditLocation("/api/admin/v2/x/../async-result?id=x", base), /unsafe/);
+});
+
+test("maps queued, running, and finished-empty async audit tasks without inventing completion", () => {
+  const queued = mapAuditAsyncResult(envelope({ GUID: "g-1", TaskName: "ListAuditRecords", State: "Queued", TimeQueued: "now" }), "g-1");
+  assert.equal(queued.task.state, "Queued");
+  assert.equal(queued.task.idVerified, true);
+  assert.equal(JSON.stringify(queued).includes("g-1"), false);
+  assert.equal(queued.result, null);
+  const running = mapAuditAsyncResult(envelope({ GUID: "g-1", State: "Running", TimeStarted: "now" }), "g-1");
+  assert.equal(running.task.state, "Running");
+  assert.equal(running.result, null);
+  const empty = mapAuditAsyncResult(envelope({ GUID: "g-1", State: "Finished", Result: [], TimeFinished: "now" }), "g-1");
+  assert.equal(empty.task.state, "Finished");
+  assert.deepEqual(empty.result, []);
+  assert.equal(empty.resultCount, 0);
+  assert.equal(empty.classification, "BOUNDED_ASYNC_RESULT — NO PAGINATION MECHANISM OBSERVED");
+});
+
+test("maps a finished audit result to one bounded row and reviewed safe fields", () => {
+  assert.equal(AUDIT_QUERY_MAX_ROWS, 1);
+  const result = mapAuditAsyncResult(envelope({
+    GUID: "g-2", State: "Finished", Result: [
+      { TimeStamp: "now", Event: "Login", EventSource: "System", UserName: "OpsDeckTest", PID: 12, Namespace: "%SYS", Description: "withheld", Password: "secret" },
+      { Event: "extra" },
+    ],
+  }), "g-2");
+  assert.equal(result.resultCount, 1);
+  assert.equal(result.truncatedToMaxRows, true);
+  assert.deepEqual(result.result[0], { TimeStamp: "now", Event: "Login", EventSource: "System", UserName: "OpsDeckTest", PID: 12, Namespace: "%SYS" });
+  assert.equal(JSON.stringify(result).includes("secret"), false);
+  const continued = mapAuditAsyncResult(envelope({ GUID: "g-2", State: "Finished", Result: [], nextCursor: "never-render-this" }), "g-2");
+  assert.deepEqual(continued.continuationFields, ["nextCursor"]);
+  assert.equal(continued.classification, null);
+  assert.equal(JSON.stringify(continued).includes("never-render-this"), false);
+});
+
+test("maps failed/canceled async tasks and rejects identity or Result contract drift", () => {
+  const failed = mapAuditAsyncResult(envelope({ GUID: "g-3", State: "Failed", FailureReason: "private detail" }), "g-3");
+  assert.equal(failed.task.state, "Failed");
+  assert.equal(failed.task.FailureReason, "IRIS reported a task failure.");
+  assert.equal(JSON.stringify(failed).includes("private detail"), false);
+  assert.equal(mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Canceled" }), "g-4").task.state, "Canceled");
+  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "other", State: "Finished", Result: [] }), "g-4"), /identity/);
+  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Finished", Result: {} }), "g-4"), /array/);
+});
+
+test("enforces fixed log source identities and bounded sanitized output", () => {
+  const oversized = Array.from({ length: 260 }, (_, index) => `row ${index}\u0000`);
+  const result = mapFixedLogResult("messagesLog", { status: "available", lines: oversized, truncated: false, path: "C:\\arbitrary\\secret.log" });
+  assert.equal(result.source, "messages.log");
+  assert.equal(result.lines.length, 250);
+  assert.equal(result.truncated, true);
+  assert.equal(result.bytesReturned <= 65536, true);
+  assert.equal(result.lines[0].includes("\u0000"), false);
+  assert.equal(JSON.stringify(result).includes("arbitrary"), false);
+  assert.throws(() => mapFixedLogResult("arbitraryPath", { status: "available", lines: [] }), /not enabled/);
+  assert.throws(() => mapFixedLogResult("..\\messages.log", { status: "available", lines: [] }), /not enabled/);
+});
+
+test("distinguishes empty, unavailable, denied, and failed fixed log reads", () => {
+  assert.deepEqual(mapFixedLogResult("systemMonitorLog", { status: "available", lines: [], truncated: false }), {
+    source: "SystemMonitor.log", status: "available", lines: [], truncated: false, bytesReturned: 0,
+  });
+  for (const status of ["unavailable", "denied", "read-failure"]) {
+    const result = mapFixedLogResult("systemMonitorLog", { status, lines: ["must not escape"] });
+    assert.equal(result.status, status);
+    assert.deepEqual(result.lines, []);
+  }
+});
+
+test("maps the stateful IRIS alert feed without exposing unqualified alert values", () => {
+  assert.equal(READ_ONLY_SOURCES.alerts.path, "/api/monitor/alerts");
+  const empty = mapReadOnlySource("alerts", [], "2026-09-24T12:00:00Z");
+  assert.equal(empty.resultType, "stateful-alert-batch");
+  assert.equal(empty.count, 0);
+  assert.deepEqual(empty.items, []);
+
+  const shaped = mapReadOnlySource("alerts", [{ AlertId: "must-not-render", Message: "must-not-render", Time: "now" }]);
+  assert.deepEqual(shaped.items[0].values, { observedFields: ["AlertId", "Message", "Time"] });
+  assert.equal(JSON.stringify(shaped).includes("must-not-render"), false);
+  assert.equal(shaped.items[0].ref.volatile, true);
+  assert.throws(() => mapReadOnlySource("alerts", { result: [] }), /must be an array/);
 });
 
 test("keeps empty live collections distinct and rejects failed provider envelopes", () => {

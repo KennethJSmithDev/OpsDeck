@@ -1,0 +1,6 @@
+# Preserve the qualified package-input bytes on every checkout.
+module.xml text eol=lf
+public/index.html text eol=lf
+public/app.js text eol=crlf
+public/styles.css text eol=crlf
+src/iris-provider.js text eol=crlf

@@ -26,7 +26,172 @@ export const READ_ONLY_SOURCES = Object.freeze({
   auditEnabled: { path: "/api/admin/v2/security/audit/enabled", domain: "logs", label: "Audit status", requiredPrivilege: "%Admin_Secure:U" },
   auditEvents: { path: "/api/admin/v2/security/audit/events", domain: "logs", label: "Audit event definitions", requiredPrivilege: "%Admin_Secure:U" },
   journalFiles: { path: "/api/admin/v2/journal/files", domain: "logs", label: "Journal files", requiredPrivilege: "%Admin_Operate:U" },
+  alerts: { path: "/api/monitor/alerts", domain: "logs", label: "Alerts (stateful feed)", requiredPrivilege: "provider-defined" },
 });
+
+export const AUDIT_QUERY_MAX_ROWS = 1;
+const ASYNC_RESULT_PATH = "/api/admin/v2/async-result";
+const AUDIT_RECORD_SAFE_FIELDS = Object.freeze(["TimeStamp", "Event", "EventSource", "UserName", "PID", "Namespace"]);
+
+export function inspectAuditLocation(locationHeader, pageUrl) {
+  if (typeof locationHeader !== "string" || !locationHeader.trim()) {
+    return { present: false, parseable: false, rejection: "missing-location" };
+  }
+  let base;
+  let location;
+  const raw = locationHeader.trim();
+  try {
+    base = new URL(pageUrl);
+    location = new URL(raw, base);
+  } catch {
+    return { present: true, parseable: false, rejection: "invalid-url" };
+  }
+  const absolute = /^[a-z][a-z0-9+.-]*:/iu.test(raw);
+  const schemeRelative = !absolute && raw.startsWith("//");
+  let rawPath = absolute ? raw.replace(/^[a-z][a-z0-9+.-]*:\/\/[^/?#]*/iu, "") :
+    schemeRelative ? raw.replace(/^\/\/[^/?#]*/u, "") : raw;
+  rawPath = rawPath.split(/[?#]/u, 1)[0];
+  const rawQuery = raw.includes("?") ? raw.slice(raw.indexOf("?") + 1).split("#", 1)[0] : "";
+  const rawNames = rawQuery ? rawQuery.split("&").map((part) => part.split("=", 1)[0]) : [];
+  const rawValues = rawQuery ? rawQuery.split("&").map((part) => part.includes("=") ? part.slice(part.indexOf("=") + 1) : "") : [];
+  const queryParameterNames = [...location.searchParams.keys()].slice(0, 16).map((name) => name.slice(0, 64));
+  let queryNameEncodingChanged = rawNames.length !== queryParameterNames.length || rawNames.some((name) => /[%+]/u.test(name));
+  if (!queryNameEncodingChanged) {
+    queryNameEncodingChanged = rawNames.some((name, index) => {
+      try { return decodeURIComponent(name.replace(/\+/gu, " ")) !== queryParameterNames[index]; }
+      catch { return true; }
+    });
+  }
+  const effectivePort = (url) => url.port || (url.protocol === "https:" ? "443" : url.protocol === "http:" ? "80" : "");
+  const idValues = location.searchParams.getAll("id");
+  const idLengthValid = idValues.length === 1 && idValues[0].length <= 256;
+  const shape = {
+    present: true,
+    parseable: true,
+    form: absolute ? "absolute" : schemeRelative ? "scheme-relative" : "relative",
+    scheme: location.protocol.slice(0, -1),
+    authorityPresent: absolute || schemeRelative,
+    sameOrigin: location.origin === base.origin,
+    hostnameRelationship: location.hostname.toLowerCase() === base.hostname.toLowerCase() ? "same" : "different",
+    schemeRelationship: location.protocol === base.protocol ? "same" : "different",
+    portRelationship: effectivePort(location) === effectivePort(base) ? "same" : "different",
+    pathname: location.pathname.slice(0, 512),
+    pathEncodingOrNormalizationChanged: rawPath !== location.pathname,
+    queryParameterNames,
+    idCount: idValues.length,
+    idParameterState: idValues.length === 0 ? "missing" : idValues.length > 1 ? "duplicate" : !idValues[0] ? "empty" : "single-nonempty",
+    idLengthValid,
+    idNonempty: idValues.length === 1 && Boolean(idValues[0]) && !/[\u0000-\u0020\u007f]/u.test(idValues[0]),
+    idValuePercentEncoded: rawNames.length === 1 && rawNames[0] === "id" && /%[0-9a-f]{2}/iu.test(rawValues[0]),
+    fragmentPresent: Boolean(location.hash),
+    userinfoPresent: Boolean(location.username || location.password),
+    malformedPercentEscape: /%(?![0-9a-f]{2})/iu.test(raw),
+    queryNameEncodingChanged,
+  };
+  shape.rejectionReasons = [
+    !shape.sameOrigin && "origin-mismatch",
+    shape.pathname !== ASYNC_RESULT_PATH && "unexpected-path",
+    shape.fragmentPresent && "fragment-present",
+    shape.userinfoPresent && "userinfo-present",
+    shape.malformedPercentEscape && "malformed-percent-escape",
+    shape.pathEncodingOrNormalizationChanged && "path-encoding-or-normalization-changed",
+    shape.queryNameEncodingChanged && "query-name-encoding-changed",
+    shape.idValuePercentEncoded && "id-value-percent-encoded",
+    (shape.queryParameterNames.length !== 1 || shape.queryParameterNames[0] !== "id") && "unexpected-query-identity-structure",
+    shape.idCount === 0 && "missing-id",
+    shape.idCount > 1 && "duplicate-id",
+    shape.idCount === 1 && !shape.idNonempty && "empty-or-invalid-id",
+    shape.idCount === 1 && !shape.idLengthValid && "id-too-long",
+  ].filter(Boolean);
+  return shape;
+}
+
+export function validateAuditLocation(locationHeader, pageUrl) {
+  if (typeof locationHeader !== "string" || !locationHeader.trim()) throw new Error("IRIS audit query omitted its async Location.");
+  const shape = inspectAuditLocation(locationHeader, pageUrl);
+  if (!shape.parseable) throw new Error("IRIS returned an invalid async Location.");
+  if (!shape.sameOrigin || shape.pathname !== ASYNC_RESULT_PATH || shape.fragmentPresent || shape.userinfoPresent ||
+      shape.malformedPercentEscape || shape.pathEncodingOrNormalizationChanged || shape.queryNameEncodingChanged ||
+      shape.idValuePercentEncoded || shape.queryParameterNames.length !== 1 || shape.queryParameterNames[0] !== "id" || shape.idCount !== 1 || !shape.idNonempty || !shape.idLengthValid) {
+    throw new Error("IRIS returned an unsafe async Location.");
+  }
+  const base = new URL(pageUrl);
+  const location = new URL(locationHeader, base);
+  const id = location.searchParams.get("id");
+  return { url: `${location.pathname}${location.search}`, id };
+}
+
+export function mapAuditAsyncResult(payload, taskId) {
+  const task = requireRecord(unwrapIrisResult(payload), "IRIS async-result task");
+  const state = task.State;
+  const states = ["Queued", "Running", "Finished", "Failed", "Canceled", "Paused"];
+  if (!states.includes(state)) throw new Error("IRIS async-result returned an unknown state.");
+  if (typeof task.GUID !== "string" || task.GUID !== taskId) throw new Error("IRIS async-result identity did not match its Location id.");
+  const fields = ["TaskName", "TimeQueued", "TimeStarted", "TimeFinished", "FailureReason"];
+  const safeTask = { idVerified: true, state };
+  for (const field of fields) {
+    if (Object.hasOwn(task, field) && (task[field] === null || ["string", "number", "boolean"].includes(typeof task[field]))) {
+      safeTask[field] = field === "FailureReason" ? (task[field] ? "IRIS reported a task failure." : "") : task[field];
+    }
+  }
+  let result = null;
+  if (state === "Finished") {
+    if (!Array.isArray(task.Result)) throw new Error("Finished audit query Result must be an array.");
+    result = task.Result.slice(0, AUDIT_QUERY_MAX_ROWS).map((record) => {
+      requireRecord(record, "IRIS audit record");
+      return Object.fromEntries(AUDIT_RECORD_SAFE_FIELDS
+        .filter((field) => Object.hasOwn(record, field) && (record[field] === null || ["string", "number", "boolean"].includes(typeof record[field])))
+        .map((field) => [field, record[field]]));
+    });
+  }
+  const continuationFields = Object.keys(task).filter((key) => /cursor|continu|next(page|token)?|hasMore|pageToken/iu.test(key)).sort();
+  return {
+    task: safeTask,
+    result,
+    resultCount: result?.length ?? null,
+    truncatedToMaxRows: Array.isArray(task.Result) && task.Result.length > AUDIT_QUERY_MAX_ROWS,
+    continuationFields,
+    classification: state === "Finished" && continuationFields.length === 0
+      ? "BOUNDED_ASYNC_RESULT — NO PAGINATION MECHANISM OBSERVED"
+      : null,
+  };
+}
+
+const FIXED_LOGS = Object.freeze({
+  messagesLog: { name: "messages.log", maxBytes: 65536, maxLines: 250 },
+  systemMonitorLog: { name: "SystemMonitor.log", maxBytes: 65536, maxLines: 250 },
+});
+
+export function mapFixedLogResult(sourceId, payload) {
+  const source = FIXED_LOGS[sourceId];
+  if (!source) throw new Error("IRIS log source is not enabled.");
+  requireRecord(payload, "IRIS fixed log result");
+  const statuses = ["available", "unavailable", "denied", "read-failure"];
+  if (!statuses.includes(payload.status)) throw new Error("IRIS fixed log result has an invalid status.");
+  if (payload.status !== "available") {
+    return { source: source.name, status: payload.status, lines: [], truncated: false, bytesReturned: 0 };
+  }
+  if (!Array.isArray(payload.lines) || payload.lines.some((line) => typeof line !== "string")) {
+    throw new Error("IRIS fixed log lines must be an array of strings.");
+  }
+  const lines = [];
+  let bytesReturned = 0;
+  let truncated = payload.truncated === true;
+  for (const rawLine of payload.lines) {
+    const sanitizedLine = rawLine.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, "�");
+    const safeLine = sanitizedLine.slice(0, 2048);
+    if (safeLine.length < sanitizedLine.length) truncated = true;
+    const lineBytes = new TextEncoder().encode(safeLine).byteLength;
+    if (lines.length >= source.maxLines || bytesReturned + lineBytes > source.maxBytes) {
+      truncated = true;
+      break;
+    }
+    lines.push(safeLine);
+    bytesReturned += lineBytes;
+  }
+  if (lines.length < payload.lines.length) truncated = true;
+  return { source: source.name, status: "available", lines, truncated, bytesReturned };
+}
 
 const SAFE_FIELDS = Object.freeze({
   webApps: ["Name", "Namespace", "Enabled", "Type", "AuthenticationMethods"],
@@ -396,6 +561,30 @@ export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toI
   let result;
   if (source.path.startsWith("/api/admin/")) result = unwrapIrisResult(payload);
   else result = payload;
+
+  if (sourceId === "alerts") {
+    if (!Array.isArray(result)) throw new Error("IRIS alert response must be an array.");
+    return {
+      sourceId,
+      provider: "iris-monitor-api",
+      observedAt,
+      resultType: "stateful-alert-batch",
+      count: result.length,
+      items: result.map((record, index) => {
+        requireRecord(record, "IRIS alert record");
+        return {
+          ref: {
+            domain: "logs", kind: "alert", provider: "iris-monitor-api",
+            key: `batch:${index}`, scope: null, label: `Alert record ${index + 1}`,
+            volatile: true, observedAt,
+          },
+          // Only field names are surfaced until this provider's non-empty record
+          // shape and safe display fields have been qualified on the live instance.
+          values: { observedFields: Object.keys(record).sort() },
+        };
+      }),
+    };
+  }
 
   const fields = SAFE_FIELDS[sourceId] || [];
   const identities = IDENTITY_FIELDS[sourceId] || [];
