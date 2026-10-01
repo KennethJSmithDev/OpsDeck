@@ -79,7 +79,8 @@ The candidate verified:
 
 The earlier failure state was resolved as qualification-tooling defects:
 
-- the apparent sibling-inventory change was version-dependent `Sort-Object` ordering; corrected cross-engine comparison showed the same 1,504 rows as sets;
+- the ACD0/F94A sibling digest discrepancy was reproduced from the same current 1,504-row inventory by version-dependent `Sort-Object` ordering; ordinal sorting is stable across both engines;
+- the original 09:20 item rows were not retained, so the historical transient window cannot be reconstructed and no claim is made that transient sibling activity was impossible or harmless;
 - package-operation markers could be glued to IPM output without a leading newline;
 - a post-verdict array comparison produced a false negative;
 - application-path comparison did not canonicalize both slash styles;
