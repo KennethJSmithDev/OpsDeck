@@ -18,48 +18,34 @@ Future work builds from that accepted foundation rather than reopening it withou
 - Vector similarity is navigation, not proof.
 - Every milestone requires behavioral correctness and representation-cost sanity.
 
-## 0.2.1 — distribution fidelity
+## 0.2.1 — distribution fidelity — ACCEPTED
 
-Objective: make a normal public checkout produce the exact package bytes that are qualified.
+Accepted corrected candidate:
 
-Checkout representation is verified for the frozen candidate under normal Windows Git settings.
+`50205ed79dbd80a768d67c2455d514c09bbc5999`
 
-The exact 0.2.1 local-source lifecycle has also passed after qualification-tooling defects were localized and corrected.
+Accepted evidence includes:
 
-Accepted so far:
-
-- exact fresh-checkout source hashes;
-- source → deployed byte parity;
-- load/registration;
-- uninstall/removal;
-- unrelated-state preservation;
-- clean same-source reload;
+- fresh Windows checkout / Git-blob parity;
+- exact source → deployed byte parity;
+- 16-stage package lifecycle;
+- uninstall/removal and clean same-source reload;
+- proof + 1,504-row canonical sibling preservation;
 - 82/82 regressions;
-- sanitized/private evidence preservation.
+- installed-native identity/hash gate;
+- 48 route-at-width browser samples;
+- no-reload responsive Applications sequence;
+- selected-resource preservation;
+- zero document overflow / ordinary horizontal scrollers;
+- sign-out/session clearing.
 
-Accepted additionally:
+Public-registry installation remains a separate distribution gate.
 
-- installed-state identity/hash gate;
-- representative installed-native desktop route checks;
-- Applications/Access/Tasks/Security/Logs read-back behavior;
-- Evidence historical wording classification;
-- sign-out/session-clear behavior.
+The earlier failed responsive specimen is preserved as historical evidence rather than rewritten.
 
-Responsive qualification result:
+## 0.3 — capability-aware morphing UI — ACTIVE LOCAL QUALIFICATION
 
-- all 48 individual route-at-width observations passed at 320/390/600/820/1024/1440 CSS px;
-- selected `/opsdeck` state survives the no-reload Applications transition;
-- the no-reload transition nevertheless fails at 320/390/600 px because inventory tables retain a stale 660 px minimum width and create document-level overflow.
-
-Remaining acceptance gate:
-
-- smallest justified responsive fix on a separate authorized branch;
-- rerun the affected no-reload transition and exact-width browser checks against the corrected bytes;
-- explicit installed-native browser PASS.
-
-Public-registry installation remains a separate gate.
-
-## 0.3 — capability-aware morphing UI
+Local implementation exists on a separate feature branch from the accepted 0.2.1 foundation. Local regression and exact lifecycle checks pass; installed-native browser qualification remains pending human sign-in.
 
 Objective: project one canonical OpsDeck interface according to:
 
