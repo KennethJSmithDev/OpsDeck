@@ -46,6 +46,13 @@ OpsDeck responds to usable workspace width rather than assuming a device class.
 
 The installed native v0.2.0 application was checked across eight routes at 320, 390, 600, 820, 1024, and 1440 CSS px with zero measured document horizontal overflow. A wide → narrow → wide sequence preserved the selected Applications state without reload.
 
+
+## v0.2.1 development qualification note
+
+The installed v0.2.1 candidate has passed a read-only identity gate and representative desktop browser checks against its exact installed bytes. The historical v0.2.0 responsive matrix remains accepted for v0.2.0 only.
+
+The exact 0.2.1 responsive matrix at 320, 390, 600, 820, 1024, and 1440 CSS px has **not yet been rerun** because the attached browser controls did not expose an exact viewport-size setter. Approximate widths were deliberately not substituted.
+
 ## What the demo proves
 
 - interface organization;
