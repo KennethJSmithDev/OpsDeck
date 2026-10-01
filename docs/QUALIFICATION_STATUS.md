@@ -109,14 +109,46 @@ The fresh 0.2.1 lifecycle passed:
 - clean same-source reload;
 - **82/82** regressions.
 
-Because the installed raw browser/provider bytes changed from the previously qualified CRLF representation, the installed-native browser and responsive matrix must still be rerun before 0.2.1 can be accepted for release.
+### Installed-native browser result
+
+**PARTIAL PASS. Responsive matrix still UNVERIFIED.**
+
+A read-only identity gate against the installed 0.2.1 state passed:
+
+- `opsdeck@0.2.1` registered in `%SYS`;
+- `/opsdeck` present and enabled;
+- all four deployed resource hashes matched the frozen candidate and lifecycle receipt;
+- proof inventory matched its saved snapshot;
+- the 1,504-row sibling inventory matched the saved post-lifecycle snapshot item-for-item.
+
+The existing authenticated native browser session then reproduced:
+
+- live identity `OpsDeckTest` on IRIS 2026.2 Build 221U;
+- Overview with 23 applications;
+- Applications with 23 applications and matching independent list/REST read-backs;
+- Access with 12 records and matching second read;
+- Tasks with 16 records and matching second read;
+- Security as a valid matched empty collection;
+- Logs audit status with matching second read while audit-record retrieval remained explicitly blocked/unqualified;
+- Evidence wording correctly describing the shipped v0.2.0 lifecycle as historical qualification;
+- Sign out clearing the connected identity and returning to the disconnected connect screen.
+
+System usage produced a differing second sample during observation. No stability/equality claim is made for changing counters.
+
+At the available 1912 px viewport, representative routes had matching document/client widths and no ordinary horizontal scrollers.
+
+The required exact 320, 390, 600, 820, 1024, and 1440 CSS px checks could not be run because the attached Edge controls exposed no exact viewport setter; keyboard zoom did not change the measured CSS viewport. Approximate widths were deliberately not substituted.
+
+Therefore the exact responsive-width matrix, wide → narrow → wide behavior, and selected-resource preservation across that transition remain **UNVERIFIED** for the installed 0.2.1 raw bytes.
+
+0.2.1 is not release-qualified until that gate passes.
 
 ## UNVERIFIED / DEFERRED
 
 - exact core IPM version used by the accepted v0.2.0 lifecycle;
 - fresh-checkout parity for public v0.2.0;
 - public registry availability/installation;
-- v0.2.1 installed-native browser/responsive requalification;
+- v0.2.1 exact responsive-width matrix and wide → narrow → wide state-preservation requalification;
 - audit asynchronous result retrieval;
 - authenticated bounded readers for `messages.log` and `SystemMonitor.log`;
 - broad mutation workflows;
@@ -136,7 +168,9 @@ The current strict client permits the expected v2 status route and rejected the 
 
 ## Next boundary
 
-Complete installed-native browser/responsive requalification against the exact 0.2.1 bytes.
+Provide a browser-control path that can set the exact requested CSS viewport widths, then complete the 320/390/600/820/1024/1440 matrix and wide → narrow → wide state-preservation check against the still-installed exact 0.2.1 bytes.
+
+No package reinstall or product mutation is required merely to close this UI evidence gap.
 
 If that passes, preserve the accepted 0.2.1 candidate and proceed to the capability-aware morphing UI on a separate feature branch.
 
