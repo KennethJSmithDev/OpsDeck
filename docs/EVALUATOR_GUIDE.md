@@ -62,7 +62,7 @@ Its installed-native qualification passed:
 
 This is accepted local engineering evidence. It does not claim public-registry installation or a published v0.2.1 release.
 
-Phase C / capability-aware morphing UI is now under separate local qualification and is not yet part of the public release.
+Phase C / capability-aware morphing UI now has a **first bounded accepted slice** under local qualification. That slice passed its exact lifecycle plus installed-native browser/responsive checks. It remains development state and is not part of the public v0.2.0 release.
 
 ## What the demo proves
 
@@ -106,6 +106,6 @@ The safe demo substitutes a deterministic demo provider **only in evaluator mode
 
 v0.2.0 established the native IRIS-hosted baseline.
 
-The next product-facing target, after the current distribution-fidelity diagnostic gate closes, is a capability-aware morphing UI driven by observed authority, provider availability, context, and workspace width.
+The current product-facing development direction is the capability-aware morphing UI: one canonical interface projected from observed authority, provider availability, context, and workspace width without turning presentation into a second authorization model.
 
 See [Roadmap](ROADMAP.md).
