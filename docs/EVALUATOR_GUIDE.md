@@ -6,6 +6,10 @@ https://kennethjsmithdev.github.io/OpsDeck/
 
 The demo is intentionally labeled as sanitized sample data and does not pretend to be a live IRIS instance.
 
+## Phone and tablet use
+
+At supported phone widths, normal OpsDeck workflows use vertical scrolling only; ordinary operational data does not require horizontal panning. Overview, Applications, and Access remain in the compact navigation. More opens Security, Tasks, System, Logs, and Evidence in a vertical list, subject to the selected demo persona's authority. Dense inventories become summary records, with the full returned record in the inspector below the list. Desktop keeps the wider table and sidebar layout. This contract covers supported rendered OpsDeck views and does not claim that every conceivable provider payload is width-safe.
+
 ## 90-second path
 
 ### 1. Overview

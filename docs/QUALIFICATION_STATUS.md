@@ -4,6 +4,8 @@
 
 **Native qualification branch:** `release/native-ipm-0.2.0`
 
+**Responsive candidate update:** The packaged frontend has changed since `f2257ba91470b4aa81cce1afc71cb0f6f68add66`. That SHA and its package fingerprint are historical. The current local candidate requires fresh source/runtime parity and the controlled R3 lifecycle before any native package claim. The safe demo's rendered responsive checks do not substitute for installed native browser qualification.
+
 ## Integrated final candidate — 2026-09-30
 
 This tree reconciles native-iris-pivot at d793ef14c39c7c89d2f2cfc55dfb86582f9c94da with main at ddb3c0e2665a853bb854def7c0f18e242db952c6. It preserves same-origin native reads, in-memory credentials, sign-out, fixed providers and strict audit boundaries, and adds the main evaluator tour, persona descriptions, Evidence view and responsive styles. The package identity is opsdeck 0.2.0. Static/unit/browser fixture checks qualify only their tested contracts. R3 is ATTEMPTED / INCONCLUSIVE; final authenticated package lifecycle and source/runtime parity remain unqualified. The historical bundle and prior SHA remain evidence, not qualification of this integrated tree.

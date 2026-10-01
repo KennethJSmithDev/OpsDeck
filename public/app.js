@@ -35,6 +35,7 @@ const state = {
   taskDetails: {}, taskDetailErrors: {}, taskDetailLoading: "", taskDetailVerification: {},
   restSpecs: {}, restSpecErrors: {}, restSpecLoading: "",
   auditQuery: null, auditQueryBusy: false,
+  mobileMoreOpen: navItems.slice(3).some(([route]) => route === location.hash.slice(1)),
 };
 
 const nativeMode = location.pathname === "/opsdeck" || location.pathname?.startsWith("/opsdeck/") === true;
@@ -123,13 +124,13 @@ function shell(content) {
           <label class="theme-picker"><span class="sr-only">Color theme</span><select id="theme-select" aria-label="Color theme"><option value="dark" ${state.theme === "dark" ? "selected" : ""}>Dark</option><option value="light" ${state.theme === "light" ? "selected" : ""}>Light</option><option value="system" ${state.theme === "system" ? "selected" : ""}>System</option></select></label>
         </div>
       </header>
-      <aside class="sidebar" aria-label="Primary navigation">
+      <aside class="sidebar ${state.mobileMoreOpen ? "more-open" : ""}" id="mobile-secondary-nav" aria-label="Primary navigation">
         <div class="nav-caption">WORKSPACE</div>
         ${navItems.map(([route, label], index) => {
           const active = state.route === route;
-          const available = true;
-          return `<button class="nav-item ${active ? "active" : ""}" data-route="${route}"><span class="nav-index">${String(index + 1).padStart(2, "0")}</span><span>${label}</span></button>`;
+          return `<button class="nav-item ${index < 3 ? "nav-primary" : "nav-secondary"} ${active ? "active" : ""}" data-route="${route}" ${active ? 'aria-current="page"' : ""}><span class="nav-index">${String(index + 1).padStart(2, "0")}</span><span>${label}</span></button>`;
         }).join("")}
+        <button class="nav-item nav-more ${navItems.slice(3).some(([route]) => route === state.route) ? "active" : ""}" id="mobile-more" type="button" aria-expanded="${state.mobileMoreOpen}" aria-controls="mobile-secondary-nav">More</button>
         <div class="sidebar-note"><span class="note-dot"></span><span>${demoMode ? "Safe demo · sanitized" : "Live reads · M1"}</span></div>
       </aside>
       <main class="workspace">${content}</main>
@@ -273,7 +274,7 @@ function pageHeader(title, description) {
 
 function applicationsView() {
   const selected = state.apps.find((item, index) => recordHandle(state.apps, index) === state.selected) || state.apps[0] || null;
-  const rows = state.apps.map((item, index) => `<tr class="app-row ${selected === item ? "selected" : ""}" tabindex="0" role="button" data-app="${recordHandle(state.apps, index)}" aria-label="Inspect ${esc(item.name)}"><td><span class="app-name">${esc(item.name)}</span><span class="app-sub">${esc(item.dispatchClass || item.type)}</span></td><td><code>${esc(item.namespace)}</code></td><td>${item.enabled ? badge("Enabled", "success") : badge("Disabled", "muted")}</td><td>${esc(item.type)}</td><td>${esc(item.authenticationMethods.join(", ") || "None returned")}</td></tr>`).join("");
+  const rows = state.apps.map((item, index) => `<tr class="app-row ${selected === item ? "selected" : ""}" tabindex="0" role="button" data-app="${recordHandle(state.apps, index)}" aria-label="Inspect ${esc(item.name)}"><td data-label="Web application"><span class="app-name">${esc(item.name)}</span><span class="app-sub">${esc(item.dispatchClass || item.type)}</span></td><td data-label="Namespace"><code>${esc(item.namespace)}</code></td><td data-label="State">${item.enabled ? badge("Enabled", "success") : badge("Disabled", "muted")}</td><td data-label="Type">${esc(item.type)}</td><td data-label="Authentication">${esc(item.authenticationMethods.join(", ") || "None returned")}</td></tr>`).join("");
   const detail = selected ? state.webAppDetails[selected.name] : null;
   const detailError = selected ? state.webAppDetailErrors[selected.name] : null;
   const restMatches = selected ? restServiceMatches(selected) : [];
@@ -358,8 +359,10 @@ function sourcePanel(sourceId) {
   const selected = items[selectedIndex < 0 ? 0 : selectedIndex];
   const keys = selected ? Object.keys(selected.values) : [];
   const columns = keys.slice(0, 6);
-  const visibleColumns = columns.filter((key) => key !== (keys[0] || ""));
-  const rows = items.map((item, index) => `<tr class="provider-row ${selected === item ? "selected" : ""}" tabindex="0" role="button" data-item="${esc(sourceId)}::${recordHandle(data, index)}"><td><strong>${esc(item.ref.label)}</strong><span class="app-sub">${item.ref.scope ? esc(item.ref.scope) : esc(item.ref.kind)}</span></td>${visibleColumns.map((key) => `<td>${cellValue(item.values[key])}</td>`).join("")}</tr>`).join("");
+  const visibleColumns = sourceId === "tasks"
+    ? ["Type", "Namespace", "Suspended", ...columns.filter((key) => ![keys[0], "Type", "Namespace", "Suspended"].includes(key))].filter((key) => keys.includes(key)).slice(0, 5)
+    : columns.filter((key) => key !== (keys[0] || ""));
+  const rows = items.map((item, index) => `<tr class="provider-row ${selected === item ? "selected" : ""}" tabindex="0" role="button" data-item="${esc(sourceId)}::${recordHandle(data, index)}"><td data-label="Resource"><strong>${esc(item.ref.label)}</strong><span class="app-sub">${item.ref.scope ? esc(item.ref.scope) : esc(item.ref.kind)}</span></td>${visibleColumns.map((key) => `<td data-label="${esc(key)}">${cellValue(item.values[key])}</td>`).join("")}</tr>`).join("");
   const objectMetrics = data.resultType === "object" && selected
     ? `<div class="metric-grid">${Object.entries(selected.values).map(([key, value]) => `<article class="metric-card"><span>${esc(key)}</span><strong>${cellValue(value)}</strong></article>`).join("")}</div>`
     : null;
@@ -510,8 +513,14 @@ function render() {
   else if (state.route === "evidence") app.innerHTML = evidenceView();
   else app.innerHTML = providerDomainView(state.route);
   app.querySelector("#theme-select")?.addEventListener("change", (event) => setTheme(event.target.value));
+  app.querySelector("#mobile-more")?.addEventListener("click", () => {
+    state.mobileMoreOpen = !state.mobileMoreOpen;
+    app.querySelector(".sidebar")?.classList.toggle("more-open", state.mobileMoreOpen);
+    app.querySelector("#mobile-more").setAttribute("aria-expanded", String(state.mobileMoreOpen));
+  });
   app.querySelectorAll("[data-route]").forEach((button) => button.addEventListener("click", () => {
     state.route = button.dataset.route;
+    state.mobileMoreOpen = navItems.slice(3).some(([route]) => route === state.route);
     location.hash = state.route;
     render();
     ensureRouteSource();
@@ -1117,7 +1126,10 @@ async function restoreSession() {
 
 addEventListener("hashchange", () => {
   const route = location.hash.slice(1);
-  if (navItems.some(([item]) => item === route)) state.route = route;
+  if (navItems.some(([item]) => item === route)) {
+    state.route = route;
+    state.mobileMoreOpen = navItems.slice(3).some(([item]) => item === route);
+  }
   render();
   ensureRouteSource();
 });
