@@ -1,6 +1,6 @@
 # Native IRIS installation — 0.2.0 candidate
 
-**Status: prepared workflow; final R3 lifecycle and public registry publication are pending. These commands are proposed and are not a successful-install claim.**
+**Status:** The controlled local-source load, uninstall/removal, and clean same-source reload passed for the tested 0.2.0 candidate on IRIS 2026.2 Build 221U. The exact core IPM version, fresh public-checkout workflow, and registry publication remain unverified. The public tag is not yet available.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ Before load/install/uninstall, capture the authoritative `/opsdeck` web-applicat
 
 The package declares exactly these four files under the instance CSP directory and the `/opsdeck` application in `%SYS`. It does not own `proof/`, arbitrary sibling files, credentials, IRIS configuration or management APIs. Do not recursively delete the CSP directory to uninstall OpsDeck.
 
-## Local source installation proposal
+## Local source workflow and public-checkout boundary
 
 Obtain the public source with ordinary Git, then check out the release revision identified in the release notes. The proposed source workflow requires no private qualification scripts, personal credentials, Codex tools or developer-specific directories:
 
@@ -25,14 +25,13 @@ cd OpsDeck
 git checkout v0.2.0
 ```
 
-The `v0.2.0` tag is a future publication target, not currently verified as available. Use this checkout only after the qualified release/tag is public. In the supported IRIS Terminal, select `%SYS` using the normal local workflow, enter the IPM prompt with `zpm`, then use:
+The public checkout and tag workflow have not yet been independently exercised. After the reviewed source release is public, use the release tag and follow this source-based workflow. In the supported IRIS Terminal, select `%SYS` using the normal local workflow, enter the IPM prompt with `zpm`, then use:
 
 ```text
 load C:\path\to\OpsDeck
-list-installed opsdeck
 ```
 
-The expected identity is `opsdeck 0.2.0`. `load` takes the source directory containing `module.xml`; `install opsdeck` obtains a package from a configured repository and is a separate distribution test. Do not add that registry command to this source workflow. Check load success, registered version, application configuration and deployed resource bytes; the existence of `/opsdeck` alone cannot prove installation. The controlled local qualification must validate this workflow before it is described as tested guidance. See the [official IPM command descriptions](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=AIPM).
+The expected identity is `opsdeck 0.2.0`. `load` takes the source directory containing `module.xml`; `install opsdeck` obtains a package from a configured repository and is a separate distribution test. Do not add that registry command to this source workflow. The local-source lifecycle was reproduced on the exact candidate; this fresh public-checkout path still needs independent verification. Confirm the registered version, application configuration, and deployed resource bytes; `/opsdeck` alone does not prove package registration. See the [official IPM command descriptions](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=AIPM).
 
 If IPM is absent or its state is uncertain, stop and ask the instance administrator to resolve it using supported instructions. OpsDeck does not authorize automatic bootstrap, Python changes or registry reconfiguration. An existing class alone does not establish a usable package manager.
 
@@ -46,13 +45,12 @@ Open `http://127.0.0.1:52773/opsdeck/index.html`, adjusting the instance HTTP po
 
 IRIS may apply its configured web-application authentication before the browser app loads. The app then uses the account entered in its sign-in form for bounded same-origin management API reads. A successful static-page request does not prove API authority. Credentials remain in tab memory, are not intentionally saved in browser storage, and are cleared by Sign out. Use a private workstation session or appropriately configured HTTPS for non-local access; never publish management ports as part of this guide.
 
-## Uninstall proposal
+## Uninstall
 
 In the IPM prompt in `%SYS`:
 
 ```text
 uninstall opsdeck
-list-installed opsdeck
 ```
 
 Verify the application and four package files are removed, the package is absent, and unrelated `proof/` artifacts survive. If you replaced a manual installation, restore its captured application definition and file bytes using supported IRIS administration. Package cache/registry recovery and hidden server-managed properties can require operator judgment; automatic rollback is not a guarantee.
@@ -65,4 +63,4 @@ Verify the application and four package files are removed, the package is absent
 - Disk hashes must match source after installation; browser cache cannot explain mismatched disk bytes.
 - Do not enable Atelier, add credential transports, weaken Locked Down settings, or retry ambiguous destructive steps automatically.
 
-Until final R3 and publication pass, the [README](../README.md) Node reference workflow and the clearly labelled safe demo remain the currently documented exploration paths.
+The [README](../README.md) Node reference workflow and the clearly labelled safe demo remain available for exploration. The installed native application and local-source lifecycle have been qualified at the scope stated above; fresh public-checkout and registry installation remain separate unverified distribution paths.

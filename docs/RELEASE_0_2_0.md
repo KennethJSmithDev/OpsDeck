@@ -1,6 +1,6 @@
 # OpsDeck 0.2.0 — release candidate notes
 
-**Prepared 2026-09-30. Not tagged, released, published, or lifecycle-qualified.**
+**Prepared 2026-10-01. Tested package source SHA:** `1663869af14673f027efb63a986ac5c1e50a8ac1`. Manifest/resource fingerprint is listed in the qualification record. This release copy is prepared for review and has not been tagged, released, or published.
 
 ## Candidate changes
 
@@ -12,9 +12,9 @@
 
 ## Qualification statement
 
-Safe automated/static checks apply to this candidate tree. Historical native browser evidence applies to the previously installed bundle. R3 has been attempted and is INCONCLUSIVE. The repaired Terminal capture path now verifies authenticated identity and namespace with attempt-specific completion. Read-only inspection confirms IRIS 2026.2 Build 221U and package-manager class presence, but an IPM version call throws exception code -99; usability and prior possible partial setup remain unresolved. Final local-source materialization/registration, operational checks, uninstall/removal, clean source reinstall and source/runtime parity remain unqualified. Registry installation is a separate distribution gate.
+The 16-stage controlled local-source lifecycle passed for candidate SHA 1663869af14673f027efb63a986ac5c1e50a8ac1, package opsdeck 0.2.0, on IRIS 2026.2 Build 221U in %SYS. The exact four source/runtime hashes matched through load, uninstall/removal, and clean same-source reload; proof/ and CSP siblings were preserved. Bounded OpsDeckTest operational checks and 82/82 regressions passed. The installed native browser rendered the corrected Evidence card; the eight routes had zero measured document horizontal overflow at 320, 390, 600, 820, 1024, and 1440 CSS px. This is local-source qualification only. The exact core IPM version, fresh public-checkout installation, and public-registry installation remain unverified. No tag or public release exists.
 
-**Conditional after a complete final R3 PASS:** the exact candidate package lifecycle and four-file parity may be described as reproduced on the receipt's IRIS build, namespace, IPM version and environment. Preserve that receipt and identify the tested SHA. This does not qualify public-registry installation until publication and a registry install are independently confirmed.
+**Distribution boundary:** The tested claim is local-source lifecycle qualification on the recorded IRIS build. Exact core IPM version, fresh public-checkout installation, public-registry availability, and registry installation remain unverified. Do not advertise `install opsdeck` until the intended registry and version are independently confirmed.
 
 ## Retained limits
 

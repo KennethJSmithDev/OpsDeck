@@ -4,9 +4,9 @@
 
 **Native qualification branch:** `release/native-ipm-0.2.0`
 
-**Responsive candidate update:** The packaged frontend has changed since `f2257ba91470b4aa81cce1afc71cb0f6f68add66`. That SHA and its package fingerprint are historical. The current local candidate requires fresh source/runtime parity and the controlled R3 lifecycle before any native package claim. The safe demo's rendered responsive checks do not substitute for installed native browser qualification.
+**Current tested package:** SHA 1663869af14673f027efb63a986ac5c1e50a8ac1, opsdeck 0.2.0. Its manifest and four resource hashes match the PASS local-source lifecycle receipt. The installed native page was reviewed as OpsDeckTest; eight routes at 320, 390, 600, 820, 1024, and 1440 CSS pixels had zero document horizontal overflow. The exact core IPM version and public registry installation remain unverified. See the receipt in the private CompDocs evidence packet; the public source does not include private qualification tooling.
 
-## Integrated final candidate — 2026-09-30
+## Integrated final candidate — 2026-09-30 (historical checkpoint; current results are above)
 
 This tree reconciles native-iris-pivot at d793ef14c39c7c89d2f2cfc55dfb86582f9c94da with main at ddb3c0e2665a853bb854def7c0f18e242db952c6. It preserves same-origin native reads, in-memory credentials, sign-out, fixed providers and strict audit boundaries, and adds the main evaluator tour, persona descriptions, Evidence view and responsive styles. The package identity is opsdeck 0.2.0. Static/unit/browser fixture checks qualify only their tested contracts. R3 is ATTEMPTED / INCONCLUSIVE; final authenticated package lifecycle and source/runtime parity remain unqualified. The historical bundle and prior SHA remain evidence, not qualification of this integrated tree.
 
@@ -17,7 +17,7 @@ The operator's credential-free capture established BOM-less UTF-16LE output from
 The safe demo uses deterministic sanitized data and four authority personas. It does not prove live IRIS permissions, package installation or audit/log completion. See [Evaluator Guide](EVALUATOR_GUIDE.md).
 
 
-**Status:** reference workflow reproduced; native browser slice reproduced; M1 remains partial. The package lifecycle remains unqualified until the full cycle passes.
+**Current status:** the exact 0.2.0 local-source package lifecycle and installed-native responsive review passed at the scope recorded by the final local receipt. M1 remains partial; public-source checkout and registry installation are not qualified.
 
 ### Current native candidate reproduction â€” 2026-09-25
 
