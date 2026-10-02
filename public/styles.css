@@ -229,6 +229,16 @@ td { color:var(--muted); font-size:10px; }
 .state-legend-grid > div { padding:12px; border:1px solid var(--border); border-radius:8px; background:color-mix(in srgb,var(--surface) 72%,transparent); }
 .state-legend-grid p { margin:9px 0 0; color:var(--subtle); font-size:9px; line-height:1.55; }
 .evidence-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
+.durable-evidence-panel { padding:18px 20px; }
+.evidence-toolbar { display:flex; flex-wrap:wrap; align-items:end; gap:8px; margin:14px 0; }
+.evidence-toolbar label { display:grid; gap:5px; min-width:min(220px,100%); color:var(--subtle); font-size:9px; text-transform:uppercase; }
+.evidence-toolbar input,.evidence-toolbar select { min-height:36px; padding:7px 9px; border:1px solid var(--border); border-radius:6px; color:var(--text); background:var(--surface); }
+.evidence-record-list { display:grid; gap:8px; }
+.evidence-record { min-width:0; padding:12px; border:1px solid var(--border); border-radius:8px; background:var(--surface); }
+.evidence-record > div { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.evidence-record strong { color:var(--text); font-size:11px; }
+.evidence-record small { display:block; margin-top:7px; color:var(--subtle); overflow-wrap:anywhere; }
+.evidence-record p { margin:8px 0 0; color:var(--muted); font-size:10px; line-height:1.5; }
 
 @media (max-width:1120px) {
   .judge-tour-steps { grid-template-columns:repeat(2,minmax(0,1fr)); }

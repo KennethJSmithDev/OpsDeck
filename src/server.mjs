@@ -437,8 +437,10 @@ async function serveStatic(request, response, url) {
   // The provider adapter stays in src while this explicit alias exposes only its browser-safe module.
   const file = relative === "iris-provider.js"
     ? resolve(root, "../src/iris-provider.js")
+    : relative === "evidence-center.js"
+      ? resolve(root, "../public/evidence-center.js")
     : resolve(root, relative);
-  if (relative !== "iris-provider.js" && file !== root && !file.startsWith(root + sep)) {
+  if (!new Set(["iris-provider.js", "evidence-center.js"]).has(relative) && file !== root && !file.startsWith(root + sep)) {
     return sendJson(response, 404, { error: "Not found." });
   }
   try {

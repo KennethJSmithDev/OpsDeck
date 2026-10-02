@@ -96,6 +96,9 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     const staticResponse = await fetch(`${base}/iris-provider.js`);
     assert.equal(staticResponse.status, 200);
     assert.match(staticResponse.headers.get("content-type"), /javascript/);
+    const evidenceResponse = await fetch(`${base}/evidence-center.js`);
+    assert.equal(evidenceResponse.status, 200);
+    assert.match(evidenceResponse.headers.get("content-type"), /javascript/);
 
     const unauthorized = await fetch(`${base}/api/admin/v2/web-apps`);
     assert.equal(unauthorized.status, 401);

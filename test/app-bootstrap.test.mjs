@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES } from "../src/iris-provider.js";
+import * as evidence from "../public/evidence-center.js";
 
 const appSource = (await readFile(new URL("../public/app.js", import.meta.url), "utf8"))
-  .replace(/^import \{[^\n]+\} from "(?:\/iris-provider\.js|\.\/iris-provider\.js)(?:\?[^"]*)?";\s*/u, "");
+  .replace(/^import[^\n]+\n/gm, "");
 const info = {
   status: { errors: [], summary: "" }, console: [],
   result: {
@@ -20,6 +21,9 @@ test("frontend assets resolve from the current application path", async () => {
   assert.match(html, /href="\.\/styles\.css\?v=opsdeck-0.2.1"/u);
   assert.match(html, /src="\.\/app\.js\?v=opsdeck-0.2.0"/u);
   assert.match(app, /from "\.\/iris-provider\.js\?v=opsdeck-0.2.0"/u);
+  assert.match(app, /from "\.\/evidence-center\.js"/u);
+  const moduleXml = await readFile(new URL("../module.xml", import.meta.url), "utf8");
+  assert.match(moduleXml, /Name="public\/evidence-center\.js" Target="\{\$cspdir\}opsdeck\/evidence-center\.js"/u);
 });
 const apps = {
   status: { errors: [], summary: "" }, console: [],
@@ -43,6 +47,7 @@ test("restored session renders a bounded loading state then leaves bootstrap", a
     ["/api/admin/v2/web-apps", apps],
   ]);
   const context = {
+    ...evidence,
     AbortSignal,
     Date,
     Intl,
@@ -115,6 +120,7 @@ test("native IRIS login reads same-origin APIs with in-memory Basic auth and no 
   };
   const requests = [];
   const context = {
+    ...evidence,
     AbortSignal, Date, Intl, Object, String, TextEncoder, URL, btoa,
     document,
     location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test" },
@@ -188,6 +194,7 @@ test("native API object errors become useful text instead of [object Object]", a
     assert.fail(`unexpected request ${path}`);
   };
   const context = {
+    ...evidence,
     AbortSignal, Date, Intl, Object, String, TextEncoder, URL, btoa,
     document: { querySelector(selector) { return selector === "#app" ? app : null; }, documentElement: { dataset: {} } },
     location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test" },
@@ -238,6 +245,7 @@ test("alerts are opt-in stateful reads and unqualified record values stay hidden
     },
   };
   const context = {
+    ...evidence,
     AbortSignal, Date, Intl, Object, String, TextEncoder, URL, btoa,
     document: { querySelector(selector) { return selector === "#app" ? app : null; }, documentElement: { dataset: {} } },
     location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test" },

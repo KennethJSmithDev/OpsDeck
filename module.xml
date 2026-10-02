@@ -11,6 +11,7 @@
       <FileCopy Name="public/index.html" Target="{$cspdir}opsdeck/index.html" />
       <FileCopy Name="public/styles.css" Target="{$cspdir}opsdeck/styles.css" />
       <FileCopy Name="src/iris-provider.js" Target="{$cspdir}opsdeck/iris-provider.js" />
+      <FileCopy Name="public/evidence-center.js" Target="{$cspdir}opsdeck/evidence-center.js" />
 
       <WebApplication
         Name="/opsdeck"

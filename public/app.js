@@ -1,4 +1,5 @@
 import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.2.0";
+import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence } from "./evidence-center.js";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -127,6 +128,8 @@ const state = {
   sourceData: {}, sourceErrors: {}, sourceLoading: "", sourceVerification: {},
   sourceTabs: { applications: "restServices", access: "users", security: "walletCollections", tasks: "tasks", system: "systemUsage", logs: "auditEnabled" },
   selectedItems: {},
+  evidenceFilter: "",
+  evidenceStateFilter: "ALL",
   webAppDetails: {}, webAppDetailErrors: {}, webAppDetailLoading: "",
   userDetails: {}, userDetailErrors: {}, userDetailLoading: "", userDetailVerification: {},
   roleDetails: {}, roleDetailErrors: {}, roleDetailLoading: "", roleDetailVerification: {},
@@ -596,6 +599,9 @@ function evidenceView() {
     { title: "Audit async handoff", state: "BLOCKED", tone: "warning", detail: "The bounded native query reached HTTP 202, then stopped when IRIS returned a same-origin v1 async-result path while the strict client contract permits v2.", note: "No status GET was guessed, substituted, or followed after that mismatch." },
     { title: "IPM / ZPM lifecycle", state: "QUALIFIED", tone: "success", detail: "Local-source load, uninstall, and clean same-source reload were reproduced for OpsDeck 0.2.0. Registration, /opsdeck, deployed asset hashes, operational HTTP behavior, cleanup, and unrelated-state preservation were verified.", note: "Scope: tested local-source lifecycle only. Exact core IPM version and public-registry installation remain unverified." }
   ];
+  const evidenceCollection = currentEvidenceCollection();
+  const visibleEvidence = filterEvidence(evidenceCollection, state.evidenceFilter || "", state.evidenceStateFilter || "ALL");
+  const evidencePanel = `<section class="panel durable-evidence-panel"><div class="panel-head"><div><div class="panel-kicker">BOUNDED EVIDENCE CENTER</div><h2>${isDemo ? "Fixture receipt preview" : "Current-session evidence"}</h2></div>${badge(isDemo ? "SYNTHETIC FIXTURE" : "SESSION ONLY", "warning")}</div><p class="source-message">${isDemo ? "Synthetic fixture data only. It demonstrates redacted receipt browsing and export, not IRIS execution." : "Evidence is held in session memory. No persistent IRIS evidence provider is attached; exports are explicit and bounded."}</p><div class="evidence-toolbar"><label>Filter <input id="evidence-filter" type="search" value="${esc(state.evidenceFilter || "")}" maxlength="128" placeholder="Find evidence"></label><label>State <select id="evidence-state-filter">${["ALL", "VERIFIED", "PARTIAL", "FAILED", "UNVERIFIED", "BLOCKED", "UNAVAILABLE", "DENIED"].map(item => `<option value="${item}" ${(state.evidenceStateFilter || "ALL") === item ? "selected" : ""}>${item}</option>`).join("")}</select></label><button class="button secondary" data-export-evidence="json" ${visibleEvidence.length ? "" : "disabled"}>Export JSON</button><button class="button secondary" data-export-evidence="markdown" ${visibleEvidence.length ? "" : "disabled"}>Export Markdown</button></div>${visibleEvidence.length ? `<div class="evidence-record-list">${visibleEvidence.map(item => `<article class="evidence-record"><div><strong>${esc(item.title)}</strong>${badge(item.state, item.state === "VERIFIED" ? "success" : "warning")}</div><small>${esc(item.kind)} · ${esc(item.observedAt)} · source ${esc(item.source?.identity || "unknown")} · resource ${esc(item.resource?.key || "unknown")}</small><p>${esc(item.summary)}</p></article>`).join("")}</div>` : `<p class="source-message">${evidenceCollection.state === "EMPTY" ? "No evidence records are available in this session." : `No records match the selected filter · ${evidenceCollection.state}.`}</p>`}</section>`;
   const cardHtml = cards.map((item) => `<article class="evidence-card"><div class="evidence-card-head"><strong>${esc(item.title)}</strong>${badge(item.state, item.tone)}</div><p>${esc(item.detail)}</p><small>${esc(item.note)}</small></article>`).join("");
   return shell(`
     ${pageHeader("Evidence", "What OpsDeck can prove, what it cannot, and where qualification deliberately stops.")}
@@ -604,10 +610,17 @@ function evidenceView() {
       <div class="evidence-flow" aria-label="OpsDeck evidence flow"><div><span>01</span><strong>Request</strong><small>Known operation</small></div><b>→</b><div><span>02</span><strong>Bounded provider</strong><small>Allowlisted route</small></div><b>→</b><div><span>03</span><strong>IRIS authority</strong><small>Source of truth</small></div><b>→</b><div><span>04</span><strong>Rendered state</strong><small>Safe projection</small></div><b>→</b><div><span>05</span><strong>Read-back</strong><small>Where qualified</small></div></div>
     </section>
     <section class="evidence-grid">${cardHtml}</section>
+    ${evidencePanel}
     <section class="panel evidence-legend"><div class="panel-head"><div><div class="panel-kicker">STATE SEMANTICS</div><h2>Absence is not failure, and failure is not absence</h2></div></div>
       <div class="state-legend-grid"><div>${badge("VERIFIED", "success")}<p>Independent evidence agrees with the displayed state.</p></div><div>${badge("EMPTY", "accent")}<p>The authoritative provider returned a valid empty collection.</p></div><div>${badge("UNAVAILABLE", "warning")}<p>The source could not provide a usable result. OpsDeck does not invent one.</p></div><div>${badge("DENIED", "error")}<p>The current identity lacks authority for the source.</p></div><div>${badge("UNVERIFIED", "muted")}<p>The behavior has not crossed its required qualification boundary.</p></div></div>
       <div class="evidence-actions"><button class="button secondary" data-route="applications">Inspect applications</button><button class="button secondary" data-route="access">Inspect access relationships</button><button class="button secondary" data-route="security">Inspect provider boundaries</button></div>
     </section>`);
+}
+
+function currentEvidenceCollection() {
+  const isDemo = state.info?.systemMode === "DEMO";
+  const records = isDemo ? [{ id: "fixture:operation:application-enable", kind: "operation-receipt", state: "VERIFIED", title: "Fixture application enable", observedAt: "2026-10-02T12:00:00Z", source: { identity: "opsdeck-fixture-v1" }, resource: { key: "/opsdeck-fixture", scope: "%SYS" }, summary: "Synthetic fixture plan completed with fixture read-back; this does not qualify a live IRIS operation.", evidence: { operationId: "fixture-op-001", verification: "fixture-readback" } }] : state.verification ? [{ id: "session:applications-readback", kind: "read-observation", state: state.verification.matched ? "VERIFIED" : "FAILED", title: "Applications independent read-back", observedAt: state.verification.at, source: { identity: "iris-admin-api" }, resource: { key: "web-app-inventory", scope: "%SYS" }, summary: state.verification.matched ? `${state.verification.count} web-application identities matched the independent second read.` : "The independent second read differed from the current web-application inventory.", evidence: { matched: state.verification.matched, count: state.verification.count } }] : [];
+  return createEvidenceCollection(records, records.length ? "AVAILABLE" : "EMPTY");
 }
 
 function render() {
@@ -638,6 +651,21 @@ function render() {
   }));
   app.querySelectorAll("[data-load-alerts]").forEach((button) => button.addEventListener("click", () => loadSource("alerts", true)));
   app.querySelectorAll("[data-run-audit-query]").forEach((button) => button.addEventListener("click", () => runAuditQuery()));
+  app.querySelector("#evidence-filter")?.addEventListener("change", (event) => { state.evidenceFilter = event.target.value.slice(0, 128); render(); });
+  app.querySelector("#evidence-state-filter")?.addEventListener("change", (event) => { state.evidenceStateFilter = event.target.value; render(); });
+  app.querySelectorAll("[data-export-evidence]").forEach((button) => button.addEventListener("click", () => {
+    const collection = currentEvidenceCollection();
+    const records = filterEvidence(collection, state.evidenceFilter, state.evidenceStateFilter);
+    const markdown = button.dataset.exportEvidence === "markdown";
+    const content = markdown ? exportEvidenceMarkdown(collection, records) : exportEvidenceJSON(collection, records);
+    const blob = new Blob([content], { type: markdown ? "text/markdown;charset=utf-8" : "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = markdown ? "opsdeck-evidence.md" : "opsdeck-evidence.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }));
   app.querySelectorAll("[data-item]").forEach((row) => row.addEventListener("click", () => {
     const [sourceId, key] = row.dataset.item.split("::");
     state.selectedItems[sourceId] = key;
