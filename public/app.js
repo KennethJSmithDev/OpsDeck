@@ -1,4 +1,4 @@
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.2.0";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.2.1";
 import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence } from "./evidence-center.js";
 import { fixturePackageInventory, preparePackagePlan } from "./packages-workspace.js";
 
@@ -601,7 +601,17 @@ function providerDomainView(route) {
 }
 
 function auditQueryPanel() {
-  return `<section class="panel provider-panel audit-query-panel"><div class="panel-head"><div><div class="panel-kicker">BLOCKED / UNVERIFIED</div><h2>Audit records</h2></div></div><p class="source-message">Audit search can be accepted by IRIS, but asynchronous result retrieval is not qualified. OpsDeck does not display audit records or claim a completed read.</p></section>`;
+  const query = state.auditQuery;
+  const tone = query?.state === "denied" || query?.state === "failed" ? "error" :
+    query?.state === "finished" ? "success" : query ? "warning" : "muted";
+  const safeFields = ["TimeStamp", "Event", "EventSource", "UserName", "PID", "Namespace"];
+  const result = Array.isArray(query?.result)
+    ? query.result.length
+      ? `<div class="table-wrap"><table><thead><tr>${safeFields.map((field) => `<th>${esc(field)}</th>`).join("")}</tr></thead><tbody>${query.result.map((record) => `<tr>${safeFields.map((field) => `<td>${Object.hasOwn(record, field) ? esc(record[field]) : "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
+      : `<p class="source-message">No audit records matched this bounded query.</p>`
+    : "";
+  const task = query?.task ? `<small>Task state: ${esc(query.task.state)} · identity: ${esc(query.task.identitySource || "unverified")}</small>` : "";
+  return `<section class="panel provider-panel audit-query-panel"><div class="panel-head"><div><div class="panel-kicker">READ ONLY · BOUNDED</div><h2>Audit records</h2></div><button class="button quiet" data-run-audit-query ${state.auditQueryBusy ? "disabled" : ""}>${state.auditQueryBusy ? "Reading…" : "Read recent records · max 1"}</button></div><p class="source-message">Reads one record at most for the signed-in user over the last 10 minutes. Only reviewed audit fields are displayed.</p>${query ? `<p class="source-message"><strong>${badge(query.state.toUpperCase(), tone)}</strong> ${esc(query.message)}</p>${task}${result}` : ""}</section>`;
 }
 
 function evidenceView() {
@@ -614,7 +624,7 @@ function evidenceView() {
   const cards = [
     { title: "Web application read-back", state: readback.label, tone: readback.tone, detail: readback.detail, note: isDemo ? "Demo semantics only · live IRIS verification is separately qualified." : "Current session evidence." },
     { title: "Provider state semantics", state: "PRESERVED", tone: "success", detail: "Valid empty collections, unavailable providers, denied access, and mapping failures remain distinct states.", note: "No fixture fallback is substituted for a failed live provider." },
-    { title: "Audit async handoff", state: "BLOCKED", tone: "warning", detail: "The bounded native query reached HTTP 202, then stopped when IRIS returned a same-origin v1 async-result path while the strict client contract permits v2.", note: "No status GET was guessed, substituted, or followed after that mismatch." },
+    { title: "Audit async handoff", state: "PENDING", tone: "warning", detail: "IRIS 2026.2 documents both v1 and v2 async-result GET resources. A bounded live read completed through the exact same-origin v1 Location; its task body omits GUID, so this branch binds identity to the validated resource Location.", note: "This client change still requires local regression and installed-native qualification. The accepted 0.2.1 build remains unchanged." },
     { title: "IPM / ZPM lifecycle", state: "QUALIFIED", tone: "success", detail: "Local-source load, uninstall, and clean same-source reload were reproduced for OpsDeck 0.2.0. Registration, /opsdeck, deployed asset hashes, operational HTTP behavior, cleanup, and unrelated-state preservation were verified.", note: "Scope: tested local-source lifecycle only. Exact core IPM version and public-registry installation remain unverified." }
   ];
   const evidenceCollection = currentEvidenceCollection();
@@ -1010,11 +1020,11 @@ async function runAuditQuery() {
     render();
     const deadline = Date.now() + 30000;
     for (let attempt = 0; attempt < 40 && Date.now() < deadline; attempt += 1) {
-      const payload = await requestJson(handle.url, { signal: AbortSignal.timeout(Math.min(5000, Math.max(1, deadline - Date.now()))) });
+      const payload = await requestJson(handle.url, { redirect: "error", signal: AbortSignal.timeout(Math.min(5000, Math.max(1, deadline - Date.now()))) });
     if (owner !== sessionEpoch) return;
       httpStatus = 200;
       stage = "async task contract";
-      const mapped = mapAuditAsyncResult(payload, handle.id);
+      const mapped = mapAuditAsyncResult(payload, handle);
       currentTask = mapped.task;
       const taskState = mapped.task.state.toLowerCase();
       if (taskState === "queued" || taskState === "running") {
