@@ -2,16 +2,16 @@
 
 ## Status
 
-The accepted local-source lifecycle and native `/opsdeck` foundation were established for v0.2.0 and v0.2.1. Exact v0.3.0 candidate qualification is recorded separately; do not treat this guide alone as evidence that the candidate lifecycle has passed.
+The accepted local-source lifecycle and native `/opsdeck` foundation were established for v0.2.0 and v0.2.1. Exact candidate `5812f79c0e68b64196b1f4a97a9e435e2b37f933` (`opsdeck@0.3.0`) has now passed local-source lifecycle qualification; this guide itself is not the detailed evidence record.
 
-The prior public `v0.2.0` source tag remains available and unchanged. The v0.3.0 source release is a candidate until its exact qualification and publication are complete.
+The prior public `v0.2.0` source tag remains available and unchanged. The v0.3.0 source candidate is locally qualified; publication is pending human review.
 
 Two distribution boundaries remain separate from that local-source qualification:
 
 1. **Fresh-checkout byte parity:** a Windows clone with `core.autocrlf=true` materialized two packaged JavaScript/CSS files with CRLF line endings, producing working-tree hashes different from the lifecycle receipt. Git object blobs match the tested source commit. This is checkout representation variance, not proof of a runtime failure.
 2. **Public registry installation:** Open Exchange / Package Manager publication and installation have not yet been independently verified.
 
-The published `v0.2.0` tag will not be moved. Distribution fidelity was accepted for v0.2.1; v0.3.0 must still qualify its exact package candidate.
+The published `v0.2.0` tag will not be moved. Distribution fidelity was accepted for v0.2.1, and exact candidate v0.3.0 source-to-deployed hashes and lifecycle passed.
 
 ## Prerequisites
 
@@ -42,6 +42,7 @@ Clone the repository and select the published source release:
 ```powershell
 git clone https://github.com/KennethJSmithDev/OpsDeck.git
 cd OpsDeck
+# After the v0.3.0 tag is published:
 git checkout v0.3.0
 ```
 
@@ -61,7 +62,7 @@ A successful page request alone does not prove package registration. Verify the 
 
 ### Fresh Windows checkout note
 
-The v0.2.0 tag has a historical line-ending representation variance under a normal Windows checkout with `core.autocrlf=true`. The accepted v0.2.1 candidate corrected the package-input checkout representation. The exact v0.3.0 candidate remains subject to its own source-to-deployed hash and lifecycle evidence.
+The v0.2.0 tag has a historical line-ending representation variance under a normal Windows checkout with `core.autocrlf=true`. The accepted v0.2.1 candidate corrected the package-input checkout representation. Exact v0.3.0 candidate source-to-deployed parity and local-source lifecycle have passed, as recorded in private qualification evidence.
 
 Treat that as a distribution-fidelity limitation. Do not reinterpret it as evidence that the native application failed at runtime.
 

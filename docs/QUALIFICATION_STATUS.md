@@ -5,25 +5,25 @@
 **Release candidate:** `opsdeck 0.3.0` on `release/v0.3.0-contest-checkpoint`
 **Tested IRIS:** native Windows IRIS 2026.2 Build 221U, `%SYS`
 
-This ledger preserves the v0.2.0 public evidence and records the accepted 0.2.1 and first bounded 0.3 foundations. The exact v0.3.0 package candidate has a separate release gate and is not qualified until that gate is recorded below. Older candidate records remain in Git history and private evidence; they are not silently promoted into proof.
+This ledger preserves the v0.2.0 public evidence and records the accepted 0.2.1 and first bounded 0.3 foundations. Exact v0.3.0 candidate `5812f79c0e68b64196b1f4a97a9e435e2b37f933` passed local and native qualification described below; publication is still pending human review. Older candidate records remain in Git history and private evidence; they are not silently promoted into proof.
 
 ## ACCEPTED FOUNDATIONS
 
 - v0.2.1 distribution fidelity: accepted from exact candidate `50205ed79dbd80a768d67c2455d514c09bbc5999`, including fresh Windows checkout/Git-blob parity, controlled lifecycle, 82/82 regression suite, and installed-native responsive qualification.
 - First bounded 0.3 capability-aware UI slice: accepted at `42e9f60694cc33826748e69ef8d289aac0604a6d`, including deterministic capability-aware navigation/context projection and 88/88 local regressions, plus its exact 0.2.1 lifecycle and installed-native responsive qualification.
 - The first bounded 0.3 slice is not completion of the broader internal 0.3 roadmap. Projection does not grant IRIS authority.
-- Exact `opsdeck@0.3.0` candidate qualification: PENDING.
+- Exact `opsdeck@0.3.0` candidate: QUALIFIED LOCALLY; NOT PUBLISHED.
 
 ## KNOWN
 
-### Local-source package lifecycle
+### Exact v0.3.0 local-source package lifecycle
 
-A controlled 16-stage lifecycle passed for the tested package source.
+A controlled 16-stage lifecycle passed for exact source candidate `5812f79c0e68b64196b1f4a97a9e435e2b37f933` (`opsdeck@0.3.0`). The sanitized private receipt records the detailed stage results.
 
 Observed and verified at that boundary:
 
 - local-source load completed;
-- `opsdeck 0.2.0` registration was present;
+- `opsdeck 0.3.0` registration was present;
 - the authoritative `/opsdeck` application was present;
 - all four deployed package-resource hashes matched the tested package fingerprint;
 - bounded operational HTTP checks passed;
@@ -31,9 +31,9 @@ Observed and verified at that boundary:
 - unrelated proof/sibling inventory remained unchanged;
 - clean same-source reload reproduced the package;
 - the final installed package was left in place;
-- product regression suite passed **82/82**.
+- product regression suite passed **88/88**.
 
-### Installed native browser
+### Previously accepted installed-native foundation
 
 The installed application was exercised as `OpsDeckTest`.
 
@@ -49,7 +49,7 @@ Observed:
 - Logs rendered enabled audit status while explicitly marking audit-record retrieval unqualified;
 - Sign out cleared visible connected identity/provider state.
 
-### Installed responsive behavior
+### Previously accepted installed responsive behavior
 
 Eight routes were checked at:
 
@@ -81,7 +81,7 @@ Therefore:
 - the published `v0.2.0` tag must not be moved;
 - a new patch candidate must establish a canonical checkout representation and requalify those exact bytes.
 
-## CURRENT DEVELOPMENT BOUNDARY
+## CURRENT RELEASE-CANDIDATE BOUNDARY
 
 The post-release branch proposes LF as the canonical checkout representation for all five package-input files:
 
@@ -91,18 +91,18 @@ The post-release branch proposes LF as the canonical checkout representation for
 - `public/styles.css`
 - `src/iris-provider.js`
 
-Changing `.gitattributes` does not itself qualify the correction.
+The corrected representation was accepted in the 0.2.1 foundation and carried into this release candidate.
 
 Acceptance requires:
 
-1. fresh Windows checkout using ordinary Git settings;
-2. exact package-input hashes captured from that checkout;
-3. package/version identity frozen for the patch candidate;
-4. source → deployed byte parity;
-5. local-source lifecycle reproduction;
-6. installed-native smoke;
-7. responsive regression on affected surfaces;
-8. preserved unrelated state.
+1. fresh Windows checkout using `core.autocrlf=true` matched all five package-input Git blobs;
+2. exact 0.3.0 package-input hashes and composite fingerprint were recorded;
+3. package/version identity was frozen at candidate commit `5812f79...`;
+4. source → deployed byte parity passed;
+5. local-source lifecycle reproduction passed all 16 stages;
+6. installed-native browser smoke and sign-out passed;
+7. responsive behavior was reused from the accepted first bounded 0.3 qualification because styles.css and responsive app behavior are unchanged from `42e9f606...`; version/cache identity is the only runtime JS/HTML difference;
+8. proof and sibling inventory preservation passed during lifecycle.
 
 ## UNVERIFIED / DEFERRED
 
@@ -131,8 +131,6 @@ No result retrieval, route substitution, or equivalence claim is admitted.
 
 ## Next boundary
 
-Close distribution fidelity first.
-
-After that gate passes, the next product-facing milestone is the **capability-aware morphing UI**: project one canonical interface from observed authority, provider availability, active context, and workspace width without inventing permissions or duplicating IRIS-owned state.
+Human review of the exact locally qualified candidate, followed by separately authorized merge/tag/publication actions. The candidate is the first public capability-aware OpsDeck release; the broader internal 0.3 roadmap remains incomplete.
 
 See [Roadmap](ROADMAP.md).

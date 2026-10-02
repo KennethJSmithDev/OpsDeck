@@ -26,20 +26,20 @@ OpsDeck is being developed for the **InterSystems Programming Contest: Build You
 
 ## Current release
 
-**v0.3.0 is the first public capability-aware OpsDeck release candidate.**
+**v0.3.0 is the first public capability-aware OpsDeck release candidate, qualified locally and awaiting publication review.**
 
 - Prior public release: `v0.2.0` (`23215459096cb47d255c45b1e6e86687f3d8e93a`)
 - Candidate package: `opsdeck 0.3.0`
-- Qualification target: native Windows IRIS 2026.2 Build 221U, `%SYS` (exact candidate pending)
-- Exact candidate qualification: pending
+- Qualification target: native Windows IRIS 2026.2 Build 221U, `%SYS`
+- Exact package candidate `5812f79c0e68b64196b1f4a97a9e435e2b37f933`: local tests, exact-source lifecycle, and installed-native browser smoke passed; publication remains pending human review
 
-The candidate carries the accepted 0.2.1 distribution-fidelity work and first bounded capability-aware UI slice. The latter projects navigation from observed provider/capability states and context; it does not grant IRIS authority. See [Release 0.3.0](docs/RELEASE_0_3_0.md) and [Qualification Status](docs/QUALIFICATION_STATUS.md) for exact scope and candidate evidence.
+The candidate carries the accepted 0.2.1 distribution-fidelity work and first bounded capability-aware UI slice. The latter projects navigation from observed provider/capability states and context; it does not grant IRIS authority. See [Release 0.3.0](docs/RELEASE_0_3_0.md) and [Qualification Status](docs/QUALIFICATION_STATUS.md) for exact scope and candidate evidence. It is not yet a public release.
 
 ### Distribution boundary
 
 A post-release fresh Windows clone of tag `v0.2.0` with `core.autocrlf=true` materialized `public/app.js` and `public/styles.css` with CRLF line endings. That historical representation mismatch was corrected and accepted in the 0.2.1 candidate; the old tag and evidence remain unchanged.
 
-Public-registry installation remains **UNVERIFIED**. The published `v0.2.0` tag will not be moved. Qualification of the exact 0.3.0 candidate is a separate release gate.
+Public-registry installation remains **UNVERIFIED**. The published `v0.2.0` tag will not be moved. Exact-candidate local-source qualification passed; public publication is a separate human-review gate.
 
 See [Qualification Status](docs/QUALIFICATION_STATUS.md) for the current evidence ledger.
 
@@ -70,7 +70,7 @@ OpsDeck is deliberately thin:
 | Path | Current evidence | Boundary |
 |---|---|---|
 | Native IRIS browser app | Sign-in, identity, web-app list/read-back, selected Applications, Access, Security, Tasks, System, Logs, sign-out, and responsive behavior reproduced on IRIS 2026.2 | M1 remains partial; audit async result retrieval, Messages, and System Monitor readers remain unqualified/deferred |
-| Local-source IPM lifecycle | v0.2.1 local-source lifecycle and distribution fidelity accepted; v0.3.0 exact candidate pending | Public-registry installation remains unverified |
+| Local-source IPM lifecycle | v0.2.1 foundation accepted; exact `opsdeck@0.3.0` lifecycle passed | Public-registry installation remains unverified |
 | Capability-aware UI | First bounded slice accepted: observed capability/provider states and context project navigation | UI projection grants no authority; broader roadmap is incomplete |
 | Safe demo | Deterministic sanitized evaluator data, authority personas, responsive UI, and Evidence semantics | Demo data is not live IRIS evidence |
 | Node reference runtime | Live identity, web-app discovery/read-back, fixed routes, safe mappings, and session behavior | Development/reference workflow; not required by the native browser path |
@@ -93,6 +93,7 @@ The tested deployment model is an IRIS-hosted IPM source package.
 ```powershell
 git clone https://github.com/KennethJSmithDev/OpsDeck.git
 cd OpsDeck
+# After the v0.3.0 tag is published:
 git checkout v0.3.0
 ```
 

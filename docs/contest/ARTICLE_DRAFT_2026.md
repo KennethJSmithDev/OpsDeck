@@ -1,8 +1,8 @@
 # Draft: A native IRIS operations console with visible evidence boundaries
 
-**Status:** editorial draft for human review; not submitted to Developer Community. Release wording is for the 0.3.0 candidate and must be checked against final publication status before submission.
+**Status:** editorial draft for human review; not submitted to Developer Community. The exact 0.3.0 candidate is locally qualified but not publicly released; update the wording only after the human publication decision.
 
-OpsDeck is an open-source operations console for InterSystems IRIS. The v0.3.0 release candidate is prepared as the first public capability-aware OpsDeck release. It carries the accepted native/distribution foundation and adds a bounded navigation projection based on observed provider states and current context. Capability projection changes presentation; it does not grant IRIS authority. OpsDeck brings application discovery, access and security metadata, tasks, system information, logs, and evidence status into one browser workspace.
+OpsDeck is an open-source operations console for InterSystems IRIS. The locally qualified v0.3.0 candidate is prepared as the first public capability-aware OpsDeck release, pending publication review. It carries the accepted native/distribution foundation and adds a bounded navigation projection based on observed provider states and current context. Capability projection changes presentation; it does not grant IRIS authority. OpsDeck brings application discovery, access and security metadata, tasks, system information, logs, and evidence status into one browser workspace.
 
 The project is being developed for the InterSystems Programming Contest: Build Your Own Management Portal. Its current public release is available from [Open Exchange](https://openexchange.intersystems.com/package/OpsDeck), and the source and qualification record are on [GitHub](https://github.com/KennethJSmithDev/OpsDeck).
 
@@ -40,7 +40,7 @@ load C:\path\to\OpsDeck
 
 Then open the explicit application URL, `/opsdeck/index.html`, and sign in through the normal IRIS-backed flow. Use an account authorized for the particular reads you want to inspect. Installation authority and ordinary application viewing authority are separate concerns.
 
-The accepted native lifecycle and installed-browser foundations were reproduced for earlier exact package candidates on native Windows IRIS 2026.2 Build 221U. Qualification of this exact 0.3.0 candidate is recorded separately; it does not inherit a lifecycle result merely from those earlier candidates.
+The exact 0.3.0 package candidate passed local-source lifecycle and representative installed-browser qualification on native Windows IRIS 2026.2 Build 221U. This qualification is local evidence, not proof of public registry installation or publication.
 
 ## Why keep the boundary visible?
 

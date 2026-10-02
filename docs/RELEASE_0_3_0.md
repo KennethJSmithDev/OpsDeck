@@ -1,6 +1,6 @@
 # OpsDeck 0.3.0 — Capability-Aware Operations
 
-**Release status:** candidate prepared for qualification; no public release has been published by this record.
+**Release status:** exact candidate locally qualified; publication review pending. No public release has been published by this record.
 **Previous public release:** `v0.2.0`.
 **Package identity:** `opsdeck 0.3.0`.
 
@@ -18,7 +18,7 @@ This release does **not** complete the broader internal 0.3 roadmap. Capability 
 
 ## Qualification boundary
 
-The 0.2.1 distribution-fidelity and first bounded capability-aware UI slice are accepted foundations. Qualification of this exact 0.3.0 package candidate is recorded separately and must not be inferred from those prior results alone.
+The exact package candidate is commit `5812f79c0e68b64196b1f4a97a9e435e2b37f933`. Its fresh Windows checkout representation, 88/88 regression suite, 16-stage native local-source lifecycle, deployed resource hashes, proof/sibling preservation, and installed-native representative route/session smoke passed. Responsive qualification is reused from the accepted first bounded 0.3 slice because the stylesheet and responsive behavior are unchanged; package version/cache identity changes were verified on the installed candidate. Detailed sanitized evidence is held privately. This local qualification does not mean the candidate has been published.
 
 No claim is made here for a qualified fixed-log browser API, live operation engine, persistent Evidence Center, live package management, Vector Search, Embedded Python, Docker deployment, or public registry installation. Safe Demo data is synthetic and does not establish live IRIS behavior.
 
