@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { cancelOperationPlan, createOperationPlan, executeFixturePlan, fingerprintPreState, isTerminalOperationState } from "../src/operation-engine.js";
 
 const now = Date.parse("2026-10-02T12:00:00Z");
@@ -22,7 +23,11 @@ test("plans preserve canonical target/capability identity and bounded review sem
   assert.equal(plan.state, "REVIEW_REQUIRED");
   assert.equal(plan.preStateFingerprint, fingerprintPreState({ enabled: false }));
   assert.throws(() => createOperationPlan({ ...input, parameters: { apiToken: "never retain" } }, now), /Sensitive/u);
-  assert.throws(() => createOperationPlan({ ...input, capability: { ...input.capability, risk: "LOW" } }, now), /risk policy/u);
+  assert.throws(() => createOperationPlan({ ...input, parameters: { enabled: true, note: "benign-looking but not policy-owned" } }, now), /policy schema/u);
+  assert.throws(() => createOperationPlan({ ...input, parameters: { enabled: false } }, now), /enabled=true/u);
+  assert.throws(() => createOperationPlan({ ...input, capability: { ...input.capability, risk: "LOW" } }, now), /risk\/authority\/provider policy/u);
+  assert.throws(() => createOperationPlan({ ...input, capability: { ...input.capability, providerOperation: "POST /something-else" } }, now), /risk\/authority\/provider policy/u);
+  assert.throws(() => createOperationPlan({ ...input, capability: { ...input.capability, requiredPrivileges: ["%All"] } }, now), /risk\/authority\/provider policy/u);
   assert.throws(() => createOperationPlan({ ...input, expiresAt: now }, now), /expiry/u);
 });
 
@@ -76,4 +81,11 @@ test("missing or denied authority evidence never reaches fixture execution", asy
   const base = { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true };
   assert.equal((await executeFixturePlan(plan, { ...base, authority: { state: "UNVERIFIED" } })).state, "UNAVAILABLE");
   assert.equal((await executeFixturePlan(plan, { ...base, authority: { state: "DENIED", evidence: "fixture-denial" } })).state, "DENIED");
+});
+
+
+test("Node/test source path re-exports the single browser-deployed operation implementation", async () => {
+  const shim = await readFile(new URL("../src/operation-engine.js", import.meta.url), "utf8");
+  assert.match(shim, /export \* from "\.\.\/public\/operation-engine\.js";/u);
+  assert.doesNotMatch(shim, /function createOperationPlan/u);
 });
