@@ -64,11 +64,11 @@ This remains fixture qualification only. No live IRIS executor has been added. A
 
 Evidence persistence/export is now based on positive field projections instead of recursive denylist-style redaction.
 
-Each evidence kind owns the fields that may be retained. Unknown fields are omitted even when they have harmless-looking names.
+Each evidence kind owns the fields that may be retained. Unknown fields are omitted even when they have harmless-looking names. Unknown evidence kinds fail closed, contradictory provider-state/record combinations are rejected, and an available provider with no records is normalized to EMPTY.
 
 JSON and Markdown export re-project supplied records before serialization, so callers cannot bypass the evidence field contract by passing raw records to an export function.
 
-Nested object payloads are rejected for the currently allowed evidence fields.
+Nested object payloads are rejected for the currently allowed evidence fields, projected lists are immutable, and package/evidence review state is cleared when the OpsDeck session is cleared.
 
 This remains session-memory contract/UI work. No durable IRIS persistence backend has been added.
 
