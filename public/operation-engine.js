@@ -1,4 +1,6 @@
 const SAFE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/u;
+const SAFE_REF = /^[A-Za-z0-9][A-Za-z0-9:._/-]{0,255}$/u;
+const SAFE_PLAN_ID = /^[A-Za-z0-9][A-Za-z0-9:._/-]{0,127}$/u;
 const SECRET_KEY = /(?:password|secret|token|authorization|private.?key|credential|cookie)/iu;
 const TERMINAL = new Set(["CANCELLED", "DENIED", "UNAVAILABLE", "STALE", "AMBIGUOUS", "VERIFIED", "MISMATCH", "UNVERIFIED"]);
 const validatedOperationPlans = new WeakSet();
@@ -68,6 +70,11 @@ function deepFreeze(value) {
 function boundedText(value, label, max = 256) {
   if (typeof value !== "string" || !value.trim() || value.length > max || /[\u0000-\u001f\u007f]/u.test(value)) throw new Error(`${label} is invalid.`);
   return value.trim();
+}
+function evidenceRef(value, label) {
+  const ref = boundedText(value, label, 256);
+  if (!SAFE_REF.test(ref)) throw new Error(`${label} must be an evidence reference identity.`);
+  return ref;
 }
 function safeProjection(value, depth = 0) {
   if (depth > 4) throw new Error("Operation parameters exceed the safe nesting bound.");
@@ -206,6 +213,7 @@ export function createOperationPlan(input, now = Date.now()) {
   const preState = safeProjection(input.preState);
   validateOperationPreState(capability.id, preState, parameters, policy);
   const id = boundedText(input.id, "plan.id", 128);
+  if (!SAFE_PLAN_ID.test(id)) throw new Error("plan.id must be a stable identity.");
   const expiresAt = Number(input.expiresAt);
   if (!Number.isFinite(expiresAt) || expiresAt <= now) throw new Error("Plan expiry must be in the future.");
   const plan = {
@@ -215,10 +223,10 @@ export function createOperationPlan(input, now = Date.now()) {
     target: { domain: target.domain, kind: target.kind, provider: target.provider, key: target.key, scope, label: target.label, volatile: Boolean(target.volatile), observedAt: boundedText(target.observedAt, "target.observedAt") },
     capability: { id: capability.id, semanticAction: policy.semanticAction, providerOperation: policy.providerOperation, state: capability.state, risk: policy.risk, requiredPrivileges: [...policy.requiredPrivileges], verification: boundedText(input.expectedReadback, "expected read-back") },
     parameters,
-    preconditions: Array.isArray(input.preconditions) ? input.preconditions.slice(0, 16).map(item => ({ claim: boundedText(item.claim, "precondition claim"), observed: item.observed === true ? true : item.observed === false ? false : "unknown", evidence: item.evidence ? boundedText(item.evidence, "precondition evidence") : undefined })) : [],
+    preconditions: Array.isArray(input.preconditions) ? input.preconditions.slice(0, 16).map(item => ({ claim: boundedText(item.claim, "precondition claim"), observed: item.observed === true ? true : item.observed === false ? false : "unknown", evidence: item.evidence ? evidenceRef(item.evidence, "precondition evidence") : undefined })) : [],
     preStateFingerprint: fingerprintPreState(preState),
-    preStateEvidence: input.preStateEvidence ? boundedText(input.preStateEvidence, "pre-state evidence") : undefined,
-    authorityValidation: { state: ["SUPPORTED", "DENIED", "UNVERIFIED"].includes(input.authorityValidation?.state) ? input.authorityValidation.state : "UNVERIFIED", evidence: input.authorityValidation?.evidence ? boundedText(input.authorityValidation.evidence, "authority evidence") : null },
+    preStateEvidence: input.preStateEvidence ? evidenceRef(input.preStateEvidence, "pre-state evidence") : undefined,
+    authorityValidation: { state: ["SUPPORTED", "DENIED", "UNVERIFIED"].includes(input.authorityValidation?.state) ? input.authorityValidation.state : "UNVERIFIED", evidence: input.authorityValidation?.evidence ? evidenceRef(input.authorityValidation.evidence, "authority evidence") : null },
     expectedReadback: boundedText(input.expectedReadback, "expected read-back"),
     risk: capability.risk,
     requiresConfirmation: capability.risk !== "READ",
