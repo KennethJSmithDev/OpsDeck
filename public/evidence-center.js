@@ -2,6 +2,7 @@ const MAX_ITEMS = 100;
 const MAX_EXPORT_BYTES = 65_536;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9:._/-]{0,127}$/u;
 const STATES = new Set(["VERIFIED", "PARTIAL", "FAILED", "UNVERIFIED", "BLOCKED", "UNAVAILABLE", "DENIED"]);
+const KINDS = new Set(["read-observation", "operation-plan", "operation-receipt", "qualification"]);
 
 const SOURCE_FIELDS = Object.freeze(["identity", "provider", "apiVersion", "version", "namespace", "scope", "observedAt"]);
 const RESOURCE_FIELDS = Object.freeze(["domain", "kind", "provider", "key", "scope", "label", "volatile", "observedAt"]);
@@ -51,7 +52,8 @@ export function createEvidenceRef(input) {
   if (!object(input)) throw new Error("Evidence reference must be an object.");
   if (!SAFE_ID.test(input.id)) throw new Error("Evidence reference identity is invalid.");
   if (!STATES.has(input.state)) throw new Error("Evidence classification is invalid.");
-  const kind = ["read-observation", "operation-plan", "operation-receipt", "qualification"].includes(input.kind) ? input.kind : "read-observation";
+  if (!KINDS.has(input.kind)) throw new Error("Evidence kind is invalid.");
+  const kind = input.kind;
   const resource = projectFields(input.resource, RESOURCE_FIELDS, "resource");
   const source = projectFields(input.source, SOURCE_FIELDS, "source");
   const evidence = projectFields(input.evidence, EVIDENCE_FIELDS[kind], "evidence");
@@ -71,8 +73,10 @@ export function createEvidenceRef(input) {
 export function createEvidenceCollection(records, providerState = "AVAILABLE") {
   if (!["AVAILABLE", "EMPTY", "UNAVAILABLE", "DENIED", "FAILED"].includes(providerState)) throw new Error("Evidence provider state is invalid.");
   if (!Array.isArray(records)) throw new Error("Evidence records must be an array.");
+  if (records.length && providerState !== "AVAILABLE") throw new Error("Non-available evidence providers cannot publish records.");
   const bounded = records.slice(0, MAX_ITEMS).map(createEvidenceRef);
-  return Object.freeze({ state: bounded.length ? "AVAILABLE" : providerState, truncated: records.length > MAX_ITEMS, records: Object.freeze(bounded) });
+  const state = bounded.length ? "AVAILABLE" : providerState === "AVAILABLE" ? "EMPTY" : providerState;
+  return Object.freeze({ state, truncated: records.length > MAX_ITEMS, records: Object.freeze(bounded) });
 }
 
 export function filterEvidence(collection, query = "", state = "ALL") {
