@@ -63,6 +63,36 @@ test("live Packages never substitutes synthetic fixture rows for an unavailable 
   assert.doesNotMatch(live, /configured registry|Open Exchange/u);
 });
 
+test("Evidence projects bounded audit outcomes without retaining audit row values", () => {
+  const { context } = contextFor();
+  const serialized = vm.runInContext(`
+    state.info = { systemMode: "NATIVE" };
+    state.auditQuery = {
+      state: "finished", observedAt: "2026-10-02T12:00:00.000Z", resultCount: 1,
+      truncatedToMaxRows: false, task: { identitySource: "validated-location" },
+      result: [{ TimeStamp: "private-time", Event: "private-event", UserName: "private-user" }]
+    };
+    JSON.stringify(currentEvidenceCollection())
+  `, context);
+  const collection = JSON.parse(serialized);
+  const record = collection.records.find((item) => item.id === "session:audit-query");
+  assert.equal(record.state, "PARTIAL");
+  assert.equal(record.observedAt, "2026-10-02T12:00:00.000Z");
+  assert.deepEqual(record.evidence, {
+    providerState: "finished", identityBasis: "validated-location", fields: ["Event", "TimeStamp", "UserName"], count: 1, truncated: false,
+  });
+  assert.doesNotMatch(serialized, /private-time|private-event|private-user/u);
+  const evidenceView = vm.runInContext("evidenceView()", context);
+  assert.match(evidenceView, /Audit async handoff[\s\S]*?PARTIAL[\s\S]*?1 result row/u);
+  assert.match(evidenceView, /full result-schema and pagination behavior are not established/u);
+
+  for (const [providerState, expected] of [["denied", "DENIED"], ["failed", "FAILED"], ["unavailable", "UNAVAILABLE"], ["canceled", "BLOCKED"]]) {
+    vm.runInContext(`state.auditQuery = { state: "${providerState}", observedAt: "2026-10-02T12:00:00.000Z" }`, context);
+    const result = JSON.parse(vm.runInContext("JSON.stringify(currentEvidenceCollection())", context));
+    assert.equal(result.records.find((item) => item.id === "session:audit-query").state, expected);
+  }
+});
+
 test("denied native sources name IRIS authority and demo sources name persona authority", () => {
   const { context } = contextFor();
   const native = vm.runInContext('state.info={}; state.sourceErrors.users="HTTP 403"; sourcePanel("users")', context);

@@ -626,15 +626,23 @@ function auditQueryPanel() {
 
 function evidenceView() {
   const isDemo = state.info?.systemMode === "DEMO";
+  const audit = isDemo ? null : state.auditQuery;
   const readback = state.verification
     ? (state.verification.matched
       ? { label: "VERIFIED", tone: "success", detail: `${state.verification.count} web-app identities matched on an independent second read.` }
       : { label: "MISMATCH", tone: "error", detail: "The second web-app read differed from the displayed state." })
     : { label: "PENDING", tone: "muted", detail: "No current read-back comparison is available in this session." };
+  const auditState = { accepted: "UNVERIFIED", queued: "PARTIAL", running: "PARTIAL", finished: "PARTIAL", failed: "FAILED", canceled: "BLOCKED", denied: "DENIED", unavailable: "UNAVAILABLE" }[audit?.state] || "PENDING";
+  const auditCount = Number.isInteger(audit?.resultCount) ? `${audit.resultCount} result row${audit.resultCount === 1 ? "" : "s"}` : "an unknown number of result rows";
+  const auditDetail = audit?.state === "finished"
+    ? `A bounded audit task finished with ${auditCount}. The response remains partial evidence; full result-schema and pagination behavior are not established.`
+    : audit ? `The bounded audit task is ${audit.state}. Its state is retained in this session without raw task identifiers or unreviewed result values.`
+      : "IRIS 2026.2 returned one finished empty result through the exact same-origin v1 async-result resource. Full result-schema and pagination behavior remain unverified.";
+  const auditTone = ["FAILED", "DENIED"].includes(auditState) ? "error" : ["PENDING", "UNVERIFIED", "PARTIAL", "BLOCKED", "UNAVAILABLE"].includes(auditState) ? "warning" : "muted";
   const cards = [
     { title: "Web application read-back", state: readback.label, tone: readback.tone, detail: readback.detail, note: isDemo ? "Demo semantics only · live IRIS verification is separately qualified." : "Current session evidence." },
     { title: "Provider state semantics", state: "PRESERVED", tone: "success", detail: "Valid empty collections, unavailable providers, denied access, and mapping failures remain distinct states.", note: "No fixture fallback is substituted for a failed live provider." },
-    { title: "Audit async handoff", state: "PENDING", tone: "warning", detail: "IRIS 2026.2 documents both v1 and v2 async-result GET resources. A bounded live read completed through the exact same-origin v1 Location; its task body omits GUID, so this branch binds identity to the validated resource Location.", note: "This client change still requires local regression and installed-native qualification. The accepted 0.2.1 build remains unchanged." },
+    { title: "Audit async handoff", state: auditState, tone: auditTone, detail: auditDetail, note: "Current-session observation only; the query is bounded to maxRows=1 and does not establish a complete audit-result schema." },
     { title: "IPM / ZPM lifecycle", state: "QUALIFIED", tone: "success", detail: "Local-source load, uninstall, and clean same-source reload were reproduced for OpsDeck 0.2.0. Registration, /opsdeck, deployed asset hashes, operational HTTP behavior, cleanup, and unrelated-state preservation were verified.", note: "Scope: tested local-source lifecycle only. Exact core IPM version and public-registry installation remain unverified." }
   ];
   const evidenceCollection = currentEvidenceCollection();
@@ -658,6 +666,29 @@ function evidenceView() {
 function currentEvidenceCollection() {
   const isDemo = state.info?.systemMode === "DEMO";
   const records = isDemo ? [{ id: "fixture:operation:application-enable", kind: "operation-receipt", state: "VERIFIED", title: "Fixture application enable", observedAt: "2026-10-02T12:00:00Z", source: { identity: "opsdeck-fixture-v1" }, resource: { key: "/opsdeck-fixture", scope: "%SYS" }, summary: "Synthetic fixture plan completed with fixture read-back; this does not qualify a live IRIS operation.", evidence: { operationId: "fixture-op-001", verification: "fixture-readback" } }] : state.verification ? [{ id: "session:applications-readback", kind: "read-observation", state: state.verification.matched ? "VERIFIED" : "FAILED", title: "Applications independent read-back", observedAt: state.verification.at, source: { identity: "iris-admin-api" }, resource: { key: "web-app-inventory", scope: "%SYS" }, summary: state.verification.matched ? `${state.verification.count} web-application identities matched the independent second read.` : "The independent second read differed from the current web-application inventory.", evidence: { matched: state.verification.matched, count: state.verification.count } }] : [];
+  const audit = isDemo ? null : state.auditQuery;
+  if (audit?.observedAt) {
+    const states = { accepted: "UNVERIFIED", queued: "PARTIAL", running: "PARTIAL", finished: "PARTIAL", failed: "FAILED", canceled: "BLOCKED", denied: "DENIED", unavailable: "UNAVAILABLE" };
+    const safeFields = ["Event", "EventSource", "Namespace", "PID", "TimeStamp", "UserName"];
+    const fields = Array.isArray(audit.result) && audit.result.length
+      ? Object.keys(audit.result[0]).filter((field) => safeFields.includes(field)).sort()
+      : [];
+    const count = Number.isInteger(audit.resultCount) && audit.resultCount >= 0 && audit.resultCount <= AUDIT_QUERY_MAX_ROWS ? audit.resultCount : null;
+    const evidence = { providerState: typeof audit.state === "string" ? audit.state : "unverified", identityBasis: audit.task?.identitySource || "unverified", fields };
+    if (count !== null) evidence.count = count;
+    if (typeof audit.truncatedToMaxRows === "boolean") evidence.truncated = audit.truncatedToMaxRows;
+    records.push({
+      id: "session:audit-query",
+      kind: "read-observation",
+      state: states[audit.state] || "UNVERIFIED",
+      title: "Bounded audit query",
+      observedAt: audit.observedAt,
+      source: { identity: "iris-admin-api" },
+      resource: { domain: "security", kind: "audit-query", provider: "iris-admin-api", key: "bounded-audit-records", label: "Bounded audit records", observedAt: audit.observedAt },
+      summary: count === null ? `Bounded audit query state: ${audit.state}.` : `Bounded audit query state: ${audit.state}; ${count} reviewed row${count === 1 ? "" : "s"} returned.`,
+      evidence,
+    });
+  }
   if (state.packagePlan?.plan) {
     const plan = state.packagePlan.plan;
     records.push({ id: plan.id, kind: "operation-plan", state: "UNVERIFIED", title: plan.intent, observedAt: plan.createdAt, source: { identity: state.packagePlan.executorIdentity || "not-attached" }, resource: { key: plan.target.key, scope: plan.target.scope }, summary: "Synthetic package plan preview. No package operation was executed; live IPM execution remains unavailable.", evidence: { risk: plan.risk, capability: plan.capability.id, preStateEvidence: plan.preStateEvidence } });
@@ -991,8 +1022,10 @@ async function runAuditQuery() {
   let httpStatus = null;
   let currentTask = null;
   let locationShape = null;
+  const observedAt = new Date().toISOString();
+  const publishAuditQuery = (query) => { state.auditQuery = { ...query, observedAt }; };
   state.auditQueryBusy = true;
-  state.auditQuery = { state: "accepted", message: "Submitting one filtered query for the current account, bounded to maxRows=1." };
+  publishAuditQuery({ state: "accepted", message: "Submitting one filtered query for the current account, bounded to maxRows=1." });
   render();
   try {
     const now = Date.now();
@@ -1012,21 +1045,21 @@ async function runAuditQuery() {
     if (response.status === 401) { clearSession(); state.error = "Authentication failed (HTTP 401). Sign in again."; render(); return; }
     httpStatus = response.status;
     if (response.status === 401 || response.status === 403) {
-      state.auditQuery = { state: "denied", stage, httpStatus, message: `IRIS denied the bounded audit query (HTTP ${response.status}).` };
+      publishAuditQuery({ state: "denied", stage, httpStatus, message: `IRIS denied the bounded audit query (HTTP ${response.status}).` });
       return;
     }
     if (response.status !== 202) {
-      state.auditQuery = { state: "unavailable", stage, httpStatus, message: `Audit query handoff was unavailable (HTTP ${response.status}).` };
+      publishAuditQuery({ state: "unavailable", stage, httpStatus, message: `Audit query handoff was unavailable (HTTP ${response.status}).` });
       return;
     }
     stage = "validate Location";
     locationShape = inspectAuditLocation(response.headers.get("Location"), location.href);
-    state.auditQuery = { state: "accepted", stage, httpStatus, locationShape, message: "IRIS accepted the query (HTTP 202). Validating the returned Location." };
+    publishAuditQuery({ state: "accepted", stage, httpStatus, locationShape, message: "IRIS accepted the query (HTTP 202). Validating the returned Location." });
     render();
     const handle = validateAuditLocation(response.headers.get("Location"), location.href);
     currentTask = { idVerified: true };
     stage = "async result read";
-    state.auditQuery = { state: "queued", stage, httpStatus, locationShape, message: "IRIS accepted the query. Reading the exact same-origin async resource from Location.", task: currentTask };
+    publishAuditQuery({ state: "queued", stage, httpStatus, locationShape, message: "IRIS accepted the query. Reading the exact same-origin async resource from Location.", task: currentTask });
     render();
     const deadline = Date.now() + 30000;
     for (let attempt = 0; attempt < 40 && Date.now() < deadline; attempt += 1) {
@@ -1038,31 +1071,31 @@ async function runAuditQuery() {
       currentTask = mapped.task;
       const taskState = mapped.task.state.toLowerCase();
       if (taskState === "queued" || taskState === "running") {
-        state.auditQuery = {
+        publishAuditQuery({
           state: taskState, stage, httpStatus, locationShape, message: taskState === "queued" ? "Async task is queued; waiting for a live state update." : "Async task is running; waiting for a terminal state.",
           task: mapped.task,
-        };
+        });
         render();
         await new Promise((resolve) => setTimeout(resolve, 500));
         if (owner !== sessionEpoch) return;
         continue;
       }
       if (taskState === "finished") {
-        state.auditQuery = { state: "finished", stage, httpStatus, locationShape, message: "Async task finished. Only the bounded Result and reviewed fields are shown.", ...mapped };
+        publishAuditQuery({ state: "finished", stage, httpStatus, locationShape, message: "Async task finished. Only the bounded Result and reviewed fields are shown.", ...mapped });
       } else if (taskState === "failed") {
-        state.auditQuery = { state: "failed", stage, httpStatus, locationShape, message: "Async audit query failed.", task: mapped.task, failure: "IRIS reported a task failure." };
+        publishAuditQuery({ state: "failed", stage, httpStatus, locationShape, message: "Async audit query failed.", task: mapped.task, failure: "IRIS reported a task failure." });
       } else if (taskState === "canceled") {
-        state.auditQuery = { state: "canceled", stage, httpStatus, locationShape, message: "Async audit query was canceled by IRIS.", task: mapped.task };
+        publishAuditQuery({ state: "canceled", stage, httpStatus, locationShape, message: "Async audit query was canceled by IRIS.", task: mapped.task });
       } else {
-        state.auditQuery = { state: "unavailable", stage, httpStatus, locationShape, message: "Async task is paused; no completion is inferred.", task: mapped.task };
+        publishAuditQuery({ state: "unavailable", stage, httpStatus, locationShape, message: "Async task is paused; no completion is inferred.", task: mapped.task });
       }
       return;
     }
-    state.auditQuery = { state: "unavailable", message: "Async task remained nonterminal during the bounded wait. No completion is inferred.", task: state.auditQuery?.task };
+    publishAuditQuery({ state: "unavailable", message: "Async task remained nonterminal during the bounded wait. No completion is inferred.", task: state.auditQuery?.task });
   } catch (error) {
     if (owner !== sessionEpoch) return;
     const denied = error.status === 401 || error.status === 403;
-    state.auditQuery = {
+    publishAuditQuery({
       state: denied ? "denied" : "unavailable",
       message: denied ? `IRIS denied the async audit read (HTTP ${error.status}).` : "Audit query or async result is unavailable.",
       stage,
@@ -1070,7 +1103,7 @@ async function runAuditQuery() {
       task: currentTask,
       locationShape,
       failure: ["validate Location", "async task contract"].includes(stage) ? error.message : "The request did not produce a usable async result.",
-    };
+    });
   } finally {
     if (owner !== sessionEpoch) return;
     state.auditQueryBusy = false;
