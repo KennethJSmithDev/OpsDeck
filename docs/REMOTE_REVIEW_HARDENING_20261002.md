@@ -21,6 +21,7 @@ Remote review changes:
 - async-result mapping now requires the immutable handle returned by the strict Location validator; raw task IDs no longer satisfy the mapping contract;
 - the ObjectScript reader remains limited to exactly `messagesLog` and `systemMonitorLog`;
 - the reader now describes a bounded recent-tail observation rather than reading from the beginning of the file;
+- the reader explicitly requires the current process to hold `%Admin_Operate:Use`, matching InterSystems' documented privilege for examining logs;
 - the intended IRIS-side window is at most 64 KiB plus one context byte used only to discard a partial first line;
 - output keeps at most the newest 250 complete lines inside that bounded window;
 - CR/LF and other non-TAB control characters are removed from returned line values;
@@ -31,8 +32,8 @@ Still unqualified until IRIS runtime work:
 - ObjectScript compilation;
 - exact `%File.Size`, `MoveTo()`, binary-mode, and multibyte behavior on the installed IRIS 2026.2 build;
 - log-growth/rotation behavior during a read;
-- denied-versus-unavailable classification;
-- exact privilege/resource requirement;
+- installed-runtime confirmation that `%Admin_Operate:Use` is evaluated in the expected authenticated process context;
+- OS/file failures remain classified separately from the explicit IRIS authorization denial;
 - browser-safe IRIS endpoint/adapter;
 - package/module inclusion.
 
