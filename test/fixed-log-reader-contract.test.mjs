@@ -11,6 +11,8 @@ test("IRIS reader exposes exactly two fixed semantic identities and no path para
   assert.match(source, /sourceId'="systemMonitorLog"/u);
   assert.match(source, /##class\(Config\.config\)\.GetConsoleFileName/u);
   assert.match(source, /##class\(%File\)\.ManagerDirectory\(\)_"SystemMonitor\.log"/u);
+  assert.match(source, /\$SYSTEM\.Security\.Check\("%Admin_Operate","USE"\)/u);
+  assert.match(source, /result\.status="denied", result\.reason="admin-operate-required"/u);
   assert.doesNotMatch(source, /directory listing|glob|Execute\(|Shell\(|userPath|filePath As %String/u);
 });
 
