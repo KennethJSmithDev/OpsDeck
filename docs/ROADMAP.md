@@ -2,6 +2,8 @@
 
 **Status:** living product roadmap. Sequence is evidence-gated, not calendar-gated.
 
+**Current frontier (2026-10-02):** 0.2.1 distribution fidelity is accepted locally; the first bounded 0.3 slice is accepted. 0.4 is deferred/environment blocked. Independent 0.5–0.8 source branches are being developed with live installation, mutation, and persistence boundaries clearly unqualified. See [Qualification Status](QUALIFICATION_STATUS.md).
+
 OpsDeck 0.2.0 established the native IRIS-hosted baseline: source-package lifecycle, live read workflows, evidence semantics, and responsive behavior. The next releases expand from that accepted foundation rather than replacing it.
 
 ## Governing rules
@@ -16,6 +18,8 @@ OpsDeck 0.2.0 established the native IRIS-hosted baseline: source-package lifecy
 - Every milestone requires behavioral correctness and representation-cost sanity.
 
 ## 0.2.1 — distribution fidelity
+
+**Status:** ACCEPTED as a local candidate (`50205ed79dbd80a768d67c2455d514c09bbc5999`); not published as a release.
 
 Objective: make a normal public checkout produce the exact package bytes that are qualified.
 
@@ -35,6 +39,8 @@ Acceptance:
 No feature expansion is required for this patch.
 
 ## 0.3 — capability-aware morphing UI
+
+**Status:** first bounded slice accepted at `42e9f60694cc33826748e69ef8d289aac0604a6d`; full 0.3 roadmap remains open.
 
 Objective: make one canonical OpsDeck interface adapt to the operator's **observed authority, available providers, active context, and usable workspace width**.
 
@@ -87,6 +93,8 @@ The backend/provider remains responsible for enforcing actual authority.
 
 ## 0.4 — native Docker / clean-room reproduction
 
+**Current status:** DEFERRED / ENVIRONMENT BLOCKED. No Docker, WSL, Windows feature, or privilege changes were made in the mobile-first continuation.
+
 Objective: reproduce the **native IRIS-hosted architecture** in a clean container environment.
 
 Preferred shape:
@@ -104,6 +112,8 @@ Acceptance includes clean build/start, documented human initialization boundary,
 
 ## 0.5 — close remaining read-provider gaps
 
+**Current status:** bounded audit async source work exists; fixed-log reader remains a source prototype pending IRIS compile, byte/encoding, denial-classification, and privilege qualification.
+
 Priority gaps:
 
 - audit async result handoff;
@@ -114,6 +124,8 @@ Priority gaps:
 No arbitrary filesystem bridge.
 
 ## 0.6 — verified operation engine
+
+**Current status:** source-ready and fixture-qualified; live executor and disposable IRIS fixture remain unqualified.
 
 Introduce the canonical write path:
 
@@ -141,6 +153,8 @@ No automatic retry after an ambiguous write.
 
 ## 0.7 — durable Evidence Center
 
+**Current status:** evidence contract and UI are source-ready; current implementation is session-memory backed and persistence remains unqualified.
+
 Promote Evidence from current-session communication to bounded durable operational evidence.
 
 Candidate capabilities:
@@ -154,6 +168,8 @@ Candidate capabilities:
 Secrets never enter evidence payloads.
 
 ## 0.8 — Applications → Packages
+
+**Current status:** workspace and planning fixture are source-ready; live IPM inventory and execution are unqualified. Confirmation stays unavailable until the real executor and disposable fixture pass.
 
 Use live IPM state to add a Packages workspace under Applications.
 
@@ -246,3 +262,5 @@ Target qualification includes:
 - release documentation and clean evaluator path.
 
 The exact 1.0 scope may narrow if evidence shows a feature cannot meet the same quality bar as the accepted foundation.
+
+
