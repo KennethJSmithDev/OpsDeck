@@ -83,6 +83,28 @@ test("ambiguous provider result is terminal and never retried", async () => {
   assert.equal(isTerminalOperationState(result.state), true);
 });
 
+test("a changed read-back does not close an ambiguous dispatch into a receipt", async () => {
+  const plan = createOperationPlan({ ...input, id: "fixture_7f3c91a4d2" }, now);
+  const changedReadback = { enabled: true };
+  const result = await executeFixturePlan(plan, {
+    providerIdentity: "opsdeck-fixture-v1",
+    currentPreState: { enabled: false },
+    confirmed: true,
+    authority: { state: "SUPPORTED", evidence: "fixture-authority" },
+    outcome: "ambiguous",
+    readback: changedReadback,
+    now,
+  });
+
+  assert.equal(plan.preStateFingerprint, fingerprintPreState({ enabled: false }));
+  assert.equal(plan.parameters.enabled, true);
+  assert.equal(changedReadback.enabled, true);
+  assert.equal(result.state, "AMBIGUOUS");
+  assert.equal(result.retryAllowed, false);
+  assert.equal(Object.hasOwn(result, "receipt"), false);
+  assert.equal(isTerminalOperationState(result.state), true);
+});
+
 test("denial, cancellation, unavailability and cancellation of review remain distinct", async () => {
   const plan = makePlan();
   const base = { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority-observed" }, now };
