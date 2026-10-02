@@ -31,6 +31,8 @@ test("plans preserve canonical target/capability identity and bounded review sem
   assert.throws(() => createOperationPlan({ ...input, target: { ...input.target, provider: "some-other-provider" } }, now), /risk\/authority\/provider policy/u);
   assert.throws(() => createOperationPlan({ ...input, preState: { enabled: false, note: "not policy-owned" } }, now), /pre-state.*policy schema/u);
   assert.throws(() => createOperationPlan({ ...input, preState: { enabled: "false" } }, now), /boolean enabled/u);
+  assert.throws(() => createOperationPlan({ ...input, id: "bad plan id" }, now), /stable identity/u);
+  assert.throws(() => createOperationPlan({ ...input, authorityValidation: { state: "SUPPORTED", evidence: "not a ref with spaces" } }, now), /evidence reference identity/u);
   assert.throws(() => createOperationPlan({ ...input, expiresAt: now }, now), /expiry/u);
 });
 
