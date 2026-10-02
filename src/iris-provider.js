@@ -200,7 +200,7 @@ export function mapFixedLogResult(sourceId, payload) {
   let bytesReturned = 0;
   let truncated = payload.truncated === true || payload.status === "truncated";
   for (const rawLine of payload.lines) {
-    const sanitizedLine = rawLine.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, "�");
+    const sanitizedLine = rawLine.replace(/[\u0000-\u0008\u000a-\u001f\u007f]/gu, "�");
     const safeLine = sanitizedLine.slice(0, 2048);
     if (safeLine.length < sanitizedLine.length) truncated = true;
     const lineBytes = new TextEncoder().encode(safeLine).byteLength;
