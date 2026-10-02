@@ -755,6 +755,11 @@ function clearSession() {
   ]) state[key] = {};
   for (const key of ["sourceLoading", "webAppDetailLoading", "userDetailLoading", "roleDetailLoading", "roleOwnerLoading", "resourceDetailLoading", "taskDetailLoading", "restSpecLoading"]) state[key] = "";
   state.sourceTabs = { applications: "restServices", access: "users", security: "walletCollections", tasks: "tasks", system: "systemUsage", logs: "auditEnabled" };
+  state.applicationsTab = "web-apps";
+  state.packageFilter = "all";
+  state.packagePlan = null;
+  state.evidenceFilter = "";
+  state.evidenceStateFilter = "ALL";
   state.route = "overview";
   history.replaceState(null, "", "#overview");
 }
