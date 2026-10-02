@@ -7,7 +7,11 @@ export const OPERATION_POLICIES = Object.freeze({
     risk: "MEDIUM",
     providerOperation: "PUT /api/admin/v2/web-apps",
     requiredPrivileges: Object.freeze(["%Admin_Secure:U"]),
+    targetDomain: "applications",
+    targetKind: "web-app",
+    targetProvider: "iris-admin-api",
     parameterKeys: Object.freeze(["enabled"]),
+    preStateKeys: Object.freeze(["enabled"]),
   }),
   "webapp.disable": Object.freeze({
     semanticAction: "disable",
@@ -21,21 +25,33 @@ export const OPERATION_POLICIES = Object.freeze({
     risk: "HIGH",
     providerOperation: "IPM install · UNQUALIFIED",
     requiredPrivileges: Object.freeze(["UNVERIFIED · instance/IPM-specific"]),
+    targetDomain: "applications",
+    targetKind: "package",
+    targetProvider: "opsdeck-package-fixture-v1",
     parameterKeys: Object.freeze(["installedVersion", "namespace", "packageName", "requestedVersion", "sourceIdentity"]),
+    preStateKeys: Object.freeze(["availableVersion", "installedVersion", "namespace", "sourceIdentity"]),
   }),
   "ipm.package.update": Object.freeze({
     semanticAction: "package-update",
     risk: "HIGH",
     providerOperation: "IPM update · UNQUALIFIED",
     requiredPrivileges: Object.freeze(["UNVERIFIED · instance/IPM-specific"]),
+    targetDomain: "applications",
+    targetKind: "package",
+    targetProvider: "opsdeck-package-fixture-v1",
     parameterKeys: Object.freeze(["installedVersion", "namespace", "packageName", "requestedVersion", "sourceIdentity"]),
+    preStateKeys: Object.freeze(["availableVersion", "installedVersion", "namespace", "sourceIdentity"]),
   }),
   "ipm.package.remove": Object.freeze({
     semanticAction: "package-remove",
     risk: "HIGH",
     providerOperation: "IPM remove · UNQUALIFIED",
     requiredPrivileges: Object.freeze(["UNVERIFIED · instance/IPM-specific"]),
+    targetDomain: "applications",
+    targetKind: "package",
+    targetProvider: "opsdeck-package-fixture-v1",
     parameterKeys: Object.freeze(["installedVersion", "namespace", "packageName", "requestedVersion", "sourceIdentity"]),
+    preStateKeys: Object.freeze(["availableVersion", "installedVersion", "namespace", "sourceIdentity"]),
   }),
 });
 
@@ -107,6 +123,37 @@ function validateOperationParameters(capabilityId, parameters, policy) {
   }
 }
 
+function validateOperationPreState(capabilityId, preState, parameters, policy) {
+  if (!exactParameterKeys(preState, policy.preStateKeys)) {
+    throw new Error("Operation pre-state does not match the deterministic policy schema.");
+  }
+  if (capabilityId.startsWith("webapp.")) {
+    if (typeof preState.enabled !== "boolean") throw new Error("Web-app pre-state requires a boolean enabled field.");
+    return;
+  }
+  for (const key of ["namespace", "sourceIdentity"]) boundedText(preState[key], `preState.${key}`, 128);
+  for (const key of ["installedVersion", "availableVersion"]) {
+    if (preState[key] !== null) boundedText(preState[key], `preState.${key}`, 64);
+  }
+  if (preState.namespace !== parameters.namespace ||
+      preState.sourceIdentity !== parameters.sourceIdentity ||
+      preState.installedVersion !== parameters.installedVersion) {
+    throw new Error("Package parameters are not bound to the observed pre-state.");
+  }
+  if (capabilityId === "ipm.package.install" && preState.installedVersion !== null) {
+    throw new Error("Package install pre-state is already installed.");
+  }
+  if (capabilityId !== "ipm.package.install" && preState.installedVersion === null) {
+    throw new Error("Package update/remove pre-state is not installed.");
+  }
+  if (capabilityId !== "ipm.package.remove" && preState.availableVersion !== parameters.requestedVersion) {
+    throw new Error("Package requested version is not the observed available version.");
+  }
+  if (capabilityId === "ipm.package.remove" && preState.installedVersion !== parameters.requestedVersion) {
+    throw new Error("Package removal is not bound to the observed installed version.");
+  }
+}
+
 export function fingerprintPreState(value) {
   if (!plain(value)) throw new Error("A fresh pre-state object is required.");
   return stable(value);
@@ -128,12 +175,16 @@ export function createOperationPlan(input, now = Date.now()) {
       capability.semanticAction !== policy.semanticAction ||
       capability.risk !== policy.risk ||
       capability.providerOperation !== policy.providerOperation ||
-      !sameStringList(requiredPrivileges, policy.requiredPrivileges)) {
+      !sameStringList(requiredPrivileges, policy.requiredPrivileges) ||
+      target.domain !== policy.targetDomain ||
+      target.kind !== policy.targetKind ||
+      target.provider !== policy.targetProvider) {
     throw new Error("Operation does not match a deterministic risk/authority/provider policy.");
   }
   const parameters = safeProjection(input.parameters || {});
   validateOperationParameters(capability.id, parameters, policy);
   const preState = safeProjection(input.preState);
+  validateOperationPreState(capability.id, preState, parameters, policy);
   const id = boundedText(input.id, "plan.id", 128);
   const expiresAt = Number(input.expiresAt);
   if (!Number.isFinite(expiresAt) || expiresAt <= now) throw new Error("Plan expiry must be in the future.");
