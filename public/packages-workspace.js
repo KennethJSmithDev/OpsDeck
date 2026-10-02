@@ -1,7 +1,10 @@
 import { createOperationPlan } from "./operation-engine.js";
 
 const SYNTHETIC_SOURCE = "opsdeck-fixture://package-catalog";
+const INSTALLED_IPM_SOURCE = "iris-ipm-installed-v1";
+const INSTALLED_IPM_SOURCE_LABEL = "IPM installed metadata; repository not observed";
 const SAFE_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u;
+const PACKAGE_LIMIT = 250;
 const FIXTURE_PACKAGES = Object.freeze([
   Object.freeze({ name: "sample-observer", namespace: "USER", installedVersion: "1.0.0", availableVersion: "1.1.0", source: "fixture-community-catalog", description: "Synthetic package row for planning-flow development.", state: "update-available" }),
   Object.freeze({ name: "sample-reporting-kit", namespace: "USER", installedVersion: null, availableVersion: "2.0.0", source: "fixture-community-catalog", description: "Synthetic available package for review-flow development.", state: "available" }),
@@ -12,9 +15,39 @@ function bounded(value, label, max = 256) {
   return value.trim();
 }
 
-export function packageResourceRef(item, provider = "opsdeck-package-fixture-v1") {
+export function packageResourceRef(item, provider = "opsdeck-package-fixture-v1", observedAt = new Date(0).toISOString()) {
   if (!item || !SAFE_NAME.test(item.name) || typeof item.namespace !== "string" || !item.namespace.trim()) throw new Error("Package resource identity is incomplete.");
-  return Object.freeze({ domain: "applications", kind: "package", provider, key: item.name, scope: bounded(item.namespace, "namespace", 128), label: item.name, observedAt: new Date(0).toISOString() });
+  return Object.freeze({ domain: "applications", kind: "package", provider, key: item.name, scope: bounded(item.namespace, "namespace", 128), label: item.name, observedAt: bounded(observedAt, "observation time", 64) });
+}
+
+export function mapInstalledPackageInventory(payload, observedAt = new Date().toISOString()) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Installed package inventory response is invalid.");
+  if (payload.provider !== INSTALLED_IPM_SOURCE) throw new Error("Installed package provider identity is invalid.");
+  const namespace = bounded(payload.namespace, "namespace", 128);
+  const states = ["available", "empty", "unavailable", "denied", "failed", "truncated"];
+  if (!states.includes(payload.status)) throw new Error("Installed package state is invalid.");
+  if (!Array.isArray(payload.packages) || payload.packages.length > PACKAGE_LIMIT) throw new Error("Installed package rows exceed the bounded contract.");
+  const hasRows = payload.packages.length > 0;
+  if ((payload.status === "available" && !hasRows) || (payload.status === "empty" && hasRows) ||
+      (["unavailable", "denied", "failed"].includes(payload.status) && hasRows) ||
+      (payload.status === "truncated" && (payload.truncated !== true || payload.packages.length !== PACKAGE_LIMIT)) ||
+      (payload.status !== "truncated" && payload.truncated === true)) {
+    throw new Error("Installed package rows do not match their provider state.");
+  }
+  const packages = payload.packages.map((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item) || !SAFE_NAME.test(item.name)) throw new Error("Installed package identity is invalid.");
+    const installedVersion = bounded(item.installedVersion, "installed version", 64);
+    const ref = packageResourceRef({ name: item.name, namespace }, INSTALLED_IPM_SOURCE, observedAt);
+    return Object.freeze({
+      ref, name: item.name, namespace, installedVersion, availableVersion: null,
+      source: INSTALLED_IPM_SOURCE_LABEL, description: "Installed IPM registration; no repository catalog was queried.",
+      state: "installed", synthetic: false,
+    });
+  });
+  return Object.freeze({
+    state: payload.status.toUpperCase(), sourceIdentity: INSTALLED_IPM_SOURCE, synthetic: false,
+    namespace, truncated: payload.status === "truncated", packages: Object.freeze(packages),
+  });
 }
 
 export function createPackageInventory(items = FIXTURE_PACKAGES, providerState = "AVAILABLE") {

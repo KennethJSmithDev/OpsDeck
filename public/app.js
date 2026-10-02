@@ -385,7 +385,12 @@ function pageHeader(title, description) {
 }
 
 function applicationsView() {
-  if (state.applicationsTab === "packages") return shell(`${pageHeader("Applications", "Inspect live application resources or review synthetic package plans.")}${applicationsTabs()}${packagesWorkspaceView()}`);
+  if (state.applicationsTab === "packages") {
+    const description = state.info?.systemMode === "DEMO"
+      ? "Review a visibly synthetic package planning fixture."
+      : "Inspect installed packages when a bounded live IPM provider is qualified.";
+    return shell(`${pageHeader("Applications", description)}${applicationsTabs()}${packagesWorkspaceView()}`);
+  }
   const selected = state.apps.find((item, index) => recordHandle(state.apps, index) === state.selected) || state.apps[0] || null;
   const rows = state.apps.map((item, index) => `<tr class="app-row ${selected === item ? "selected" : ""}" tabindex="0" role="button" data-app="${recordHandle(state.apps, index)}" aria-label="Inspect ${esc(item.name)}"><td data-label="Web application"><span class="app-name">${esc(item.name)}</span><span class="app-sub">${esc(item.dispatchClass || item.type)}</span></td><td data-label="Namespace"><code>${esc(item.namespace)}</code></td><td data-label="State">${item.enabled ? badge("Enabled", "success") : badge("Disabled", "muted")}</td><td data-label="Type">${esc(item.type)}</td><td data-label="Authentication">${esc(item.authenticationMethods.join(", ") || "None returned")}</td></tr>`).join("");
   const detail = selected ? state.webAppDetails[selected.name] : null;
@@ -425,6 +430,11 @@ function applicationsTabs() {
 }
 
 function packagesWorkspaceView() {
+  const isDemo = state.info?.systemMode === "DEMO";
+  if (!isDemo) {
+    const inventory = createPackageInventory([], "UNAVAILABLE");
+    return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Installed package inventory</h2></div>${badge(inventory.state, "warning")}</div><p class="source-message">A bounded live IPM inventory provider is not attached. No installed package rows are available, and no registry was queried.</p><div class="evidence-toolbar"><span class="package-source">Source identity <code>unavailable</code></span></div></section>`;
+  }
   const inventory = fixturePackageInventory();
   const items = inventory.packages.filter(item => state.packageFilter === "all" || (state.packageFilter === "installed" ? Boolean(item.installedVersion) : !item.installedVersion));
   const review = state.packagePlan;

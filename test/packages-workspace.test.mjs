@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createPackageInventory, fixturePackageInventory, PACKAGE_FIXTURE_SOURCE, packageResourceRef, preparePackagePlan } from "../public/packages-workspace.js";
+import { createPackageInventory, fixturePackageInventory, mapInstalledPackageInventory, PACKAGE_FIXTURE_SOURCE, packageResourceRef, preparePackagePlan } from "../public/packages-workspace.js";
 
 test("fixture inventory has stable scoped Package ResourceRefs and remains visibly synthetic", () => {
   const inventory = fixturePackageInventory();
@@ -34,5 +34,60 @@ test("live or unknown inventory cannot be represented as a synthetic package pro
   assert.throws(() => preparePackagePlan(notSynthetic, "package", "install"), /synthetic/u);
   assert.throws(() => preparePackagePlan(fixturePackageInventory(), "sample-observer", "install"), /update plan/u);
   assert.throws(() => preparePackagePlan(fixturePackageInventory(), "missing-package", "install"), /current inventory/u);
+});
+
+test("installed IPM projection preserves namespace and installed provenance without inventing catalog data", () => {
+  const inventory = mapInstalledPackageInventory({
+    provider: "iris-ipm-installed-v1",
+    namespace: "%SYS",
+    status: "available",
+    packages: [{ name: "opsdeck", installedVersion: "0.2.1", sourcePath: "private-path", repository: "unobserved" }],
+  }, "2026-10-02T12:00:00Z");
+
+  assert.equal(inventory.state, "AVAILABLE");
+  assert.equal(inventory.sourceIdentity, "iris-ipm-installed-v1");
+  assert.equal(inventory.synthetic, false);
+  assert.equal(inventory.namespace, "%SYS");
+  assert.equal(inventory.packages.length, 1);
+  assert.deepEqual(inventory.packages[0].ref, {
+    domain: "applications", kind: "package", provider: "iris-ipm-installed-v1",
+    key: "opsdeck", scope: "%SYS", label: "opsdeck", observedAt: "2026-10-02T12:00:00Z",
+  });
+  assert.equal(inventory.packages[0].installedVersion, "0.2.1");
+  assert.equal(inventory.packages[0].availableVersion, null);
+  assert.equal(inventory.packages[0].state, "installed");
+  assert.doesNotMatch(JSON.stringify(inventory), /private-path|sourcePath|unobserved|Open Exchange/u);
+  assert.match(inventory.packages[0].description, /no repository catalog was queried/u);
+});
+
+test("installed IPM projection keeps empty, unavailable, denied, and failed distinct", () => {
+  for (const status of ["empty", "unavailable", "denied", "failed"]) {
+    const inventory = mapInstalledPackageInventory({
+      provider: "iris-ipm-installed-v1", namespace: "USER", status, packages: [],
+    }, "2026-10-02T12:00:00Z");
+    assert.equal(inventory.state, status.toUpperCase());
+    assert.deepEqual(inventory.packages, []);
+    assert.equal(inventory.synthetic, false);
+  }
+});
+
+test("installed IPM projection rejects identity, state, row-cap, and truncation mismatches", () => {
+  const base = { provider: "iris-ipm-installed-v1", namespace: "USER", status: "empty", packages: [] };
+  assert.throws(() => mapInstalledPackageInventory({ ...base, provider: PACKAGE_FIXTURE_SOURCE }), /provider identity/u);
+  assert.throws(() => mapInstalledPackageInventory({ ...base, status: "available" }), /do not match/u);
+  assert.throws(() => mapInstalledPackageInventory({ ...base, status: "empty", packages: [{ name: "x", installedVersion: "1" }] }), /do not match/u);
+  assert.throws(() => mapInstalledPackageInventory({ ...base, packages: Array.from({ length: 251 }, (_, i) => ({ name: `pkg-${i}`, installedVersion: "1" })), status: "available" }), /bounded contract/u);
+  assert.throws(() => mapInstalledPackageInventory({ ...base, status: "truncated", truncated: true, packages: [] }), /do not match/u);
+  assert.throws(() => mapInstalledPackageInventory({ ...base, packages: [{ name: "..\\private", installedVersion: "1" }], status: "available" }), /identity/u);
+});
+
+test("installed IPM projection accepts exactly 250 rows only with truncated state", () => {
+  const packages = Array.from({ length: 250 }, (_, index) => ({ name: `pkg-${index}`, installedVersion: "1.0" }));
+  const inventory = mapInstalledPackageInventory({
+    provider: "iris-ipm-installed-v1", namespace: "USER", status: "truncated", truncated: true, packages,
+  }, "2026-10-02T12:00:00Z");
+  assert.equal(inventory.packages.length, 250);
+  assert.equal(inventory.truncated, true);
+  assert.ok(inventory.packages.every(item => item.state === "installed" && item.availableVersion === null));
 });
 

@@ -52,6 +52,17 @@ test("integrated native shell and Evidence view report only qualified lifecycle 
   assert.match(evidenceWithPlan, /UNVERIFIED/u);
 });
 
+test("live Packages never substitutes synthetic fixture rows for an unavailable IPM provider", () => {
+  const { context } = contextFor();
+  const live = vm.runInContext('state.connected=true; state.info={username:"OpsDeckTest",serverVersion:"Fixture IRIS"}; state.applicationsTab="packages"; applicationsView()', context);
+  assert.match(live, /Installed package inventory/u);
+  assert.match(live, /UNAVAILABLE/u);
+  assert.match(live, /bounded live IPM inventory provider is not attached/u);
+  assert.match(live, /No installed package rows are available/u);
+  assert.doesNotMatch(live, /SYNTHETIC FIXTURE|sample-observer|sample-reporting-kit|data-package-plan/u);
+  assert.doesNotMatch(live, /configured registry|Open Exchange/u);
+});
+
 test("denied native sources name IRIS authority and demo sources name persona authority", () => {
   const { context } = contextFor();
   const native = vm.runInContext('state.info={}; state.sourceErrors.users="HTTP 403"; sourcePanel("users")', context);
