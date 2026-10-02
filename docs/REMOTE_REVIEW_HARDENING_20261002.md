@@ -54,9 +54,11 @@ Operation planning now fails closed unless the operation matches policy-owned:
 - exact parameter keys and values;
 - exact pre-state keys and operation-specific state constraints.
 
+Plans are deeply immutable after admission. The fixture executor rejects cloned/forged plan objects, enforces expiry even without a caller-supplied clock, keeps unverified/failed preconditions distinct from authority denial, and owns its read-back verifier instead of accepting a caller verifier.
+
 Package plans also bind namespace, source identity, installed version, and requested version to the observed synthetic pre-state.
 
-This remains fixture qualification only. No live IRIS executor has been added.
+This remains fixture qualification only. No live IRIS executor has been added. A future live executor must reproduce the policy and authority checks server-side rather than trusting serialized browser state.
 
 ## 0.7 Evidence hardening carried on this branch
 
