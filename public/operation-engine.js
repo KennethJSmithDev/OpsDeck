@@ -1,6 +1,8 @@
 const SAFE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/u;
 const SECRET_KEY = /(?:password|secret|token|authorization|private.?key|credential|cookie)/iu;
 const TERMINAL = new Set(["CANCELLED", "DENIED", "UNAVAILABLE", "STALE", "AMBIGUOUS", "VERIFIED", "MISMATCH", "UNVERIFIED"]);
+const validatedOperationPlans = new WeakSet();
+const OPERATION_PLAN_SCHEMA = "opsdeck-operation-plan-v1";
 export const OPERATION_POLICIES = Object.freeze({
   "webapp.enable": Object.freeze({
     semanticAction: "enable",
@@ -56,6 +58,13 @@ export const OPERATION_POLICIES = Object.freeze({
 });
 
 function plain(value) { return value && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
+function deepFreeze(value) {
+  if (Array.isArray(value) || plain(value)) {
+    for (const item of Array.isArray(value) ? value : Object.values(value)) deepFreeze(item);
+    Object.freeze(value);
+  }
+  return value;
+}
 function boundedText(value, label, max = 256) {
   if (typeof value !== "string" || !value.trim() || value.length > max || /[\u0000-\u001f\u007f]/u.test(value)) throw new Error(`${label} is invalid.`);
   return value.trim();
@@ -154,6 +163,17 @@ function validateOperationPreState(capabilityId, preState, parameters, policy) {
   }
 }
 
+function verifyFixtureReadback(plan, readback) {
+  const safeReadback = safeProjection(readback);
+  if (plan.capability.id === "webapp.enable" || plan.capability.id === "webapp.disable") {
+    if (!exactParameterKeys(safeReadback, ["enabled"]) || typeof safeReadback.enabled !== "boolean") {
+      return { supported: true, matched: false, safeReadback };
+    }
+    return { supported: true, matched: safeReadback.enabled === plan.parameters.enabled, safeReadback };
+  }
+  return { supported: false, matched: false, safeReadback };
+}
+
 export function fingerprintPreState(value) {
   if (!plain(value)) throw new Error("A fresh pre-state object is required.");
   return stable(value);
@@ -189,6 +209,7 @@ export function createOperationPlan(input, now = Date.now()) {
   const expiresAt = Number(input.expiresAt);
   if (!Number.isFinite(expiresAt) || expiresAt <= now) throw new Error("Plan expiry must be in the future.");
   const plan = {
+    schemaVersion: OPERATION_PLAN_SCHEMA,
     id,
     intent: boundedText(input.intent, "intent"),
     target: { domain: target.domain, kind: target.kind, provider: target.provider, key: target.key, scope, label: target.label, volatile: Boolean(target.volatile), observedAt: boundedText(target.observedAt, "target.observedAt") },
@@ -206,33 +227,42 @@ export function createOperationPlan(input, now = Date.now()) {
     expiresAt: new Date(expiresAt).toISOString(),
     state: "REVIEW_REQUIRED",
   };
-  return Object.freeze(plan);
+  const frozenPlan = deepFreeze(plan);
+  validatedOperationPlans.add(frozenPlan);
+  return frozenPlan;
 }
 
 export function cancelOperationPlan(plan) {
-  if (!plan || plan.state !== "REVIEW_REQUIRED") return { state: "UNRESOLVED", reason: "plan-not-cancellable" };
-  return { state: "CANCELLED", planId: plan.id, cancelledAt: new Date().toISOString() };
+  if (!plan || !validatedOperationPlans.has(plan) || plan.schemaVersion !== OPERATION_PLAN_SCHEMA || plan.state !== "REVIEW_REQUIRED") {
+    return { state: "UNRESOLVED", reason: "plan-not-cancellable" };
+  }
+  return deepFreeze({ state: "CANCELLED", planId: plan.id, cancelledAt: new Date().toISOString() });
 }
 
 export async function executeFixturePlan(plan, options = {}) {
-  if (!plan || plan.state !== "REVIEW_REQUIRED") return { state: "UNRESOLVED", reason: "plan-not-executable" };
+  if (!plan || !validatedOperationPlans.has(plan) || plan.schemaVersion !== OPERATION_PLAN_SCHEMA || plan.state !== "REVIEW_REQUIRED") {
+    return { state: "UNRESOLVED", reason: "plan-not-qualified" };
+  }
   if (options.providerIdentity !== "opsdeck-fixture-v1") return { state: "UNAVAILABLE", reason: "qualified-executor-unavailable" };
-  if (options.now != null && Date.parse(plan.expiresAt) <= options.now) return { state: "STALE", reason: "plan-expired" };
+  const executionTime = options.now ?? Date.now();
+  if (Date.parse(plan.expiresAt) <= executionTime) return { state: "STALE", reason: "plan-expired" };
   if (options.currentPreState == null || fingerprintPreState(options.currentPreState) !== plan.preStateFingerprint) return { state: "STALE", reason: "pre-state-changed" };
-  if (plan.capability.state !== "SUPPORTED") return { state: plan.capability.state === "UNRESOLVED" || plan.capability.state === "UNOBSERVABLE" ? "UNAVAILABLE" : "DENIED", reason: "capability-not-supported" };
+  if (plan.capability.state !== "SUPPORTED") return { state: "UNAVAILABLE", reason: `capability-${String(plan.capability.state).toLowerCase()}` };
   if (plan.authorityValidation.state !== "SUPPORTED" || !plan.authorityValidation.evidence || options.authority?.state !== "SUPPORTED" || !options.authority?.evidence) {
     return { state: plan.authorityValidation.state === "DENIED" || options.authority?.state === "DENIED" ? "DENIED" : "UNAVAILABLE", reason: "authoritative-privilege-evidence-required" };
   }
-  if (plan.preconditions.some(item => item.observed !== true)) return { state: "DENIED", reason: "precondition-not-established" };
-  if (plan.requiresConfirmation && options.confirmed !== true) return { state: "DENIED", reason: "explicit-confirmation-required" };
+  if (plan.preconditions.some(item => item.observed === false)) return { state: "BLOCKED", reason: "precondition-failed" };
+  if (plan.preconditions.some(item => item.observed !== true)) return { state: "BLOCKED", reason: "precondition-unverified" };
+  if (plan.requiresConfirmation && options.confirmed !== true) return { state: "BLOCKED", reason: "explicit-confirmation-required" };
   const outcome = options.outcome || "success";
   if (outcome === "ambiguous") return { state: "AMBIGUOUS", reason: "provider-result-ambiguous", retryAllowed: false };
   if (["denied", "unavailable", "cancelled"].includes(outcome)) return { state: outcome.toUpperCase(), reason: `fixture-${outcome}` };
   if (outcome !== "success") return { state: "UNRESOLVED", reason: "unsupported-fixture-outcome" };
   const readback = options.readback;
   if (readback == null) return { state: "UNVERIFIED", reason: "authoritative-read-back-required" };
-  const matches = typeof options.verify === "function" ? options.verify(readback, plan) === true : false;
-  const receipt = Object.freeze({
+  const verification = verifyFixtureReadback(plan, readback);
+  if (!verification.supported) return { state: "UNVERIFIED", reason: "fixture-read-back-policy-unavailable" };
+  const receipt = deepFreeze({
     id: `fixture-receipt:${plan.id}`,
     operationId: plan.id,
     target: plan.target,
@@ -240,15 +270,15 @@ export async function executeFixturePlan(plan, options = {}) {
     provider: "opsdeck-fixture-v1",
     preStateFingerprint: plan.preStateFingerprint,
     requestSummary: plan.parameters,
-    postStateFingerprint: fingerprintPreState(safeProjection(readback)),
-    verification: matches ? "VERIFIED" : "FAILED",
-    verificationReason: matches ? "read-back-matched" : "read-back-mismatch",
+    postStateFingerprint: fingerprintPreState(verification.safeReadback),
+    verification: verification.matched ? "VERIFIED" : "FAILED",
+    verificationReason: verification.matched ? "read-back-matched" : "read-back-mismatch",
     providerResponseStatus: "fixture-success",
     evidenceSources: ["fixture-provider", "fixture-readback"],
-    timestamps: { completedAt: new Date(options.now ?? Date.now()).toISOString() },
+    timestamps: { completedAt: new Date(executionTime).toISOString() },
     warnings: ["Fixture evidence does not qualify a live IRIS operation."],
   });
-  return { state: matches ? "VERIFIED" : "MISMATCH", receipt };
+  return { state: verification.matched ? "VERIFIED" : "MISMATCH", receipt };
 }
 
 export function isTerminalOperationState(state) { return TERMINAL.has(state); }
