@@ -16,6 +16,7 @@ test("IRIS reader exposes exactly two fixed semantic identities and no path para
   assert.match(source, /file\.FileBinarySize\(\)/u);
   assert.doesNotMatch(source, /##class\(%File\)\.%New\(path\)|file\.Open\("RB"\)|file\.Close\(\)/u);
   assert.match(source, /file\.MoveTo\(windowStart\)/u);
+  assert.match(source, /if windowStart>1,'file\.MoveTo\(windowStart\)/u, "a fresh linked stream is already at byte 1 and must not be rewound before its first read");
   assert.match(source, /set file=""/u);
   assert.match(source, /set content=file\.Read\(\.readLimit,\.readStatus\)/u);
   assert.match(source, /if \$isobject\(file\) set file=""/u);
@@ -34,11 +35,12 @@ test("reader source observes a bounded tail window, keeps newest lines, and omit
   assert.match(source, /fileSize=file\.FileBinarySize\(\)/u);
   assert.match(source, /windowStart=\$select\(windowed:fileSize-65536,1:1\)/u);
   assert.match(source, /file\.MoveTo\(windowStart\)/u);
-  assert.match(source, /readLimit=\$select\(windowed:65537,1:65536\)/u);
+  assert.match(source, /set readLimit=65536/u);
+  assert.doesNotMatch(source, /65537/u, "the reader must not request more than the 64 KiB observation bound");
   assert.match(source, /firstBreak=\$find\(content,\$char\(10\)\)/u);
   assert.match(source, /pieceCount>250/u);
   assert.match(source, /firstPiece=pieceCount-249/u);
-  assert.match(source, /result\.bytesReturned/u);
+  assert.doesNotMatch(source, /\$zlength\(line\)|result\.bytesReturned/u, "IRIS does not compute per-line byte counts with the failing runtime primitive");
   assert.doesNotMatch(source, /result\.path|result\.canonicalName|result\.fileName/u);
 });
 

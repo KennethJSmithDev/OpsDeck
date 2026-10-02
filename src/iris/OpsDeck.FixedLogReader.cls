@@ -38,9 +38,8 @@ ClassMethod Read(sourceId As %String, ByRef result As %DynamicObject) As %Status
             }
         }
 
-        // Observe at most the final 64 KiB. When the file is larger, read one
-        // context byte immediately before the bounded window so a partial
-        // first line can be discarded without exposing earlier content.
+        // Observe at most 64 KiB, including one context byte before the
+        // bounded tail. A partial first line can then be discarded.
         if canRead {
             set fileSize=file.FileBinarySize()
             if fileSize<0 {
@@ -51,13 +50,13 @@ ClassMethod Read(sourceId As %String, ByRef result As %DynamicObject) As %Status
         if canRead {
             set windowed=fileSize>65536
             set windowStart=$select(windowed:fileSize-65536,1:1)
-            if 'file.MoveTo(windowStart) {
+            if windowStart>1,'file.MoveTo(windowStart) {
                 set result.status="read-failure", result.reason="source-position-failed"
                 set canRead=0
             }
         }
         if canRead {
-            set readLimit=$select(windowed:65537,1:65536)
+            set readLimit=65536
             set content=file.Read(.readLimit,.readStatus)
             if $$$ISERR(readStatus) {
                 set result.status="read-failure", result.reason="source-read-failed"
@@ -88,7 +87,6 @@ ClassMethod Read(sourceId As %String, ByRef result As %DynamicObject) As %Status
                 set result.status=$select(truncated:"truncated",1:"empty")
                 set result.lines=##class(%DynamicArray).%New()
                 set result.truncated=truncated
-                set result.bytesReturned=0
             } else {
                 // Keep the newest complete lines inside the bounded byte window.
                 set pieceCount=$length(content,$char(10))
@@ -100,20 +98,18 @@ ClassMethod Read(sourceId As %String, ByRef result As %DynamicObject) As %Status
                 }
 
                 set lines=##class(%DynamicArray).%New()
-                set rowCount=0, bytesReturned=0
+                set rowCount=0
                 for index=firstPiece:1:pieceCount {
                     set line=$piece(content,$char(10),index)
                     // Preserve TAB; remove CR/LF and other control characters from each row.
                     set line=$translate(line,$char(0,1,2,3,4,5,6,7,8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,127),"")
                     do lines.%Push(line)
                     set rowCount=rowCount+1
-                    set bytesReturned=bytesReturned+$zlength(line)
                 }
 
                 set result.lines=lines
                 set result.status=$select(truncated:"truncated",rowCount:"available",1:"empty")
                 set result.truncated=truncated
-                set result.bytesReturned=bytesReturned
             }
         }
     } catch exception {
