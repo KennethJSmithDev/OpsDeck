@@ -188,9 +188,9 @@ export function mapFixedLogResult(sourceId, payload) {
   const source = FIXED_LOGS[sourceId];
   if (!source) throw new Error("IRIS log source is not enabled.");
   requireRecord(payload, "IRIS fixed log result");
-  const statuses = ["available", "unavailable", "denied", "read-failure"];
+  const statuses = ["available", "empty", "unavailable", "denied", "read-failure", "truncated"];
   if (!statuses.includes(payload.status)) throw new Error("IRIS fixed log result has an invalid status.");
-  if (payload.status !== "available") {
+  if (!["available", "empty", "truncated"].includes(payload.status)) {
     return { source: source.name, status: payload.status, lines: [], truncated: false, bytesReturned: 0 };
   }
   if (!Array.isArray(payload.lines) || payload.lines.some((line) => typeof line !== "string")) {
@@ -198,7 +198,7 @@ export function mapFixedLogResult(sourceId, payload) {
   }
   const lines = [];
   let bytesReturned = 0;
-  let truncated = payload.truncated === true;
+  let truncated = payload.truncated === true || payload.status === "truncated";
   for (const rawLine of payload.lines) {
     const sanitizedLine = rawLine.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, "�");
     const safeLine = sanitizedLine.slice(0, 2048);
@@ -212,7 +212,7 @@ export function mapFixedLogResult(sourceId, payload) {
     bytesReturned += lineBytes;
   }
   if (lines.length < payload.lines.length) truncated = true;
-  return { source: source.name, status: "available", lines, truncated, bytesReturned };
+  return { source: source.name, status: truncated ? "truncated" : lines.length ? "available" : "empty", lines, truncated, bytesReturned };
 }
 
 const SAFE_FIELDS = Object.freeze({

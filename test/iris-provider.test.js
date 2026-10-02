@@ -346,19 +346,31 @@ test("enforces fixed log source identities and bounded sanitized output", () => 
   assert.equal(result.bytesReturned <= 65536, true);
   assert.equal(result.lines[0].includes("\u0000"), false);
   assert.equal(JSON.stringify(result).includes("arbitrary"), false);
+  assert.equal(result.status, "truncated");
+  assert.equal(result.lines[0].includes("�"), true);
   assert.throws(() => mapFixedLogResult("arbitraryPath", { status: "available", lines: [] }), /not enabled/);
   assert.throws(() => mapFixedLogResult("..\\messages.log", { status: "available", lines: [] }), /not enabled/);
 });
 
 test("distinguishes empty, unavailable, denied, and failed fixed log reads", () => {
   assert.deepEqual(mapFixedLogResult("systemMonitorLog", { status: "available", lines: [], truncated: false }), {
-    source: "SystemMonitor.log", status: "available", lines: [], truncated: false, bytesReturned: 0,
+    source: "SystemMonitor.log", status: "empty", lines: [], truncated: false, bytesReturned: 0,
   });
   for (const status of ["unavailable", "denied", "read-failure"]) {
     const result = mapFixedLogResult("systemMonitorLog", { status, lines: ["must not escape"] });
     assert.equal(result.status, status);
     assert.deepEqual(result.lines, []);
   }
+});
+
+test("fixed log UTF-8 byte cap, explicit truncation, and stable provider identities hold", () => {
+  const oversized = Array.from({ length: 100 }, () => "🙂".repeat(300));
+  const result = mapFixedLogResult("messagesLog", { status: "available", lines: oversized, truncated: false });
+  assert.equal(result.status, "truncated");
+  assert.equal(result.truncated, true);
+  assert.equal(result.bytesReturned <= 65536, true);
+  assert.equal(result.source, "messages.log");
+  assert.equal(mapFixedLogResult("systemMonitorLog", { status: "truncated", lines: ["partial"], truncated: true }).status, "truncated");
 });
 
 test("maps the stateful IRIS alert feed without exposing unqualified alert values", () => {
