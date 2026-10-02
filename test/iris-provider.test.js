@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, sameWebAppState, READ_ONLY_SOURCES, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, mapFixedLogResult, AUDIT_QUERY_MAX_ROWS } from "../src/iris-provider.js";
 
 const envelope = (result, errors = []) => ({ status: { errors, summary: "" }, console: [], result });
+const auditHandle = (id) => validateAuditLocation(`/api/admin/v2/async-result?id=${id}`, "http://127.0.0.1:52773/opsdeck/index.html");
 
 const infoPayload = {
   status: { errors: [], summary: "" },
@@ -276,15 +277,15 @@ test("rejects unsafe async Location identity and origin structures", () => {
 });
 
 test("maps queued, running, and finished-empty async audit tasks without inventing completion", () => {
-  const queued = mapAuditAsyncResult(envelope({ GUID: "g-1", TaskName: "ListAuditRecords", State: "Queued", TimeQueued: "now" }), "g-1");
+  const queued = mapAuditAsyncResult(envelope({ GUID: "g-1", TaskName: "ListAuditRecords", State: "Queued", TimeQueued: "now" }), auditHandle("g-1"));
   assert.equal(queued.task.state, "Queued");
   assert.equal(queued.task.idVerified, true);
   assert.equal(JSON.stringify(queued).includes("g-1"), false);
   assert.equal(queued.result, null);
-  const running = mapAuditAsyncResult(envelope({ GUID: "g-1", State: "Running", TimeStarted: "now" }), "g-1");
+  const running = mapAuditAsyncResult(envelope({ GUID: "g-1", State: "Running", TimeStarted: "now" }), auditHandle("g-1"));
   assert.equal(running.task.state, "Running");
   assert.equal(running.result, null);
-  const empty = mapAuditAsyncResult(envelope({ GUID: "g-1", State: "Finished", Result: [], TimeFinished: "now" }), "g-1");
+  const empty = mapAuditAsyncResult(envelope({ GUID: "g-1", State: "Finished", Result: [], TimeFinished: "now" }), auditHandle("g-1"));
   assert.equal(empty.task.state, "Finished");
   assert.deepEqual(empty.result, []);
   assert.equal(empty.resultCount, 0);
@@ -298,25 +299,25 @@ test("maps a finished audit result to one bounded row and reviewed safe fields",
       { TimeStamp: "now", Event: "Login", EventSource: "System", UserName: "OpsDeckTest", PID: 12, Namespace: "%SYS", Description: "withheld", Password: "secret" },
       { Event: "extra" },
     ],
-  }), "g-2");
+  }), auditHandle("g-2"));
   assert.equal(result.resultCount, 1);
   assert.equal(result.truncatedToMaxRows, true);
   assert.deepEqual(result.result[0], { TimeStamp: "now", Event: "Login", EventSource: "System", UserName: "OpsDeckTest", PID: 12, Namespace: "%SYS" });
   assert.equal(JSON.stringify(result).includes("secret"), false);
-  const continued = mapAuditAsyncResult(envelope({ GUID: "g-2", State: "Finished", Result: [], nextCursor: "never-render-this" }), "g-2");
+  const continued = mapAuditAsyncResult(envelope({ GUID: "g-2", State: "Finished", Result: [], nextCursor: "never-render-this" }), auditHandle("g-2"));
   assert.deepEqual(continued.continuationFields, ["nextCursor"]);
   assert.equal(continued.classification, null);
   assert.equal(JSON.stringify(continued).includes("never-render-this"), false);
 });
 
 test("maps failed/canceled async tasks and rejects identity or Result contract drift", () => {
-  const failed = mapAuditAsyncResult(envelope({ GUID: "g-3", State: "Failed", FailureReason: "private detail" }), "g-3");
+  const failed = mapAuditAsyncResult(envelope({ GUID: "g-3", State: "Failed", FailureReason: "private detail" }), auditHandle("g-3"));
   assert.equal(failed.task.state, "Failed");
   assert.equal(failed.task.FailureReason, "IRIS reported a task failure.");
   assert.equal(JSON.stringify(failed).includes("private detail"), false);
-  assert.equal(mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Canceled" }), "g-4").task.state, "Canceled");
-  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "other", State: "Finished", Result: [] }), "g-4"), /identity/);
-  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Finished", Result: {} }), "g-4"), /array/);
+  assert.equal(mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Canceled" }), auditHandle("g-4")).task.state, "Canceled");
+  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "other", State: "Finished", Result: [] }), auditHandle("g-4")), /identity/);
+  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Finished", Result: {} }), auditHandle("g-4")), /array/);
 });
 
 test("maps the documented IRIS 2026.2 v1 task shape using its validated Location identity", () => {
@@ -335,6 +336,7 @@ test("maps the documented IRIS 2026.2 v1 task shape using its validated Location
   assert.throws(() => mapAuditAsyncResult(envelope({ State: "Finished", Result: [] }), v2Handle), /omitted its verifiable identity/);
   assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "different-task", State: "Finished", Result: [] }), handle), /did not match/);
   assert.throws(() => mapAuditAsyncResult(envelope({ State: "Finished", Result: [] }), { id: "opaque-task-42", pathname: "/api/admin/v1/async-result", apiVersion: "v1" }), /was not validated/);
+  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "g-5", State: "Finished", Result: [] }), "g-5"), /must be a JSON object/);
 });
 
 test("enforces fixed log source identities and bounded sanitized output", () => {
