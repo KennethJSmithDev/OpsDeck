@@ -19,9 +19,9 @@ Hello, I would like to claim the following additional Technology Bonuses for Ops
 - Video on YouTube (3 points): [public video URL]
 
 Project: https://openexchange.intersystems.com/package/OpsDeck
-Source/release: https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v0.2.0
+Source/release: https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v0.3.0
 
-The article and video describe the published OpsDeck 0.2.0 release and its documented limits. The demo is labeled as sanitized sample data and does not claim a live IRIS connection.
+The article describes the 0.3.0 release candidate and its documented limits. The video should describe only the build visibly used for recording. The demo is labeled as sanitized sample data and does not claim a live IRIS connection.
 ```
 
 Only include lines for material that has actually been published. The live results discussion asks participants to list each requested bonus with supporting links. If the Open Exchange entry is edited, add article/video/demo URLs only to their corresponding fields; do not change the package release or publish an update without separate approval.

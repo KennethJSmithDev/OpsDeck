@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://kennethjsmithdev.github.io/OpsDeck/"><strong>🚀 LIVE SAFE DEMO</strong></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v0.2.0"><strong>📦 v0.2.0 RELEASE</strong></a>
+  <a href="https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v0.2.0"><strong>📦 v0.2.0 PRIOR RELEASE</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/NATIVE_INSTALL.md"><strong>🛠️ NATIVE INSTALL</strong></a>
   &nbsp;·&nbsp;
@@ -26,23 +26,20 @@ OpsDeck is being developed for the **InterSystems Programming Contest: Build You
 
 ## Current release
 
-**v0.2.0 is published.**
+**v0.3.0 is the first public capability-aware OpsDeck release candidate.**
 
-- Release commit: `23215459096cb47d255c45b1e6e86687f3d8e93a`
-- Tested package source: `1663869af14673f027efb63a986ac5c1e50a8ac1`
-- Package: `opsdeck 0.2.0`
-- Tested runtime: native Windows IRIS 2026.2 Build 221U, `%SYS`
-- Product regression suite: **82/82 PASS**
+- Prior public release: `v0.2.0` (`23215459096cb47d255c45b1e6e86687f3d8e93a`)
+- Candidate package: `opsdeck 0.3.0`
+- Qualification target: native Windows IRIS 2026.2 Build 221U, `%SYS` (exact candidate pending)
+- Exact candidate qualification: pending
 
-The controlled local-source lifecycle reproduced load, registration, native operational checks, uninstall/removal, unrelated-state preservation, and clean same-source reload. The installed native app was exercised as `OpsDeckTest`; eight routes were checked at 320, 390, 600, 820, 1024, and 1440 CSS px with zero measured document horizontal overflow, plus a no-reload wide → narrow → wide resize.
+The candidate carries the accepted 0.2.1 distribution-fidelity work and first bounded capability-aware UI slice. The latter projects navigation from observed provider/capability states and context; it does not grant IRIS authority. See [Release 0.3.0](docs/RELEASE_0_3_0.md) and [Qualification Status](docs/QUALIFICATION_STATUS.md) for exact scope and candidate evidence.
 
 ### Distribution boundary
 
-A post-release fresh Windows clone of tag `v0.2.0` with `core.autocrlf=true` materialized `public/app.js` and `public/styles.css` with CRLF line endings. Those working-tree hashes differ from the lifecycle receipt even though the Git object blobs match the tested source commit.
+A post-release fresh Windows clone of tag `v0.2.0` with `core.autocrlf=true` materialized `public/app.js` and `public/styles.css` with CRLF line endings. That historical representation mismatch was corrected and accepted in the 0.2.1 candidate; the old tag and evidence remain unchanged.
 
-That finding demonstrates **checkout representation variance, not a runtime failure**.
-
-Exact fresh-checkout byte parity and public-registry installation therefore remain **UNVERIFIED**. The published `v0.2.0` tag will not be moved. Current development is closing that distribution-fidelity boundary for the next patch release.
+Public-registry installation remains **UNVERIFIED**. The published `v0.2.0` tag will not be moved. Qualification of the exact 0.3.0 candidate is a separate release gate.
 
 See [Qualification Status](docs/QUALIFICATION_STATUS.md) for the current evidence ledger.
 
@@ -73,7 +70,8 @@ OpsDeck is deliberately thin:
 | Path | Current evidence | Boundary |
 |---|---|---|
 | Native IRIS browser app | Sign-in, identity, web-app list/read-back, selected Applications, Access, Security, Tasks, System, Logs, sign-out, and responsive behavior reproduced on IRIS 2026.2 | M1 remains partial; audit async result retrieval, Messages, and System Monitor readers remain unqualified/deferred |
-| Local-source IPM lifecycle | Load, registration, deployed hashes, HTTP checks, uninstall/removal, unrelated-state preservation, and clean reload reproduced | Exact core IPM version, fresh public-checkout byte parity, and public-registry installation remain unverified |
+| Local-source IPM lifecycle | v0.2.1 local-source lifecycle and distribution fidelity accepted; v0.3.0 exact candidate pending | Public-registry installation remains unverified |
+| Capability-aware UI | First bounded slice accepted: observed capability/provider states and context project navigation | UI projection grants no authority; broader roadmap is incomplete |
 | Safe demo | Deterministic sanitized evaluator data, authority personas, responsive UI, and Evidence semantics | Demo data is not live IRIS evidence |
 | Node reference runtime | Live identity, web-app discovery/read-back, fixed routes, safe mappings, and session behavior | Development/reference workflow; not required by the native browser path |
 | ObjectScript execution / CallIn | No execution bridge is present | No native arbitrary execution capability is claimed |
@@ -95,7 +93,7 @@ The tested deployment model is an IRIS-hosted IPM source package.
 ```powershell
 git clone https://github.com/KennethJSmithDev/OpsDeck.git
 cd OpsDeck
-git checkout v0.2.0
+git checkout v0.3.0
 ```
 
 Then, from the IRIS IPM prompt in `%SYS`:
@@ -112,7 +110,7 @@ http://127.0.0.1:52773/opsdeck/index.html
 
 Adjust the HTTP port for the local instance.
 
-**Important:** the v0.2.0 source release is published, but exact fresh-checkout byte parity on Windows is still being requalified because of the line-ending finding above. Public-registry availability/installation is also a separate unverified boundary. Do not advertise `install opsdeck` as qualified until the intended registry version has been independently confirmed and installed.
+**Important:** the prior public release is v0.2.0. The 0.3.0 candidate is being qualified from its exact source bytes. Public-registry availability/installation is a separate unverified boundary; do not advertise `install opsdeck` as qualified until the intended registry version has been independently confirmed and installed.
 
 See [Native Installation](docs/NATIVE_INSTALL.md) for prerequisites, ownership, recovery, and uninstall boundaries.
 
@@ -158,7 +156,7 @@ The application has no npm package dependencies; it uses Node built-ins.
 
 ## Road to 1.0
 
-The next product-facing milestone after distribution fidelity is the **capability-aware morphing UI**: one canonical interface projected according to observed authority, provider availability, context, and workspace width without inventing permissions or duplicating authoritative state.
+The first bounded capability-aware UI slice is included in the 0.3.0 candidate. The broader internal 0.3 roadmap is not complete.
 
 The longer sequence is tracked in [docs/ROADMAP.md](docs/ROADMAP.md).
 

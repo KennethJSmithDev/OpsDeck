@@ -1,12 +1,18 @@
 # OpsDeck qualification status
 
 **Current public release:** `v0.2.0`  
-**Release commit:** `23215459096cb47d255c45b1e6e86687f3d8e93a`  
-**Tested package source:** `1663869af14673f027efb63a986ac5c1e50a8ac1`  
-**Package:** `opsdeck 0.2.0`  
+**Prior public release commit:** `23215459096cb47d255c45b1e6e86687f3d8e93a`
+**Release candidate:** `opsdeck 0.3.0` on `release/v0.3.0-contest-checkpoint`
 **Tested IRIS:** native Windows IRIS 2026.2 Build 221U, `%SYS`
 
-This is the current public qualification ledger. Older intermediate candidate records remain in Git history and the private P001 evidence store; they are not silently promoted into current proof.
+This ledger preserves the v0.2.0 public evidence and records the accepted 0.2.1 and first bounded 0.3 foundations. The exact v0.3.0 package candidate has a separate release gate and is not qualified until that gate is recorded below. Older candidate records remain in Git history and private evidence; they are not silently promoted into proof.
+
+## ACCEPTED FOUNDATIONS
+
+- v0.2.1 distribution fidelity: accepted from exact candidate `50205ed79dbd80a768d67c2455d514c09bbc5999`, including fresh Windows checkout/Git-blob parity, controlled lifecycle, 82/82 regression suite, and installed-native responsive qualification.
+- First bounded 0.3 capability-aware UI slice: accepted at `42e9f60694cc33826748e69ef8d289aac0604a6d`, including deterministic capability-aware navigation/context projection and 88/88 local regressions, plus its exact 0.2.1 lifecycle and installed-native responsive qualification.
+- The first bounded 0.3 slice is not completion of the broader internal 0.3 roadmap. Projection does not grant IRIS authority.
+- Exact `opsdeck@0.3.0` candidate qualification: PENDING.
 
 ## KNOWN
 

@@ -1,8 +1,8 @@
 # Draft: A native IRIS operations console with visible evidence boundaries
 
-**Status:** editorial draft for human review; not submitted to Developer Community.
+**Status:** editorial draft for human review; not submitted to Developer Community. Release wording is for the 0.3.0 candidate and must be checked against final publication status before submission.
 
-OpsDeck is an open-source operations console for InterSystems IRIS. The published v0.2.0 release brings application discovery, access and security metadata, tasks, system information, logs, and evidence status into one browser workspace. It is designed for operators who need to move between those areas without losing the context of what the system actually returned.
+OpsDeck is an open-source operations console for InterSystems IRIS. The v0.3.0 release candidate is prepared as the first public capability-aware OpsDeck release. It carries the accepted native/distribution foundation and adds a bounded navigation projection based on observed provider states and current context. Capability projection changes presentation; it does not grant IRIS authority. OpsDeck brings application discovery, access and security metadata, tasks, system information, logs, and evidence status into one browser workspace.
 
 The project is being developed for the InterSystems Programming Contest: Build Your Own Management Portal. Its current public release is available from [Open Exchange](https://openexchange.intersystems.com/package/OpsDeck), and the source and qualification record are on [GitHub](https://github.com/KennethJSmithDev/OpsDeck).
 
@@ -10,7 +10,7 @@ The project is being developed for the InterSystems Programming Contest: Build Y
 
 The [live safe demo](https://kennethjsmithdev.github.io/OpsDeck/) needs no IRIS account. It uses deterministic, sanitized sample data and labels itself as a demo. Select the Operations persona to see the general workspace, then switch to another demo persona to see how the navigation projection changes. The sample data stays fixed; the visible surface changes with the selected demo authority.
 
-The demo is useful for evaluating the interaction model, but it is not a connection to an IRIS instance. Its identity, application list, and other values are synthetic. OpsDeck labels this boundary directly so that a successful demo read cannot be mistaken for live system evidence.
+The demo is useful for evaluating the interaction model, but it is not a connection to an IRIS instance. Its identity, application list, and other values are synthetic. The public demo may reflect an earlier build than this release candidate. OpsDeck labels this boundary directly so that a successful demo read cannot be mistaken for live system evidence.
 
 ## A quick tour
 
@@ -22,14 +22,14 @@ Open **Evidence** to see those distinctions collected in one place. A neighborin
 
 ## Run the native application
 
-The native path is served by IRIS itself; the browser page does not require a separate Node server. The tested package workflow uses a local source checkout in `%SYS` with IPM installed. The release-tagged [native installation guide](https://github.com/KennethJSmithDev/OpsDeck/blob/v0.2.0/docs/NATIVE_INSTALL.md) describes the tested boundary and the precautions for an existing `/opsdeck` application.
+The native path is served by IRIS itself; the browser page does not require a separate Node server. The tested package workflow uses a local source checkout in `%SYS` with IPM installed. The [native installation guide](https://github.com/KennethJSmithDev/OpsDeck/blob/main/docs/NATIVE_INSTALL.md) describes the tested boundary and precautions for an existing `/opsdeck` application.
 
 At a high level, obtain the repository and select the published release:
 
 ```powershell
 git clone https://github.com/KennethJSmithDev/OpsDeck.git
 cd OpsDeck
-git checkout v0.2.0
+git checkout v0.3.0
 ```
 
 In the supported IRIS Terminal, select `%SYS`, enter the IPM shell with `zpm`, and load the checked-out source directory containing `module.xml`:
@@ -40,7 +40,7 @@ load C:\path\to\OpsDeck
 
 Then open the explicit application URL, `/opsdeck/index.html`, and sign in through the normal IRIS-backed flow. Use an account authorized for the particular reads you want to inspect. Installation authority and ordinary application viewing authority are separate concerns.
 
-The controlled local-source lifecycle for the published 0.2.0 package was reproduced on native Windows IRIS 2026.2 Build 221U. The tested lifecycle covered loading, registration, deployed resources, uninstall/removal, preservation of unrelated state, and a clean reload. The installed browser workflow and responsive behavior were also checked. These are bounded results for the recorded runtime and identity; they do not claim every Management Portal API or every IRIS build.
+The accepted native lifecycle and installed-browser foundations were reproduced for earlier exact package candidates on native Windows IRIS 2026.2 Build 221U. Qualification of this exact 0.3.0 candidate is recorded separately; it does not inherit a lifecycle result merely from those earlier candidates.
 
 ## Why keep the boundary visible?
 
@@ -54,6 +54,6 @@ The native app is read-oriented. The published release does not offer arbitrary 
 
 Use the safe demo for a quick, credential-free tour. For a native instance, follow the release-tagged installation guide and connect only to an IRIS environment where you are authorized to work. Before replacing an existing `/opsdeck` application, follow the guide's pre-capture and ownership checks.
 
-The [qualification status](https://github.com/KennethJSmithDev/OpsDeck/blob/v0.2.0/docs/QUALIFICATION_STATUS.md) describes which behaviors were observed and which remain outside the published claim. The project is intended to grow through small, reviewable steps, with new behavior promoted only when its source, runtime, and authority boundaries are understood.
+The [qualification status](https://github.com/KennethJSmithDev/OpsDeck/blob/main/docs/QUALIFICATION_STATUS.md) describes which behaviors were observed and which remain outside the release claim. The project is intended to grow through small, reviewable steps, with new behavior promoted only when its source, runtime, and authority boundaries are understood.
 
 **Human review before any Developer Community submission:** verify every version/runtime statement against the final target release, add any approved screenshots, and replace no limitations unless new evidence supports the change.

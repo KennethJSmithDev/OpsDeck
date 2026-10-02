@@ -101,7 +101,7 @@ The safe demo substitutes a deterministic demo provider **only in evaluator mode
 
 ## Current product direction
 
-v0.2.0 established the native IRIS-hosted baseline.
+v0.2.0 established the native IRIS-hosted baseline. The v0.3.0 release candidate adds the first bounded capability-aware navigation projection: visible route states may be ordered or emphasized from observed provider evidence and current context. Visibility remains presentation and never grants IRIS authority. This first slice does not complete the broader internal 0.3 roadmap.
 
 The next product-facing direction is a **capability-aware morphing UI** that projects the same canonical application differently according to observed authority, provider availability, task context, and workspace width without inventing permissions or duplicating authoritative state.
 

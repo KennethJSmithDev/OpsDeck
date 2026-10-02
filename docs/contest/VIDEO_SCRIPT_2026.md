@@ -14,7 +14,7 @@
 | 1:15–1:38 | Open Evidence, pause on Verified and Unverified/Blocked cards. | “Evidence makes qualification boundaries visible. A successful neighboring read does not prove an unfinished workflow. The safe demo explains the interaction model; it does not prove live IRIS behavior.” |
 | 1:38–1:40 | End on the product and repository links. | “Review the release guide for scope.” |
 
-**Before recording:** the timing rows total 100 seconds. Keep the video between 90 and 120 seconds after editing. Show only the currently published v0.2.0/OEX scope unless a later release is actually published and qualified.
+**Before recording:** the timing rows total 100 seconds. Keep the video between 90 and 120 seconds after editing. The current public Safe Demo may still be an earlier build; narrate only what is visible there. Show the 0.3.0 capability-aware projection only after the corresponding qualified build is available in the capture target.
 
 ## Publication evidence checklist
 

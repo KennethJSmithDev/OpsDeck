@@ -1,17 +1,17 @@
-# Native IRIS installation — v0.2.0 source release
+# Native IRIS installation — v0.3.0 source candidate
 
 ## Status
 
-The controlled local-source lifecycle passed for the tested OpsDeck 0.2.0 package source on native Windows IRIS 2026.2 Build 221U in `%SYS`.
+The accepted local-source lifecycle and native `/opsdeck` foundation were established for v0.2.0 and v0.2.1. Exact v0.3.0 candidate qualification is recorded separately; do not treat this guide alone as evidence that the candidate lifecycle has passed.
 
-The public `v0.2.0` source tag is available.
+The prior public `v0.2.0` source tag remains available and unchanged. The v0.3.0 source release is a candidate until its exact qualification and publication are complete.
 
 Two distribution boundaries remain separate from that local-source qualification:
 
 1. **Fresh-checkout byte parity:** a Windows clone with `core.autocrlf=true` materialized two packaged JavaScript/CSS files with CRLF line endings, producing working-tree hashes different from the lifecycle receipt. Git object blobs match the tested source commit. This is checkout representation variance, not proof of a runtime failure.
 2. **Public registry installation:** Open Exchange / Package Manager publication and installation have not yet been independently verified.
 
-The published `v0.2.0` tag will not be moved. The next patch candidate normalizes the checkout contract and must requalify the exact fresh-checkout bytes.
+The published `v0.2.0` tag will not be moved. Distribution fidelity was accepted for v0.2.1; v0.3.0 must still qualify its exact package candidate.
 
 ## Prerequisites
 
@@ -42,7 +42,7 @@ Clone the repository and select the published source release:
 ```powershell
 git clone https://github.com/KennethJSmithDev/OpsDeck.git
 cd OpsDeck
-git checkout v0.2.0
+git checkout v0.3.0
 ```
 
 In IRIS Terminal, select `%SYS`, enter the IPM prompt with `zpm`, then load the source directory containing `module.xml`:
@@ -54,14 +54,14 @@ load C:\path\to\OpsDeck
 The expected module identity is:
 
 ```text
-opsdeck 0.2.0
+opsdeck 0.3.0
 ```
 
 A successful page request alone does not prove package registration. Verify the installed module, `/opsdeck` definition, and deployed resources.
 
 ### Fresh Windows checkout note
 
-The v0.2.0 tag has a known line-ending representation variance under a normal Windows checkout with `core.autocrlf=true`. The Git blobs match the tested source, but two materialized working-tree files can differ byte-for-byte from the lifecycle receipt.
+The v0.2.0 tag has a historical line-ending representation variance under a normal Windows checkout with `core.autocrlf=true`. The accepted v0.2.1 candidate corrected the package-input checkout representation. The exact v0.3.0 candidate remains subject to its own source-to-deployed hash and lifecycle evidence.
 
 Treat that as a distribution-fidelity limitation. Do not reinterpret it as evidence that the native application failed at runtime.
 

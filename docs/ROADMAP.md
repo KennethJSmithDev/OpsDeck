@@ -4,6 +4,8 @@
 
 OpsDeck 0.2.0 established the native IRIS-hosted baseline: source-package lifecycle, live read workflows, evidence semantics, and responsive behavior. The next releases expand from that accepted foundation rather than replacing it.
 
+Distribution fidelity for 0.2.1 and the first bounded capability-aware navigation/context projection are accepted source/runtime milestones. The 0.3.0 candidate carries those accepted slices; it does not complete the broader 0.3 roadmap described below.
+
 ## Governing rules
 
 - Preserve the published `v0.2.0` tag and its evidence.
@@ -15,7 +17,7 @@ OpsDeck 0.2.0 established the native IRIS-hosted baseline: source-package lifecy
 - Vector representations are navigational indexes, not authoritative evidence.
 - Every milestone requires behavioral correctness and representation-cost sanity.
 
-## 0.2.1 — distribution fidelity
+## 0.2.1 — distribution fidelity — ACCEPTED
 
 Objective: make a normal public checkout produce the exact package bytes that are qualified.
 
@@ -34,7 +36,7 @@ Acceptance:
 
 No feature expansion is required for this patch.
 
-## 0.3 — capability-aware morphing UI
+## 0.3 — capability-aware morphing UI — FIRST BOUNDED SLICE ACCEPTED
 
 Objective: make one canonical OpsDeck interface adapt to the operator's **observed authority, available providers, active context, and usable workspace width**.
 
@@ -75,6 +77,8 @@ layout state ≠ IRIS state
 The backend/provider remains responsible for enforcing actual authority.
 
 ### Acceptance
+
+The first bounded slice is accepted: deterministic navigation/context projection from existing provider evidence, explicit route states, no authority inference, and regression coverage. The remaining items below are broader roadmap goals, not claims of 0.3.0 completion.
 
 - deterministic projection from the same semantic inputs;
 - no privilege inferred from role names alone;
