@@ -2,11 +2,41 @@ const SAFE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/u;
 const SECRET_KEY = /(?:password|secret|token|authorization|private.?key|credential|cookie)/iu;
 const TERMINAL = new Set(["CANCELLED", "DENIED", "UNAVAILABLE", "STALE", "AMBIGUOUS", "VERIFIED", "MISMATCH", "UNVERIFIED"]);
 export const OPERATION_POLICIES = Object.freeze({
-  "webapp.enable": Object.freeze({ semanticAction: "enable", risk: "MEDIUM" }),
-  "webapp.disable": Object.freeze({ semanticAction: "disable", risk: "MEDIUM" }),
-  "ipm.package.install": Object.freeze({ semanticAction: "package-install", risk: "HIGH" }),
-  "ipm.package.update": Object.freeze({ semanticAction: "package-update", risk: "HIGH" }),
-  "ipm.package.remove": Object.freeze({ semanticAction: "package-remove", risk: "HIGH" }),
+  "webapp.enable": Object.freeze({
+    semanticAction: "enable",
+    risk: "MEDIUM",
+    providerOperation: "PUT /api/admin/v2/web-apps",
+    requiredPrivileges: Object.freeze(["%Admin_Secure:U"]),
+    parameterKeys: Object.freeze(["enabled"]),
+  }),
+  "webapp.disable": Object.freeze({
+    semanticAction: "disable",
+    risk: "MEDIUM",
+    providerOperation: "PUT /api/admin/v2/web-apps",
+    requiredPrivileges: Object.freeze(["%Admin_Secure:U"]),
+    parameterKeys: Object.freeze(["enabled"]),
+  }),
+  "ipm.package.install": Object.freeze({
+    semanticAction: "package-install",
+    risk: "HIGH",
+    providerOperation: "IPM install · UNQUALIFIED",
+    requiredPrivileges: Object.freeze(["UNVERIFIED · instance/IPM-specific"]),
+    parameterKeys: Object.freeze(["installedVersion", "namespace", "packageName", "requestedVersion", "sourceIdentity"]),
+  }),
+  "ipm.package.update": Object.freeze({
+    semanticAction: "package-update",
+    risk: "HIGH",
+    providerOperation: "IPM update · UNQUALIFIED",
+    requiredPrivileges: Object.freeze(["UNVERIFIED · instance/IPM-specific"]),
+    parameterKeys: Object.freeze(["installedVersion", "namespace", "packageName", "requestedVersion", "sourceIdentity"]),
+  }),
+  "ipm.package.remove": Object.freeze({
+    semanticAction: "package-remove",
+    risk: "HIGH",
+    providerOperation: "IPM remove · UNQUALIFIED",
+    requiredPrivileges: Object.freeze(["UNVERIFIED · instance/IPM-specific"]),
+    parameterKeys: Object.freeze(["installedVersion", "namespace", "packageName", "requestedVersion", "sourceIdentity"]),
+  }),
 });
 
 function plain(value) { return value && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
@@ -41,6 +71,42 @@ function stable(value) {
   return JSON.stringify(value);
 }
 
+function sameStringList(actual, expected) {
+  return Array.isArray(actual) && actual.length === expected.length && actual.every((value, index) => value === expected[index]);
+}
+
+function exactParameterKeys(parameters, expected) {
+  const keys = Object.keys(parameters).sort();
+  return keys.length === expected.length && keys.every((key, index) => key === expected[index]);
+}
+
+function validateOperationParameters(capabilityId, parameters, policy) {
+  if (!exactParameterKeys(parameters, policy.parameterKeys)) {
+    throw new Error("Operation parameters do not match the deterministic policy schema.");
+  }
+  if (capabilityId === "webapp.enable" && parameters.enabled !== true) {
+    throw new Error("webapp.enable requires enabled=true.");
+  }
+  if (capabilityId === "webapp.disable" && parameters.enabled !== false) {
+    throw new Error("webapp.disable requires enabled=false.");
+  }
+  if (capabilityId.startsWith("ipm.package.")) {
+    for (const key of ["namespace", "packageName", "requestedVersion", "sourceIdentity"]) {
+      boundedText(parameters[key], `parameters.${key}`, key === "requestedVersion" ? 64 : 128);
+    }
+    if (parameters.installedVersion !== null) boundedText(parameters.installedVersion, "parameters.installedVersion", 64);
+    if (capabilityId === "ipm.package.install" && parameters.installedVersion !== null) {
+      throw new Error("Package install requires an uninstalled pre-state.");
+    }
+    if (capabilityId !== "ipm.package.install" && parameters.installedVersion === null) {
+      throw new Error("Package update/remove requires an installed pre-state.");
+    }
+    if (capabilityId === "ipm.package.remove" && parameters.requestedVersion !== parameters.installedVersion) {
+      throw new Error("Package removal must bind to the observed installed version.");
+    }
+  }
+}
+
 export function fingerprintPreState(value) {
   if (!plain(value)) throw new Error("A fresh pre-state object is required.");
   return stable(value);
@@ -55,7 +121,18 @@ export function createOperationPlan(input, now = Date.now()) {
   for (const field of ["id", "semanticAction", "providerOperation"]) boundedText(capability[field], `capability.${field}`);
   if (!["SUPPORTED", "DEGRADED", "UNRESOLVED", "INCOMPATIBLE", "UNOBSERVABLE"].includes(capability.state)) throw new Error("Capability state is invalid.");
   const policy = OPERATION_POLICIES[capability.id];
-  if (!policy || capability.semanticAction !== policy.semanticAction || capability.risk !== policy.risk) throw new Error("Operation does not match a deterministic risk policy.");
+  const requiredPrivileges = Array.isArray(capability.requiredPrivileges)
+    ? capability.requiredPrivileges.map(item => boundedText(item, "required privilege", 128))
+    : [];
+  if (!policy ||
+      capability.semanticAction !== policy.semanticAction ||
+      capability.risk !== policy.risk ||
+      capability.providerOperation !== policy.providerOperation ||
+      !sameStringList(requiredPrivileges, policy.requiredPrivileges)) {
+    throw new Error("Operation does not match a deterministic risk/authority/provider policy.");
+  }
+  const parameters = safeProjection(input.parameters || {});
+  validateOperationParameters(capability.id, parameters, policy);
   const preState = safeProjection(input.preState);
   const id = boundedText(input.id, "plan.id", 128);
   const expiresAt = Number(input.expiresAt);
@@ -64,8 +141,8 @@ export function createOperationPlan(input, now = Date.now()) {
     id,
     intent: boundedText(input.intent, "intent"),
     target: { domain: target.domain, kind: target.kind, provider: target.provider, key: target.key, scope, label: target.label, volatile: Boolean(target.volatile), observedAt: boundedText(target.observedAt, "target.observedAt") },
-    capability: { id: capability.id, semanticAction: capability.semanticAction, providerOperation: capability.providerOperation, state: capability.state, risk: capability.risk, requiredPrivileges: Array.isArray(capability.requiredPrivileges) ? capability.requiredPrivileges.map(item => boundedText(item, "required privilege", 128)) : [], verification: boundedText(input.expectedReadback, "expected read-back") },
-    parameters: safeProjection(input.parameters || {}),
+    capability: { id: capability.id, semanticAction: policy.semanticAction, providerOperation: policy.providerOperation, state: capability.state, risk: policy.risk, requiredPrivileges: [...policy.requiredPrivileges], verification: boundedText(input.expectedReadback, "expected read-back") },
+    parameters,
     preconditions: Array.isArray(input.preconditions) ? input.preconditions.slice(0, 16).map(item => ({ claim: boundedText(item.claim, "precondition claim"), observed: item.observed === true ? true : item.observed === false ? false : "unknown", evidence: item.evidence ? boundedText(item.evidence, "precondition evidence") : undefined })) : [],
     preStateFingerprint: fingerprintPreState(preState),
     preStateEvidence: input.preStateEvidence ? boundedText(input.preStateEvidence, "pre-state evidence") : undefined,
