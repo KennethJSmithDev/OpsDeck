@@ -14,10 +14,14 @@ test("IRIS reader exposes exactly two fixed semantic identities and no path para
   assert.doesNotMatch(source, /directory listing|glob|Execute\(|Shell\(|userPath|filePath As %String/u);
 });
 
-test("reader source encodes line and byte bounds and omits raw paths from results", () => {
-  assert.match(source, /Read\(65537/u);
-  assert.match(source, /65536/u);
-  assert.match(source, /rowCount=250/u);
+test("reader source observes a bounded tail window, keeps newest lines, and omits raw paths", () => {
+  assert.match(source, /fileSize=file\.Size/u);
+  assert.match(source, /windowStart=\$select\(windowed:fileSize-65536,1:1\)/u);
+  assert.match(source, /file\.MoveTo\(windowStart\)/u);
+  assert.match(source, /readLimit=\$select\(windowed:65537,1:65536\)/u);
+  assert.match(source, /firstBreak=\$find\(content,\$char\(10\)\)/u);
+  assert.match(source, /pieceCount>250/u);
+  assert.match(source, /firstPiece=pieceCount-249/u);
   assert.match(source, /result\.bytesReturned/u);
   assert.doesNotMatch(source, /result\.path|result\.canonicalName|result\.fileName/u);
 });
@@ -39,4 +43,6 @@ test("per-file UTF-8 byte cap and line cap are independently enforced", () => {
   const lineLimited = mapFixedLogResult("systemMonitorLog", { status: "available", lines: Array.from({ length: 251 }, (_, i) => `line ${i}`) });
   assert.equal(lineLimited.status, "truncated");
   assert.equal(lineLimited.lines.length, 250);
+  const shaped = mapFixedLogResult("messagesLog", { status: "available", lines: ["a\r\nb\t"] });
+  assert.equal(shaped.lines[0], "a��b\t");
 });
