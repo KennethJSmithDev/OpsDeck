@@ -51,6 +51,8 @@ Resolve conflicts semantically. Preserve BOTH:
 - the 0.5 audit/fixed-log work;
 - the 0.6 operation engine, 0.7 Evidence Center, and 0.8 Packages work.
 
+Pay particular attention to `public/app.js`: the 0.5 branch deliberately moved the `iris-provider.js` module cache key forward from the older 0.2.0 query identity. Do not accidentally resolve that conflict by restoring the stale 0.2.0 import.
+
 Do not flatten or rewrite the review branches.
 
 Before IRIS changes, run:
