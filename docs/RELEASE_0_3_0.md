@@ -1,7 +1,7 @@
 # OpsDeck 0.3.0 — Capability-Aware Operations
 
-**Release status:** candidate prepared for qualification; no public release has been published by this record.  
-**Previous public release:** `v0.2.0`.  
+**Release status:** candidate prepared for qualification; no public release has been published by this record.
+**Previous public release:** `v0.2.0`.
 **Package identity:** `opsdeck 0.3.0`.
 
 OpsDeck 0.3.0 is the first public capability-aware OpsDeck release. It carries forward the accepted 0.2.1 distribution-fidelity work and introduces the first bounded capability-aware UI slice: navigation and route projection respond to observed provider/capability state and current context while preserving explicit route states.
