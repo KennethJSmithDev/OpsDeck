@@ -38,9 +38,12 @@ test("fixture execution requires exact fixture identity, fresh pre-state, suppor
   const plan = makePlan();
   assert.equal((await executeFixturePlan(plan, { providerIdentity: "live-iris", currentPreState: { enabled: false }, confirmed: true })).state, "UNAVAILABLE");
   const authority = { state: "SUPPORTED", evidence: "fixture-authority" };
-  assert.equal((await executeFixturePlan(plan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: true }, confirmed: true, authority })).state, "STALE");
-  assert.equal((await executeFixturePlan(plan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, authority })).reason, "explicit-confirmation-required");
-  assert.equal((await executeFixturePlan({ ...plan, capability: { ...plan.capability, state: "UNRESOLVED" } }, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority })).state, "UNAVAILABLE");
+  assert.equal((await executeFixturePlan(plan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: true }, confirmed: true, authority, now })).state, "STALE");
+  const blocked = await executeFixturePlan(plan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, authority, now });
+  assert.equal(blocked.state, "BLOCKED");
+  assert.equal(blocked.reason, "explicit-confirmation-required");
+  const unresolvedPlan = createOperationPlan({ ...input, capability: { ...input.capability, state: "UNRESOLVED" } }, now);
+  assert.equal((await executeFixturePlan(unresolvedPlan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority, now })).state, "UNAVAILABLE");
 });
 
 test("ambiguous provider result is terminal and never retried", async () => {
@@ -59,24 +62,51 @@ test("denial, cancellation, unavailability and cancellation of review remain dis
   assert.equal(cancelOperationPlan(plan).state, "CANCELLED");
 });
 
-test("receipt is emitted only after read-back and verification; mismatch is preserved", async () => {
+test("receipt verification is policy-owned and cannot be overridden by a caller verifier", async () => {
   const plan = makePlan();
-  const base = { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority-observed" } };
+  const base = { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority-observed" }, now };
   assert.equal((await executeFixturePlan(plan, base)).state, "UNVERIFIED");
-  const verified = await executeFixturePlan(plan, { ...base, readback: { enabled: true }, verify: (readback) => readback.enabled === true });
+  const verified = await executeFixturePlan(plan, { ...base, readback: { enabled: true } });
   assert.equal(verified.state, "VERIFIED");
   assert.equal(verified.receipt.verification, "VERIFIED");
   assert.match(verified.receipt.warnings.join(" "), /does not qualify a live IRIS/u);
-  const mismatch = await executeFixturePlan(plan, { ...base, readback: { enabled: false }, verify: (readback) => readback.enabled === true });
+  const mismatch = await executeFixturePlan(plan, { ...base, readback: { enabled: false }, verify: () => true });
   assert.equal(mismatch.state, "MISMATCH");
   assert.equal(mismatch.receipt.verification, "FAILED");
   assert.equal(mismatch.receipt.verificationReason, "read-back-mismatch");
 });
 
-test("stale expiry and unestablished preconditions fail closed", async () => {
+test("stale expiry and unestablished preconditions fail closed without inventing denial", async () => {
   const plan = makePlan();
-  assert.equal((await executeFixturePlan(plan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority" }, now: now + 60_000 })).state, "STALE");
-  assert.equal((await executeFixturePlan({ ...plan, preconditions: [{ claim: "fresh pre-state", observed: "unknown" }] }, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority" } })).state, "DENIED");
+  const authority = { state: "SUPPORTED", evidence: "fixture-authority" };
+  assert.equal((await executeFixturePlan(plan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority, now: now + 60_000 })).state, "STALE");
+  const unknownPlan = createOperationPlan({ ...input, preconditions: [{ claim: "fresh pre-state", observed: "unknown", evidence: "fixture-unknown" }] }, now);
+  const unknown = await executeFixturePlan(unknownPlan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority, now });
+  assert.equal(unknown.state, "BLOCKED");
+  assert.equal(unknown.reason, "precondition-unverified");
+  assert.equal(isTerminalOperationState(unknown.state), false);
+  const falsePlan = createOperationPlan({ ...input, preconditions: [{ claim: "fixture absent", observed: false, evidence: "fixture-present" }] }, now);
+  const failed = await executeFixturePlan(falsePlan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority, now });
+  assert.equal(failed.state, "BLOCKED");
+  assert.equal(failed.reason, "precondition-failed");
+});
+
+test("plans are deeply immutable and cloned/forged plans are not executable", async () => {
+  const plan = makePlan();
+  assert.throws(() => { plan.parameters.enabled = false; }, TypeError);
+  assert.throws(() => { plan.target.key = "/other"; }, TypeError);
+  assert.throws(() => { plan.preconditions.push({ claim: "later", observed: true }); }, TypeError);
+  const forged = { ...plan };
+  const result = await executeFixturePlan(forged, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority" }, now });
+  assert.deepEqual(result, { state: "UNRESOLVED", reason: "plan-not-qualified" });
+  assert.equal(cancelOperationPlan(forged).state, "UNRESOLVED");
+});
+
+test("execution enforces expiry even when a caller does not supply a clock override", async () => {
+  const oldPlan = createOperationPlan({ ...input, expiresAt: 2 }, 1);
+  const result = await executeFixturePlan(oldPlan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority" } });
+  assert.equal(result.state, "STALE");
+  assert.equal(result.reason, "plan-expired");
 });
 
 test("missing or denied authority evidence never reaches fixture execution", async () => {
