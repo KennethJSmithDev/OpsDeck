@@ -29,10 +29,10 @@ function projectedValue(value, label) {
     return value.replace(/[\u0000-\u0008\u000a-\u001f\u007f]/gu, "").slice(0, 1024);
   }
   if (Array.isArray(value)) {
-    return value.slice(0, 32).map((item, index) => {
+    return Object.freeze(value.slice(0, 32).map((item, index) => {
       if (item !== null && typeof item === "object") throw new Error(`${label}[${index}] must be a scalar.`);
       return projectedValue(item, `${label}[${index}]`);
-    });
+    }));
   }
   throw new Error(`${label} must be a scalar or bounded scalar list.`);
 }
