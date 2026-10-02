@@ -130,9 +130,9 @@ export function validateAuditLocation(locationHeader, pageUrl) {
 
 export function mapAuditAsyncResult(payload, identity) {
   const task = requireRecord(unwrapIrisResult(payload), "IRIS async-result task");
-  const handle = typeof identity === "string" ? null : requireRecord(identity, "Validated IRIS async-result Location");
-  if (handle && !validatedAuditLocations.has(handle)) throw new Error("IRIS async-result Location was not validated.");
-  const taskId = handle ? handle.id : identity;
+  const handle = requireRecord(identity, "Validated IRIS async-result Location");
+  if (!validatedAuditLocations.has(handle)) throw new Error("IRIS async-result Location was not validated.");
+  const taskId = handle.id;
   if (typeof taskId !== "string" || !taskId) throw new Error("IRIS async-result identity was not validated.");
   const state = task.State;
   const states = ["Queued", "Running", "Finished", "Failed", "Canceled", "Paused"];
