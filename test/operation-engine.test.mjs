@@ -28,6 +28,9 @@ test("plans preserve canonical target/capability identity and bounded review sem
   assert.throws(() => createOperationPlan({ ...input, capability: { ...input.capability, risk: "LOW" } }, now), /risk\/authority\/provider policy/u);
   assert.throws(() => createOperationPlan({ ...input, capability: { ...input.capability, providerOperation: "POST /something-else" } }, now), /risk\/authority\/provider policy/u);
   assert.throws(() => createOperationPlan({ ...input, capability: { ...input.capability, requiredPrivileges: ["%All"] } }, now), /risk\/authority\/provider policy/u);
+  assert.throws(() => createOperationPlan({ ...input, target: { ...input.target, provider: "some-other-provider" } }, now), /risk\/authority\/provider policy/u);
+  assert.throws(() => createOperationPlan({ ...input, preState: { enabled: false, note: "not policy-owned" } }, now), /pre-state.*policy schema/u);
+  assert.throws(() => createOperationPlan({ ...input, preState: { enabled: "false" } }, now), /boolean enabled/u);
   assert.throws(() => createOperationPlan({ ...input, expiresAt: now }, now), /expiry/u);
 });
 
