@@ -11,13 +11,27 @@ test("IRIS reader exposes exactly two fixed semantic identities and no path para
   assert.match(source, /sourceId'="systemMonitorLog"/u);
   assert.match(source, /##class\(Config\.config\)\.GetConsoleFileName/u);
   assert.match(source, /##class\(%File\)\.ManagerDirectory\(\)_"SystemMonitor\.log"/u);
+  assert.match(source, /##class\(%Stream\.FileBinary\)\.%New\(\)/u);
+  assert.match(source, /file\.LinkToFile\(path\)/u);
+  assert.match(source, /file\.FileBinarySize\(\)/u);
+  assert.doesNotMatch(source, /##class\(%File\)\.%New\(path\)|file\.Open\("RB"\)|file\.Close\(\)/u);
+  assert.match(source, /file\.MoveTo\(windowStart\)/u);
+  assert.match(source, /set file=""/u);
+  assert.match(source, /set content=file\.Read\(\.readLimit,\.readStatus\)/u);
+  assert.match(source, /if \$isobject\(file\) set file=""/u);
+  assert.match(source, /do lines\.%Push\(line\)/u);
+  assert.doesNotMatch(source, /result\.lines\.%Push/u);
+  assert.match(source, /result\.status="read-failure", result\.reason="source-read-failed"/u);
+  assert.doesNotMatch(source, /exception\.Name|exception\.Location|result\.reason=.*path/u);
   assert.match(source, /\$SYSTEM\.Security\.Check\("%Admin_Operate","USE"\)/u);
   assert.match(source, /result\.status="denied", result\.reason="admin-operate-required"/u);
+  assert.doesNotMatch(source, /quit \$\$OK/u);
+  assert.match(source, /quit \$\$\$OK/u);
   assert.doesNotMatch(source, /directory listing|glob|Execute\(|Shell\(|userPath|filePath As %String/u);
 });
 
 test("reader source observes a bounded tail window, keeps newest lines, and omits raw paths", () => {
-  assert.match(source, /fileSize=file\.Size/u);
+  assert.match(source, /fileSize=file\.FileBinarySize\(\)/u);
   assert.match(source, /windowStart=\$select\(windowed:fileSize-65536,1:1\)/u);
   assert.match(source, /file\.MoveTo\(windowStart\)/u);
   assert.match(source, /readLimit=\$select\(windowed:65537,1:65536\)/u);
