@@ -1,6 +1,13 @@
 const SAFE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/u;
 const SECRET_KEY = /(?:password|secret|token|authorization|private.?key|credential|cookie)/iu;
 const TERMINAL = new Set(["CANCELLED", "DENIED", "UNAVAILABLE", "STALE", "AMBIGUOUS", "VERIFIED", "MISMATCH", "UNVERIFIED"]);
+export const OPERATION_POLICIES = Object.freeze({
+  "webapp.enable": Object.freeze({ semanticAction: "enable", risk: "MEDIUM" }),
+  "webapp.disable": Object.freeze({ semanticAction: "disable", risk: "MEDIUM" }),
+  "ipm.package.install": Object.freeze({ semanticAction: "package-install", risk: "HIGH" }),
+  "ipm.package.update": Object.freeze({ semanticAction: "package-update", risk: "HIGH" }),
+  "ipm.package.remove": Object.freeze({ semanticAction: "package-remove", risk: "HIGH" }),
+});
 
 function plain(value) { return value && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
 function boundedText(value, label, max = 256) {
@@ -47,7 +54,8 @@ export function createOperationPlan(input, now = Date.now()) {
   const capability = input.capability;
   for (const field of ["id", "semanticAction", "providerOperation"]) boundedText(capability[field], `capability.${field}`);
   if (!["SUPPORTED", "DEGRADED", "UNRESOLVED", "INCOMPATIBLE", "UNOBSERVABLE"].includes(capability.state)) throw new Error("Capability state is invalid.");
-  if (!["READ", "LOW", "MEDIUM", "HIGH", "DESTRUCTIVE"].includes(capability.risk)) throw new Error("Risk class is invalid.");
+  const policy = OPERATION_POLICIES[capability.id];
+  if (!policy || capability.semanticAction !== policy.semanticAction || capability.risk !== policy.risk) throw new Error("Operation does not match a deterministic risk policy.");
   const preState = safeProjection(input.preState);
   const id = boundedText(input.id, "plan.id", 128);
   const expiresAt = Number(input.expiresAt);
@@ -61,6 +69,7 @@ export function createOperationPlan(input, now = Date.now()) {
     preconditions: Array.isArray(input.preconditions) ? input.preconditions.slice(0, 16).map(item => ({ claim: boundedText(item.claim, "precondition claim"), observed: item.observed === true ? true : item.observed === false ? false : "unknown", evidence: item.evidence ? boundedText(item.evidence, "precondition evidence") : undefined })) : [],
     preStateFingerprint: fingerprintPreState(preState),
     preStateEvidence: input.preStateEvidence ? boundedText(input.preStateEvidence, "pre-state evidence") : undefined,
+    authorityValidation: { state: ["SUPPORTED", "DENIED", "UNVERIFIED"].includes(input.authorityValidation?.state) ? input.authorityValidation.state : "UNVERIFIED", evidence: input.authorityValidation?.evidence ? boundedText(input.authorityValidation.evidence, "authority evidence") : null },
     expectedReadback: boundedText(input.expectedReadback, "expected read-back"),
     risk: capability.risk,
     requiresConfirmation: capability.risk !== "READ",
@@ -83,6 +92,9 @@ export async function executeFixturePlan(plan, options = {}) {
   if (options.now != null && Date.parse(plan.expiresAt) <= options.now) return { state: "STALE", reason: "plan-expired" };
   if (options.currentPreState == null || fingerprintPreState(options.currentPreState) !== plan.preStateFingerprint) return { state: "STALE", reason: "pre-state-changed" };
   if (plan.capability.state !== "SUPPORTED") return { state: plan.capability.state === "UNRESOLVED" || plan.capability.state === "UNOBSERVABLE" ? "UNAVAILABLE" : "DENIED", reason: "capability-not-supported" };
+  if (plan.authorityValidation.state !== "SUPPORTED" || !plan.authorityValidation.evidence || options.authority?.state !== "SUPPORTED" || !options.authority?.evidence) {
+    return { state: plan.authorityValidation.state === "DENIED" || options.authority?.state === "DENIED" ? "DENIED" : "UNAVAILABLE", reason: "authoritative-privilege-evidence-required" };
+  }
   if (plan.preconditions.some(item => item.observed !== true)) return { state: "DENIED", reason: "precondition-not-established" };
   if (plan.requiresConfirmation && options.confirmed !== true) return { state: "DENIED", reason: "explicit-confirmation-required" };
   const outcome = options.outcome || "success";
@@ -101,7 +113,9 @@ export async function executeFixturePlan(plan, options = {}) {
     preStateFingerprint: plan.preStateFingerprint,
     requestSummary: plan.parameters,
     postStateFingerprint: fingerprintPreState(safeProjection(readback)),
-    verification: matches ? "VERIFIED" : "MISMATCH",
+    verification: matches ? "VERIFIED" : "FAILED",
+    verificationReason: matches ? "read-back-matched" : "read-back-mismatch",
+    providerResponseStatus: "fixture-success",
     evidenceSources: ["fixture-provider", "fixture-readback"],
     timestamps: { completedAt: new Date(options.now ?? Date.now()).toISOString() },
     warnings: ["Fixture evidence does not qualify a live IRIS operation."],
