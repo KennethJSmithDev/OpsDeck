@@ -19,10 +19,12 @@ test("bounded evidence references preserve only positive source/resource/evidenc
 });
 
 test("collection distinguishes empty, unavailable, denied and failed with bounded cardinality", () => {
+  assert.equal(createEvidenceCollection([], "AVAILABLE").state, "EMPTY");
   assert.equal(createEvidenceCollection([], "EMPTY").state, "EMPTY");
   assert.equal(createEvidenceCollection([], "UNAVAILABLE").state, "UNAVAILABLE");
   assert.equal(createEvidenceCollection([], "DENIED").state, "DENIED");
   assert.equal(createEvidenceCollection([], "FAILED").state, "FAILED");
+  assert.throws(() => createEvidenceCollection([record()], "DENIED"), /cannot publish records/u);
   const many = Array.from({ length: EVIDENCE_LIMITS.maxItems + 1 }, (_, index) => record({ id: `e:${index}` }));
   const bounded = createEvidenceCollection(many);
   assert.equal(bounded.records.length, EVIDENCE_LIMITS.maxItems);
@@ -67,4 +69,9 @@ test("projected evidence lists are immutable after admission", () => {
   const ref = createEvidenceRef(record());
   assert.throws(() => { ref.evidence.fields.push("Password"); }, TypeError);
   assert.deepEqual(ref.evidence.fields, ["Name", "Enabled"]);
+});
+
+
+test("unknown evidence kinds fail closed instead of inheriting another projection", () => {
+  assert.throws(() => createEvidenceRef(record({ kind: "mystery-kind" })), /kind is invalid/u);
 });
