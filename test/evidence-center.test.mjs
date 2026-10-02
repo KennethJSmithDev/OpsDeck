@@ -61,3 +61,10 @@ test("unknown evidence filter states fail closed", () => {
   const collection = createEvidenceCollection([record()]);
   assert.throws(() => filterEvidence(collection, "", "MAYBE"), /filter state/u);
 });
+
+
+test("projected evidence lists are immutable after admission", () => {
+  const ref = createEvidenceRef(record());
+  assert.throws(() => { ref.evidence.fields.push("Password"); }, TypeError);
+  assert.deepEqual(ref.evidence.fields, ["Name", "Enabled"]);
+});
