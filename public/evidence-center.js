@@ -7,7 +7,7 @@ const SOURCE_FIELDS = Object.freeze(["identity", "provider", "apiVersion", "vers
 const RESOURCE_FIELDS = Object.freeze(["domain", "kind", "provider", "key", "scope", "label", "volatile", "observedAt"]);
 const EVIDENCE_FIELDS = Object.freeze({
   "read-observation": Object.freeze(["matched", "count", "fields", "providerState", "verification", "identityBasis", "continuationFields", "truncated", "bytesReturned"]),
-  "operation-plan": Object.freeze(["operationId", "risk", "requiresConfirmation", "authorityState", "preStateEvidence", "expectedReadback", "execution", "executorIdentity", "canExecute", "synthetic"]),
+  "operation-plan": Object.freeze(["operationId", "capability", "risk", "requiresConfirmation", "authorityState", "preStateEvidence", "expectedReadback", "execution", "executorIdentity", "canExecute", "synthetic"]),
   "operation-receipt": Object.freeze(["operationId", "verification", "verificationReason", "providerResponseStatus", "evidenceSources", "warnings"]),
   "qualification": Object.freeze(["candidate", "result", "tests", "boundary", "receiptHash", "artifactHash", "runtime"]),
 });
