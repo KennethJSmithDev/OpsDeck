@@ -263,4 +263,3 @@ Target qualification includes:
 
 The exact 1.0 scope may narrow if evidence shows a feature cannot meet the same quality bar as the accepted foundation.
 
-
