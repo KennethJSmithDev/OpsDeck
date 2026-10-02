@@ -439,8 +439,10 @@ async function serveStatic(request, response, url) {
     ? resolve(root, "../src/iris-provider.js")
     : relative === "evidence-center.js"
       ? resolve(root, "../public/evidence-center.js")
+      : ["operation-engine.js", "packages-workspace.js"].includes(relative)
+        ? resolve(root, "../public", relative)
     : resolve(root, relative);
-  if (!new Set(["iris-provider.js", "evidence-center.js"]).has(relative) && file !== root && !file.startsWith(root + sep)) {
+  if (!new Set(["iris-provider.js", "evidence-center.js", "operation-engine.js", "packages-workspace.js"]).has(relative) && file !== root && !file.startsWith(root + sep)) {
     return sendJson(response, 404, { error: "Not found." });
   }
   try {

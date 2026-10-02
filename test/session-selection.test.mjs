@@ -4,10 +4,11 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import * as provider from '../src/iris-provider.js';
 import * as evidence from '../public/evidence-center.js';
+import * as packages from '../public/packages-workspace.js';
 const source=(await readFile(new URL('../public/app.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/gm,'');
 function fixture(fetch,pathname='/opsdeck/index.html'){
  const rows=[]; const el={innerHTML:'',querySelector:()=>null,querySelectorAll:sel=>sel==='[data-item]'?rows.filter(r=>'item' in r.dataset):sel==='[data-app]'?rows.filter(r=>'app' in r.dataset):[]};
- const c=vm.createContext({...provider,...evidence,AbortSignal,TextEncoder,URL,URLSearchParams,btoa,setTimeout,fetch,
+ const c=vm.createContext({...provider,...evidence,...packages,AbortSignal,TextEncoder,URL,URLSearchParams,btoa,setTimeout,fetch,
  document:{querySelector:()=>el,documentElement:{dataset:{}}},location:{pathname,hash:'',origin:'http://fixture.test',href:'http://fixture.test/opsdeck/index.html'},localStorage:{getItem:()=> 'dark',setItem(){}},history:{replaceState(){}},matchMedia:()=>({matches:false,addEventListener(){}}),addEventListener(){}});
  vm.runInContext(source.replace(/\nrestoreSession\(\);\s*$/, ''),c); vm.runInContext('state.connected=true;state.info={username:"Old"}',c);
  return {c,el,rows,run:s=>vm.runInContext(s,c)};

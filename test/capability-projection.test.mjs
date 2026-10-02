@@ -4,11 +4,12 @@ import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 import * as provider from "../src/iris-provider.js";
 import * as evidence from "../public/evidence-center.js";
+import * as packages from "../public/packages-workspace.js";
 
 const source = (await readFile(new URL("../public/app.js", import.meta.url), "utf8"))
   .replace(/^import[^\n]+\n/gm, "")
   .replace(/\nsetTheme\(state\.theme\);\s*render\(\);\s*restoreSession\(\);\s*$/, "\n");
-const context = vm.createContext({ ...provider, ...evidence, AbortSignal, TextEncoder, URL, btoa,
+const context = vm.createContext({ ...provider, ...evidence, ...packages, AbortSignal, TextEncoder, URL, btoa,
   document: { querySelector: () => ({ innerHTML: "" }), documentElement: { dataset: {}, clientWidth: 1440 } },
   location: { pathname: "/opsdeck", hash: "", origin: "http://fixture.test" },
   localStorage: { getItem: () => "dark", setItem() {} }, history: { replaceState() {} },

@@ -4,12 +4,13 @@ import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 import * as provider from "../src/iris-provider.js";
 import * as evidence from "../public/evidence-center.js";
+import * as packages from "../public/packages-workspace.js";
 
 const source = (await readFile(new URL("../public/app.js", import.meta.url), "utf8")).replace(/^import[^\n]+\n/gm, "");
 function contextFor(pathname = "/opsdeck/index.html", fetch = async () => { throw new Error("Unexpected request"); }) {
   const element = { innerHTML: "", querySelector: () => null, querySelectorAll: () => [] };
   const context = vm.createContext({
-    ...provider, ...evidence, AbortSignal, TextEncoder, URL, btoa,
+    ...provider, ...evidence, ...packages, AbortSignal, TextEncoder, URL, btoa,
     document: { querySelector: () => element, documentElement: { dataset: {} } },
     location: { pathname, hash: "", origin: "http://fixture.test" },
     localStorage: { getItem: () => "dark", setItem() {} },
@@ -37,6 +38,18 @@ test("integrated native shell and Evidence view report only qualified lifecycle 
   assert.match(evidence, /Fixture receipt preview/u);
   assert.match(evidence, /SYNTHETIC FIXTURE/u);
   assert.match(evidence, /Export JSON/u);
+
+  const packages = vm.runInContext('state.applicationsTab="packages"; applicationsView()', context);
+  assert.match(packages, /APPLICATIONS → PACKAGES/u);
+  assert.match(packages, /SYNTHETIC FIXTURE/u);
+  vm.runInContext('state.packagePlan=preparePackagePlan(fixturePackageInventory(),"sample-reporting-kit","install")', context);
+  const packageReview = vm.runInContext('applicationsView()', context);
+  assert.match(packageReview, /Executor unavailable/u);
+  assert.match(packageReview, /Confirm package operation · unavailable/u);
+  assert.match(packageReview, /disabled aria-disabled="true"/u);
+  const evidenceWithPlan = vm.runInContext('evidenceView()', context);
+  assert.match(evidenceWithPlan, /Synthetic package plan preview/u);
+  assert.match(evidenceWithPlan, /UNVERIFIED/u);
 });
 
 test("denied native sources name IRIS authority and demo sources name persona authority", () => {

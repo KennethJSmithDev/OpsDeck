@@ -1,5 +1,6 @@
 import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.2.0";
 import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence } from "./evidence-center.js";
+import { fixturePackageInventory, preparePackagePlan } from "./packages-workspace.js";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -130,6 +131,9 @@ const state = {
   selectedItems: {},
   evidenceFilter: "",
   evidenceStateFilter: "ALL",
+  applicationsTab: "web-apps",
+  packageFilter: "all",
+  packagePlan: null,
   webAppDetails: {}, webAppDetailErrors: {}, webAppDetailLoading: "",
   userDetails: {}, userDetailErrors: {}, userDetailLoading: "", userDetailVerification: {},
   roleDetails: {}, roleDetailErrors: {}, roleDetailLoading: "", roleDetailVerification: {},
@@ -381,6 +385,7 @@ function pageHeader(title, description) {
 }
 
 function applicationsView() {
+  if (state.applicationsTab === "packages") return shell(`${pageHeader("Applications", "Inspect live application resources or review synthetic package plans.")}${applicationsTabs()}${packagesWorkspaceView()}`);
   const selected = state.apps.find((item, index) => recordHandle(state.apps, index) === state.selected) || state.apps[0] || null;
   const rows = state.apps.map((item, index) => `<tr class="app-row ${selected === item ? "selected" : ""}" tabindex="0" role="button" data-app="${recordHandle(state.apps, index)}" aria-label="Inspect ${esc(item.name)}"><td data-label="Web application"><span class="app-name">${esc(item.name)}</span><span class="app-sub">${esc(item.dispatchClass || item.type)}</span></td><td data-label="Namespace"><code>${esc(item.namespace)}</code></td><td data-label="State">${item.enabled ? badge("Enabled", "success") : badge("Disabled", "muted")}</td><td data-label="Type">${esc(item.type)}</td><td data-label="Authentication">${esc(item.authenticationMethods.join(", ") || "None returned")}</td></tr>`).join("");
   const detail = selected ? state.webAppDetails[selected.name] : null;
@@ -404,6 +409,7 @@ function applicationsView() {
   }).join("") : `<div class="source-message">No exact REST-service link has been observed for this web application. Check both live discovery sources; OpsDeck does not infer a relationship from dispatch-class names.</div>`;
   return shell(`
     ${pageHeader("Applications", "Live web applications from the IRIS management API.")}
+    ${applicationsTabs()}
     <div class="app-toolbar"><div><strong>${state.apps.length}</strong><span> web applications</span><span class="toolbar-divider">·</span><span>Scope <code>All returned namespaces</code></span></div><div>${state.verification ? badge(state.verification.matched ? "Authoritative read-back matched" : "Read-back mismatch", state.verification.matched ? "success" : "error") : badge("Read-back pending", "muted")}</div></div>
     ${state.error ? `<div class="notice error" role="alert">${esc(state.error)}</div>` : ""}
     <section class="apps-layout">
@@ -412,6 +418,18 @@ function applicationsView() {
     </section>
     <section class="verification-banner ${state.verification?.matched ? "verified" : state.verification ? "mismatch" : "pending"}"><div class="verification-symbol">${state.verification?.matched ? "✓" : state.verification ? "!" : "·"}</div><div><strong>${state.verification?.matched ? "Read-back confirmed" : state.verification ? "Read-back requires review" : "Waiting for authoritative read-back"}</strong><p>${state.verification ? `${state.verification.count} web-app records from the rendered list were compared with a second GET response.` : "OpsDeck performs a separate read after the initial list is rendered."}</p></div><code>GET /api/admin/v2/web-apps</code></section>
     <section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">REST DISCOVERY</div><h2>Namespace REST services</h2></div>${badge("Live source", "accent")}</div>${sourceSelector("applications")}${sourcePanel(state.sourceTabs.applications)}</section>`);
+}
+
+function applicationsTabs() {
+  return `<div class="source-tabs application-tabs" role="tablist" aria-label="Applications workspace"><button class="source-tab ${state.applicationsTab === "web-apps" ? "active" : ""}" role="tab" aria-selected="${state.applicationsTab === "web-apps"}" data-application-tab="web-apps">Web applications</button><button class="source-tab ${state.applicationsTab === "packages" ? "active" : ""}" role="tab" aria-selected="${state.applicationsTab === "packages"}" data-application-tab="packages">Packages</button></div>`;
+}
+
+function packagesWorkspaceView() {
+  const inventory = fixturePackageInventory();
+  const items = inventory.packages.filter(item => state.packageFilter === "all" || (state.packageFilter === "installed" ? Boolean(item.installedVersion) : !item.installedVersion));
+  const review = state.packagePlan;
+  const plan = review?.plan;
+  return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Package inventory preview</h2></div>${badge("SYNTHETIC FIXTURE", "warning")}</div><p class="source-message">These package rows are synthetic development fixtures. No configured registry, installed IPM inventory, or Open Exchange availability was queried.</p><div class="evidence-toolbar"><label>Inventory <select id="package-filter"><option value="all" ${state.packageFilter === "all" ? "selected" : ""}>Installed and available</option><option value="installed" ${state.packageFilter === "installed" ? "selected" : ""}>Installed</option><option value="available" ${state.packageFilter === "available" ? "selected" : ""}>Available</option></select></label><span class="package-source">Source identity <code>${esc(inventory.sourceIdentity)}</code></span></div><div class="package-list">${items.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>${esc(item.description)}</small></div>${badge(item.state.toUpperCase(), item.state === "update-available" ? "warning" : "accent")}</div><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(item.namespace)}</code></dd><dt>Installed</dt><dd>${esc(item.installedVersion || "Not installed")}</dd><dt>Available</dt><dd>${esc(item.availableVersion || "Not observed")}</dd><dt>Source</dt><dd>${esc(item.source)}</dd></dl><div class="package-actions">${item.installedVersion ? `<button class="button secondary" data-package-plan="update" data-package-name="${esc(item.name)}" ${item.availableVersion ? "" : "disabled"}>Prepare update plan</button><button class="button quiet" data-package-plan="remove" data-package-name="${esc(item.name)}">Prepare removal plan</button>` : `<button class="button secondary" data-package-plan="install" data-package-name="${esc(item.name)}">Prepare installation plan</button>`}</div></article>`).join("") || `<p class="source-message">No synthetic package rows match this filter.</p>`}</div>${plan ? `<section class="package-plan-review"><div class="panel-kicker">OPERATION PLAN · REVIEW ONLY</div><h3>${esc(plan.intent)}</h3><div class="package-plan-facts"><p><strong>Risk</strong> ${esc(plan.risk)} · explicit confirmation required</p><p><strong>Target</strong> ${esc(plan.target.key)} · namespace <code>${esc(plan.target.scope)}</code></p><p><strong>Operation</strong> ${esc(plan.capability.providerOperation)}</p><p><strong>Source</strong> ${esc(plan.parameters.sourceIdentity)} · requested version ${esc(plan.parameters.requestedVersion || "current")}</p><p><strong>Current version</strong> ${esc(plan.parameters.installedVersion || "not installed")}</p><p><strong>Pre-state</strong> ${esc(plan.preStateEvidence)} · plan expires ${esc(plan.expiresAt)}</p><p><strong>Authority</strong> ${esc(plan.authorityValidation.state)} · ${esc(plan.authorityValidation.evidence)}</p><p><strong>Expected read-back</strong> ${esc(plan.expectedReadback)}</p></div><div class="notice warning"><strong>Executor unavailable.</strong> The plan is synthetic and review-only. Real IPM execution requires a qualified 0.6 executor and disposable package fixture.</div><button class="button secondary" disabled aria-disabled="true">Confirm package operation · unavailable</button></section>` : ""}</section>`;
 }
 
 function restServiceMatches(webApp) {
@@ -620,6 +638,10 @@ function evidenceView() {
 function currentEvidenceCollection() {
   const isDemo = state.info?.systemMode === "DEMO";
   const records = isDemo ? [{ id: "fixture:operation:application-enable", kind: "operation-receipt", state: "VERIFIED", title: "Fixture application enable", observedAt: "2026-10-02T12:00:00Z", source: { identity: "opsdeck-fixture-v1" }, resource: { key: "/opsdeck-fixture", scope: "%SYS" }, summary: "Synthetic fixture plan completed with fixture read-back; this does not qualify a live IRIS operation.", evidence: { operationId: "fixture-op-001", verification: "fixture-readback" } }] : state.verification ? [{ id: "session:applications-readback", kind: "read-observation", state: state.verification.matched ? "VERIFIED" : "FAILED", title: "Applications independent read-back", observedAt: state.verification.at, source: { identity: "iris-admin-api" }, resource: { key: "web-app-inventory", scope: "%SYS" }, summary: state.verification.matched ? `${state.verification.count} web-application identities matched the independent second read.` : "The independent second read differed from the current web-application inventory.", evidence: { matched: state.verification.matched, count: state.verification.count } }] : [];
+  if (state.packagePlan?.plan) {
+    const plan = state.packagePlan.plan;
+    records.push({ id: plan.id, kind: "operation-plan", state: "UNVERIFIED", title: plan.intent, observedAt: plan.createdAt, source: { identity: state.packagePlan.executorIdentity || "not-attached" }, resource: { key: plan.target.key, scope: plan.target.scope }, summary: "Synthetic package plan preview. No package operation was executed; live IPM execution remains unavailable.", evidence: { risk: plan.risk, capability: plan.capability.id, preStateEvidence: plan.preStateEvidence } });
+  }
   return createEvidenceCollection(records, records.length ? "AVAILABLE" : "EMPTY");
 }
 
@@ -651,6 +673,12 @@ function render() {
   }));
   app.querySelectorAll("[data-load-alerts]").forEach((button) => button.addEventListener("click", () => loadSource("alerts", true)));
   app.querySelectorAll("[data-run-audit-query]").forEach((button) => button.addEventListener("click", () => runAuditQuery()));
+  app.querySelectorAll("[data-application-tab]").forEach((button) => button.addEventListener("click", () => { state.applicationsTab = button.dataset.applicationTab; render(); }));
+  app.querySelector("#package-filter")?.addEventListener("change", (event) => { state.packageFilter = event.target.value; render(); });
+  app.querySelectorAll("[data-package-plan]").forEach((button) => button.addEventListener("click", () => {
+    state.packagePlan = preparePackagePlan(fixturePackageInventory(), button.dataset.packageName, button.dataset.packagePlan);
+    render();
+  }));
   app.querySelector("#evidence-filter")?.addEventListener("change", (event) => { state.evidenceFilter = event.target.value.slice(0, 128); render(); });
   app.querySelector("#evidence-state-filter")?.addEventListener("change", (event) => { state.evidenceStateFilter = event.target.value; render(); });
   app.querySelectorAll("[data-export-evidence]").forEach((button) => button.addEventListener("click", () => {

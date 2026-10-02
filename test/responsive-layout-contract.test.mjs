@@ -51,3 +51,9 @@ test("compact shell navigation collapses at a width that preserves workspace roo
   assert.match(app, /aria-expanded="\$\{state\.mobileMoreOpen\}"/);
   assert.match(app, /querySelector\("#mobile-more"\)\?\.addEventListener\("click"/);
 });
+
+test("package cards reflow to one column in the constrained workspace", () => {
+  assert.match(css, /\.package-list\s*\{[^}]*grid-template-columns:\s*repeat\(2,minmax\(0,1fr\)\)/s);
+  assert.match(css, /@container\s+workspace\s*\(max-width:620px\)[\s\S]*?\.package-list\s*\{\s*grid-template-columns:minmax\(0,1fr\)/);
+  assert.match(app, /data-application-tab="packages"/);
+});
