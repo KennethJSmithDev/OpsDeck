@@ -9,7 +9,15 @@ ClassMethod Read(sourceId As %String, ByRef result As %DynamicObject) As %Status
     set result = ##class(%DynamicObject).%New()
     if (sourceId'="messagesLog")&&(sourceId'="systemMonitorLog") {
         set result.status="unavailable", result.reason="unsupported-source"
-        quit $$$OK
+        quit $$OK
+    }
+
+    // InterSystems documents %Admin_Operate:Use as the privilege for
+    // System Operation pages and examining logs. Enforce it in the reader,
+    // not merely in presentation or routing.
+    if '$SYSTEM.Security.Check("%Admin_Operate","USE") {
+        set result.status="denied", result.reason="admin-operate-required"
+        quit $$OK
     }
 
     try {
