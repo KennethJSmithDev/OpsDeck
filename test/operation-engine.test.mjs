@@ -50,14 +50,14 @@ test("fixture execution requires exact fixture identity, fresh pre-state, suppor
 
 test("ambiguous provider result is terminal and never retried", async () => {
   const plan = makePlan();
-  const result = await executeFixturePlan(plan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority" }, outcome: "ambiguous" });
+  const result = await executeFixturePlan(plan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority" }, outcome: "ambiguous", now });
   assert.deepEqual(result, { state: "AMBIGUOUS", reason: "provider-result-ambiguous", retryAllowed: false });
   assert.equal(isTerminalOperationState(result.state), true);
 });
 
 test("denial, cancellation, unavailability and cancellation of review remain distinct", async () => {
   const plan = makePlan();
-  const base = { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority-observed" } };
+  const base = { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority-observed" }, now };
   assert.equal((await executeFixturePlan(plan, { ...base, outcome: "denied" })).state, "DENIED");
   assert.equal((await executeFixturePlan(plan, { ...base, outcome: "unavailable" })).state, "UNAVAILABLE");
   assert.equal((await executeFixturePlan(plan, { ...base, outcome: "cancelled" })).state, "CANCELLED");
@@ -113,7 +113,7 @@ test("execution enforces expiry even when a caller does not supply a clock overr
 
 test("missing or denied authority evidence never reaches fixture execution", async () => {
   const plan = makePlan();
-  const base = { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true };
+  const base = { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, now };
   assert.equal((await executeFixturePlan(plan, { ...base, authority: { state: "UNVERIFIED" } })).state, "UNAVAILABLE");
   assert.equal((await executeFixturePlan(plan, { ...base, authority: { state: "DENIED", evidence: "fixture-denial" } })).state, "DENIED");
 });
