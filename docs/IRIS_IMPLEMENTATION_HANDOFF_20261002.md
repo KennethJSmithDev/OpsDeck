@@ -162,7 +162,9 @@ Do not assume the source placeholder provider operation is correct.
 
 Inspect the live installed SysAdmin API/OpenAPI first and establish the exact supported mutation contract.
 
-The reviewed engine currently treats operation/provider/risk/authority/target/parameter/pre-state identities as deterministic policy. Preserve that architecture.
+The reviewed engine currently treats operation/provider/risk/authority/target/parameter/pre-state identities as deterministic policy. Plans are deeply immutable in the fixture runtime, only admitted plans may execute there, expiry is always enforced, and fixture verification is policy-owned rather than supplied by a caller. Preserve that architecture.
+
+A live IRIS executor MUST NOT treat a serialized browser plan, browser-side authority flag, or client verifier as proof. Reconstruct/revalidate the operation against server-owned policy, fresh authoritative pre-state, and current-process authority before any write. Client plan IDs are correlation identities, not execution authority.
 
 If a supported reversible web-application mutation exists, create exactly ONE disposable fixture only after proving its target identity is absent.
 
@@ -181,6 +183,19 @@ Before creation/mutation:
 - establish exact request and read-back schemas.
 
 Then qualify the smallest reversible operation:
+
+client intent / reviewed plan
+→ server-side deterministic revalidation
+→ fresh authoritative pre-state
+→ current-process authority
+→ explicit confirmation binding
+→ ONE provider mutation
+→ authoritative read-back
+→ OperationReceipt
+
+Do not replace that with a trust-the-client shortcut.
+
+The observable product flow remains:
 
 plan
 → fresh pre-state
