@@ -70,6 +70,10 @@ A normal push of the integration branch is authorized after these checks pass. N
 
 Do NOT overwrite the accepted installed OpsDeck package or its `/opsdeck` web bytes.
 
+Treat compile authority and runtime authority as separate identities. The ordinary OpsDeck runtime account is not expected to be a developer identity and must not be widened merely to compile review code.
+
+InterSystems IRIS 2026.2 documents class/code compilation as requiring `%Development_CodeModify:Use`; modifying code in a database also requires the corresponding database write authority. Use an ALREADY-AUTHORIZED local development/installation identity or path that already possesses those rights. Do not add them to OpsDeckTest.
+
 First qualify the class independently in an existing non-product test namespace when practical (prefer an existing namespace rather than creating one).
 
 Compile the exact reviewed `OpsDeck.FixedLogReader` source.
