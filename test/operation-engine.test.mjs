@@ -7,7 +7,7 @@ const now = Date.parse("2026-10-02T12:00:00Z");
 const input = {
   id: "op-001", intent: "Enable disposable fixture application", expectedReadback: "Enabled is true", expiresAt: now + 60_000,
   target: { domain: "applications", kind: "web-app", provider: "iris-admin-api", key: "/opsdeck-fixture", scope: "%SYS", label: "Fixture application", observedAt: "2026-10-02T11:59:00Z" },
-  capability: { id: "webapp.enable", semanticAction: "enable", providerOperation: "PUT /api/admin/v2/web-apps", state: "SUPPORTED", risk: "MEDIUM", requiredPrivileges: ["%Admin_Secure:U"] },
+  capability: { id: "webapp.enable", semanticAction: "enable", providerOperation: "PUT /api/admin/v2/web-app", state: "SUPPORTED", risk: "MEDIUM", requiredPrivileges: ["%Admin_Secure:U"] },
   parameters: { enabled: true }, preState: { enabled: false }, preStateEvidence: "read:fixture-prestate",
   authorityValidation: { state: "SUPPORTED", evidence: "fixture-authority-read" },
   preconditions: [{ claim: "Disposable fixture confirmed", observed: true, evidence: "fixture-setup" }],
@@ -19,6 +19,7 @@ test("plans preserve canonical target/capability identity and bounded review sem
   assert.equal(plan.target.key, "/opsdeck-fixture");
   assert.equal(plan.target.scope, "%SYS");
   assert.equal(plan.capability.id, "webapp.enable");
+  assert.equal(plan.capability.providerOperation, "PUT /api/admin/v2/web-app");
   assert.equal(plan.requiresConfirmation, true);
   assert.equal(plan.state, "REVIEW_REQUIRED");
   assert.equal(plan.preStateFingerprint, fingerprintPreState({ enabled: false }));
@@ -46,6 +47,33 @@ test("fixture execution requires exact fixture identity, fresh pre-state, suppor
   assert.equal(blocked.reason, "explicit-confirmation-required");
   const unresolvedPlan = createOperationPlan({ ...input, capability: { ...input.capability, state: "UNRESOLVED" } }, now);
   assert.equal((await executeFixturePlan(unresolvedPlan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority, now })).state, "UNAVAILABLE");
+});
+
+test("reversible web-app disable policy admits an exact plan and verifies its fixture read-back", async () => {
+  const disable = createOperationPlan({
+    ...input,
+    id: "op-disable-001",
+    intent: "Disable the disposable fixture application",
+    expectedReadback: "Enabled is false",
+    target: { ...input.target, observedAt: "2026-10-02T12:00:00Z" },
+    capability: { ...input.capability, id: "webapp.disable", semanticAction: "disable" },
+    parameters: { enabled: false },
+    preState: { enabled: true },
+  }, now);
+  assert.equal(disable.capability.id, "webapp.disable");
+  assert.equal(disable.capability.providerOperation, "PUT /api/admin/v2/web-app");
+  assert.equal(disable.target.key, "/opsdeck-fixture");
+  const result = await executeFixturePlan(disable, {
+    providerIdentity: "opsdeck-fixture-v1",
+    currentPreState: { enabled: true },
+    authority: { state: "SUPPORTED", evidence: "fixture-authority" },
+    confirmed: true,
+    readback: { enabled: false },
+    now,
+  });
+  assert.equal(result.state, "VERIFIED");
+  assert.equal(result.receipt.verification, "VERIFIED");
+  assert.deepEqual(result.receipt.requestSummary, { enabled: false });
 });
 
 test("ambiguous provider result is terminal and never retried", async () => {

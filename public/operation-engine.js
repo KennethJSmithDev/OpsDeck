@@ -9,7 +9,7 @@ export const OPERATION_POLICIES = Object.freeze({
   "webapp.enable": Object.freeze({
     semanticAction: "enable",
     risk: "MEDIUM",
-    providerOperation: "PUT /api/admin/v2/web-apps",
+    providerOperation: "PUT /api/admin/v2/web-app",
     requiredPrivileges: Object.freeze(["%Admin_Secure:U"]),
     targetDomain: "applications",
     targetKind: "web-app",
@@ -20,9 +20,13 @@ export const OPERATION_POLICIES = Object.freeze({
   "webapp.disable": Object.freeze({
     semanticAction: "disable",
     risk: "MEDIUM",
-    providerOperation: "PUT /api/admin/v2/web-apps",
+    providerOperation: "PUT /api/admin/v2/web-app",
     requiredPrivileges: Object.freeze(["%Admin_Secure:U"]),
+    targetDomain: "applications",
+    targetKind: "web-app",
+    targetProvider: "iris-admin-api",
     parameterKeys: Object.freeze(["enabled"]),
+    preStateKeys: Object.freeze(["enabled"]),
   }),
   "ipm.package.install": Object.freeze({
     semanticAction: "package-install",
