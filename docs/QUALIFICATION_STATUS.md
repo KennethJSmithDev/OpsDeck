@@ -2,9 +2,9 @@
 
 ## Current integration snapshot — 2026-10-03
 
-- Branch: `integration/opsdeck-1.0-20261002`, tip `cab8d7c7790332a445f3fdc77fbe48982156bf72` before this record update.
+- Branch: `integration/opsdeck-1.0-20261002`, tested source checkpoint `6f59680b7c5d50ab48693927bdd4786257154d09`.
 - Source package version remains `0.2.3`; this work does not advance the evidence-gated product version.
-- Current local JavaScript suite: **145/145 PASS**. The latest catalog comparison source change and syntax checks pass locally; the changed browser assets have not been reloaded into or qualified on the installed disposable target.
+- Current local JavaScript suite: **147/147 PASS** at the tested source checkpoint. The browser-rendered catalog relationship test covers `INSTALLED_NEWER` without an update recommendation. A simulated upstream HTTP 403 now renders as `DENIED`; syntax checks pass locally. The changed browser assets have not been reloaded into or qualified on the installed disposable target.
 - The catalog comparison now distinguishes `INSTALLED_CURRENT`, `INSTALLED_OLDER`, `INSTALLED_NEWER`, `AVAILABLE_ONLY`, `INSTALLED_STATE_UNKNOWN`, and `INSTALLED_VERSION_UNCOMPARABLE`. This is source/test evidence, not a new live browser observation.
 - The disposable `OPSDECK_08_TEST_TARGET` was observed running at loopback ports 51972 and 52774. Its OpsDeck installation was left untouched; the browser reached the login screen and no credentials were entered. Authenticated catalog rendering therefore remains unqualified.
 - A read-only unauthenticated `GET /opsdeck-api/available-packages?name=opsdeck` against that target returned **401**, confirming the installed flat catalog route reaches its authentication boundary. It does not establish authenticated REST dispatch, the authenticated IRIS identity, repository-read authority, or an IPM query result.
