@@ -1,5 +1,28 @@
 # OpsDeck qualification status
 
+## Current integration snapshot — 2026-10-03
+
+- Branch: `integration/opsdeck-1.0-20261002`, tip `3045006acfd903dd797e5bef44735dbb11f8256e`.
+- Source package version remains `0.2.3`; this work does not advance the evidence-gated product version.
+- Current local JavaScript suite: **145/145 PASS**. The latest catalog comparison source change and syntax checks pass locally; the changed browser assets have not been reloaded into or qualified on the installed disposable target.
+- The catalog comparison now distinguishes `INSTALLED_CURRENT`, `INSTALLED_OLDER`, `INSTALLED_NEWER`, `AVAILABLE_ONLY`, `INSTALLED_STATE_UNKNOWN`, and `INSTALLED_VERSION_UNCOMPARABLE`. This is source/test evidence, not a new live browser observation.
+- The disposable `OPSDECK_08_TEST_TARGET` was observed running at loopback ports 51972 and 52774. Its OpsDeck installation was left untouched; the browser reached the login screen and no credentials were entered. Authenticated catalog rendering therefore remains unqualified.
+- The live operation engine remains fixture-only. No real web-app operation, package operation, or OperationReceipt has been qualified in this continuation.
+- ObjectScript Quality remains **NOT RUN** because the prescribed remote hook failed trust review; see [the gate record](OBJECTSCRIPT_QUALITY_GATE_20261003.md). This is a required hygiene gate before a human-approved mainline candidate, not a product version advancement.
+- No IRIS state was changed in this continuation. No merge, tag, or release was made.
+
+### Evidence-gated frontier
+
+| Milestone | Current status | Remaining acceptance evidence |
+|---|---|---|
+| 0.5 operational visibility | **NOT ACCEPTED** | Authenticated connected-browser smoke of the live available catalog and its authority/coverage/version states; safe-demo and representation-cost acceptance record for the complete 0.5 surface. |
+| 0.6 verified operations | **NOT ACCEPTED** | One real reversible operation through the shared executor, authoritative read-back, receipt, and cleanup on the disposable target. |
+| 0.7 operational Evidence | **NOT ACCEPTED** | A real OperationReceipt consumed and rendered with its evidence-backed findings. |
+| 0.8 package operations | **NOT ACCEPTED** | Same-executor package install/remove, DPI-I-261 completion, and unrelated-package preservation. |
+| 0.9 intelligent operations | **NOT ACCEPTED** | Operational core plus owned derived storage, real Vector Search, semantic retrieval, AI boundary, morphing/responsive browser qualification, and full product lifecycle. |
+
+The source and test improvement to catalog version relationships does not qualify the installed browser path or close any milestone by itself.
+
 **Current public release:** `v0.2.0`  
 **Release commit:** `23215459096cb47d255c45b1e6e86687f3d8e93a`  
 **Public release status:** unchanged; no newer public release or registry availability is claimed.
