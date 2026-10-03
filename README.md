@@ -46,6 +46,8 @@ Exact fresh-checkout byte parity and public-registry installation therefore rema
 
 See [Qualification Status](docs/QUALIFICATION_STATUS.md) for the current evidence ledger.
 
+The current native package ownership design, package authority model, DPI-I-261 acceptance matrix, and remaining runtime gates are recorded in the [OpsDeck 1.0 product integration checkpoint](docs/OPSDECK_1_0_PRODUCT_INTEGRATION.md).
+
 ## Why OpsDeck
 
 OpsDeck is deliberately thin:
