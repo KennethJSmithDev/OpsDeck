@@ -102,6 +102,45 @@ test("live Packages presents IPM authority denial distinctly without fixture sub
   assert.doesNotMatch(live, /sample-observer|sample-reporting-kit|SYNTHETIC FIXTURE/u);
 });
 
+test("live Packages renders catalog version relationships without recommending a downgrade", () => {
+  const { context } = contextFor();
+  vm.runInContext(`
+    state.connected = true;
+    state.info = { username: "OpsDeckTest", systemMode: "NATIVE" };
+    state.applicationsTab = "packages";
+    state.availablePackageName = "opsdeck";
+    state.packageInventory = mapInstalledPackageInventory({
+      provider: "iris-ipm-installed-v1", namespace: "%SYS", status: "available",
+      packages: [{ name: "opsdeck", installedVersion: "0.2.1" }],
+    });
+    state.availablePackageCatalog = mapAvailablePackageCatalog({
+      provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status: "available",
+      packages: [{ name: "opsdeck", availableVersion: "0.2.0", repository: "registry" }],
+      truncated: false, repositoryCount: 1, availableRepositoryCount: 1, coverage: "complete",
+    });
+  `, context);
+  let live = vm.runInContext("applicationsView()", context);
+  assert.match(live, /INSTALLED NEWER/u);
+  assert.doesNotMatch(live, /UPDATE AVAILABLE/u);
+
+  vm.runInContext(`state.availablePackageCatalog = mapAvailablePackageCatalog({
+    provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status: "available",
+    packages: [{ name: "opsdeck", availableVersion: "0.2.1", repository: "registry" }],
+    truncated: false, repositoryCount: 1, availableRepositoryCount: 1, coverage: "complete",
+  })`, context);
+  live = vm.runInContext("applicationsView()", context);
+  assert.match(live, /INSTALLED CURRENT/u);
+
+  vm.runInContext(`state.availablePackageCatalog = mapAvailablePackageCatalog({
+    provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status: "available",
+    packages: [{ name: "opsdeck", availableVersion: "0.2.2", repository: "registry" }],
+    truncated: false, repositoryCount: 1, availableRepositoryCount: 1, coverage: "complete",
+  })`, context);
+  live = vm.runInContext("applicationsView()", context);
+  assert.match(live, /INSTALLED OLDER/u);
+  assert.match(live, /Available<\/dt><dd>0\.2\.2<\/dd><dt>Installed<\/dt><dd>0\.2\.1/u);
+});
+
 test("Evidence projects bounded audit outcomes without retaining audit row values", () => {
   const { context } = contextFor();
   const serialized = vm.runInContext(`
