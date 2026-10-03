@@ -137,6 +137,12 @@ for the real OpsDeck database.
 | Final uninstall | PASS. Fixture registration/class/namespace were absent; the exact empty `C`/`D` stream directories and staging directory were then removed individually. |
 | Unrelated OpsDeck control | PASS. `opsdeck@0.2.2` and `OpsDeck.Product.FixedLogREST` remained present. |
 
+The current repository suite passed **154/154**. `node --check` passed for
+`public/app.js`, `src/iris-provider.js`, and `public/operation-engine.js`;
+PowerShell XML parsing passed for the product and fixture manifests; and
+`git diff --check` passed. The ObjectScript processor compiled on IRIS during
+both the fixture load and reinstall.
+
 The initial prototype used `Reload` for creation. With the processor class not
 yet compiled on a fresh load, that phase was too early: the package registered
 but the test namespace remained absent. Moving creation to the observed
