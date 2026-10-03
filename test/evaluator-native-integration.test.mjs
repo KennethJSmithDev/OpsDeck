@@ -53,6 +53,29 @@ test("integrated native shell and Evidence view report only qualified lifecycle 
   assert.match(evidenceWithPlan, /UNVERIFIED/u);
 });
 
+test("contextual IRIS help is collapsed, route-scoped, and read-only learning content", () => {
+  const { context } = contextFor();
+  const header = (route, tab = "web-apps") => vm.runInContext(`state.route=${JSON.stringify(route)}; state.applicationsTab=${JSON.stringify(tab)}; pageHeader("Title", "Description")`, context);
+
+  const overview = header("overview");
+  assert.match(overview, /<details class="concept-help"><summary>IRIS concepts in this view<\/summary>/u);
+  assert.match(overview, /Namespace/u);
+  assert.match(overview, /%SYS/u);
+  assert.doesNotMatch(overview, /<details[^>]*open/u);
+
+  const packages = header("applications", "packages");
+  assert.match(packages, /IPM package state/u);
+  assert.doesNotMatch(packages, /OperationReceipt|arbitrary files/u);
+
+  const logs = header("logs");
+  assert.match(logs, /Fixed log observation/u);
+  assert.match(logs, /does not browse arbitrary files/u);
+  assert.doesNotMatch(logs, /<script|%Execute|terminal/iu);
+
+  const unknown = header("not-a-route");
+  assert.doesNotMatch(unknown, /concept-help/u);
+});
+
 test("live Packages stays empty before an installed IPM read and never substitutes fixtures", () => {
   const { context } = contextFor();
   const live = vm.runInContext('state.connected=true; state.info={username:"OpsDeckTest",serverVersion:"Fixture IRIS"}; state.applicationsTab="packages"; applicationsView()', context);

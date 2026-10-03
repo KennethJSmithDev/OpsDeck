@@ -179,6 +179,24 @@ const fmtTime = (value) => value ? new Intl.DateTimeFormat(undefined, {
   hour: "2-digit", minute: "2-digit", second: "2-digit",
 }).format(new Date(value)) : "—";
 
+const IRIS_CONCEPTS = Object.freeze({
+  namespace: Object.freeze({ title: "Namespace", body: "A namespace is IRIS's logical view of code and data. A namespace shown on a row scopes that observation; it does not establish an all-namespace inventory." }),
+  sys: Object.freeze({ title: "%SYS", body: "%SYS exposes system and administrative code. Seeing a %SYS row does not grant this signed-in identity any additional privilege." }),
+  ipm: Object.freeze({ title: "IPM package state", body: "Installed registrations and configured-repository search are separate observations. A catalog result is not an installation, and a lower catalog version is not an update." }),
+  access: Object.freeze({ title: "DENIED and UNAVAILABLE", body: "DENIED means IRIS rejected this identity's request. UNAVAILABLE means OpsDeck could not obtain a usable response. Neither state means the source is empty." }),
+  readback: Object.freeze({ title: "Authoritative read-back", body: "After a request, a separate read from IRIS must show the requested state before OpsDeck can call the operation verified. An HTTP success alone is not proof." }),
+  job: Object.freeze({ title: "Asynchronous Job", body: "A returned job identity means work was accepted. Completion and its result are separate observations; OpsDeck does not retry an ambiguous dispatch." }),
+  logs: Object.freeze({ title: "Fixed log observation", body: "OpsDeck reads only named log sources through bounded readers. This view does not browse arbitrary files or expose the resolved source path." }),
+  evidence: Object.freeze({ title: "OperationReceipt", body: "A receipt records OpsDeck's bounded before/request/after verification projection. IRIS remains the source of truth; a receipt does not replace it." }),
+  certainty: Object.freeze({ title: "KNOWN / INFERRED / UNVERIFIED", body: "KNOWN is directly observed, INFERRED is a conclusion drawn from observations, and UNVERIFIED marks a claim that has not crossed its required qualification boundary." }),
+});
+const CONCEPTS_BY_ROUTE = Object.freeze({
+  overview: ["namespace", "sys"],
+  applications: { "web-apps": ["namespace", "readback"], packages: ["ipm"] },
+  access: ["access"], security: ["access"], tasks: ["job", "readback"],
+  system: ["namespace"], logs: ["logs", "access"], evidence: ["evidence", "certainty", "readback"],
+});
+
 async function requestJson(path, options = {}) {
   const owner = sessionEpoch;
   let response;
@@ -394,7 +412,10 @@ function overviewView() {
 
 function pageHeader(title, description) {
   const demoMode = state.info?.systemMode === "DEMO";
-  return `<div class="page-header"><div><div class="eyebrow"><span class="eyebrow-rule"></span>OPSDECK WORKSPACE</div><h1>${title}</h1><p>${description}</p></div><div class="page-header-meta">${demoMode ? badge("Evaluator mode", "warning") : badge("IRIS 2026.2", "accent")}</div></div>`;
+  const routeHelp = CONCEPTS_BY_ROUTE[state.route];
+  const conceptIds = Array.isArray(routeHelp) ? routeHelp : routeHelp?.[state.applicationsTab] || [];
+  const help = conceptIds.length ? `<details class="concept-help"><summary>IRIS concepts in this view</summary><ul>${conceptIds.map((id) => `<li><strong>${esc(IRIS_CONCEPTS[id].title)}:</strong> ${esc(IRIS_CONCEPTS[id].body)}</li>`).join("")}</ul></details>` : "";
+  return `<div class="page-header"><div><div class="eyebrow"><span class="eyebrow-rule"></span>OPSDECK WORKSPACE</div><h1>${title}</h1><p>${description}</p></div><div class="page-header-meta">${demoMode ? badge("Evaluator mode", "warning") : badge("IRIS 2026.2", "accent")}${help}</div></div>`;
 }
 
 function applicationsView() {
