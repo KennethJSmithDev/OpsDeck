@@ -11,7 +11,7 @@ This record distinguishes Community Ideas Portal requests from adjacent product 
 | OpsDeck implementation | Live installed-package inventory and bounded exact-name configured-repository catalog projection are integrated. Package planning is a synthetic preview; package mutation is not connected to the verified executor. |
 | Semantic equivalence | Inventory and catalog observations cover only discovery portions; no package installation/removal behavior is claimed. |
 | Authority boundary | Existing caller authority is required. No SQL privilege or package authority was added. |
-| Test | Local provider/workspace tests cover installed/available states, repository coverage, and version relationships. Live authenticated browser authority remains unqualified. |
+| Test | Local provider/workspace tests cover installed/available states, repository coverage, and version relationships. Connected Edge rendered live catalog data under the Docker-only `OpsDeckQualify` identity; authority is fixture-specific and does not establish ordinary operator access. |
 | Representation cost | Catalog source delta was recorded in `OPSDECK_0_9_PERFORMANCE_BASELINE.md`; no global catalog preload. |
 | Public demo path | Packages workspace; catalog and package operations remain explicitly scoped by their qualification state. |
 | Bonus claim | Not claimed; DPI-I-261 is not complete. |

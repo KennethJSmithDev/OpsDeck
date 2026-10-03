@@ -82,7 +82,7 @@ OpsDeck is deliberately thin:
 
 ## Built with the IRIS Community
 
-Current integration work includes a **partial** implementation of [DPI-I-261](https://ideas.intersystems.com/ideas/DPI-I-261), which asks for package discovery and installation from the administration portal. OpsDeck now projects installed IPM registrations and performs a bounded, exact-name lookup against configured repositories. Source and focused tests cover repository coverage and installed-versus-available version relationships; authenticated browser visibility and package install/remove through the verified executor remain unqualified. DPI-I-261 is not complete, and no Community Ideas bonus claim is made.
+The integration branch has accepted the **v0.5 operational-visibility milestone**. A Docker-only connected Edge qualification rendered live installed IPM registrations and an exact-name available-catalog result with repository coverage and both installed/available versions. Catalog authority was qualified only for the disposable fixture identity; package install/remove through the verified executor remains unqualified. This is not a public `0.5.0` release. DPI-I-261 remains partial because package installation is not implemented, and no Community Ideas bonus claim is made.
 
 The read-only ObjectScript snippet library and contextual IRIS help are community-oriented learning aids, not verified Ideas Portal submissions. Snippets are inert text, load on selection, and are never executed by OpsDeck.
 

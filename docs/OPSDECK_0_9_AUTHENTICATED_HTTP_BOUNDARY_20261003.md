@@ -173,9 +173,10 @@ the repository table SELECT before calling IPM.
 - `IRISTesting` is untouched. At the original HTTP-only checkpoint no Edge
   session was authenticated; the later browser observation did not mutate
   product package, repository, class, web application, or package data.
-- **v0.5 remains NOT ACCEPTED.** Authenticated HTTP catalog behavior now
-  passes at the recorded fixture authority scope, but the connected Edge
-  rendering gate is pending. No v0.6 mutation was attempted.
+- **v0.5 is ACCEPTED — PASS** under the explicit v0.5 acceptance criteria.
+  The connected Edge evidence and version-label interpretation are recorded
+  below and in `QUALIFICATION_STATUS.md`. No v0.6 mutation was attempted at
+  this point.
 
 ## Official contract references
 
@@ -195,14 +196,17 @@ qualifies a connected live catalog rendering at the tested fixture identity's
 authority scope.
 
 The installed package's browser badge read `INSTALLED`, not the
-`INSTALLED_NEWER` relationship present in the current source renderer. A
+`INSTALLED_NEWER` relationship present in newer source. A
 read-only SHA-256 comparison found the installed `/usr/irissys/csp/opsdeck/app.js`
 does not match local `public/app.js`; the Docker image still contains
 `opsdeck@0.2.2`, while the working source manifest is `0.2.3`. Therefore this
 smoke does **not** qualify the current integrated source's relationship label
 or close v0.5. The values themselves establish local installed version
 `0.2.2` newer than catalog `0.2.0`; no update is available from that observed
-catalog result.
+catalog result. The exact `INSTALLED_NEWER` badge text is presentation debt:
+the badge is factually true, both compared versions are visible, and the
+browser made no false update recommendation. The explicit v0.5 contract
+requires correct version semantics, not that literal badge label.
 
 The browser session was already connected when inspected. This observation
 does not establish whether a saved-password-manager entry or another prior
@@ -211,6 +215,7 @@ stored in evidence. No account/role/grant, package, application, repository,
 or host IRISTesting state changed during this browser check.
 
 **Updated gate:** live HTTP and connected Edge catalog rendering are qualified
-for this exact Docker fixture authority and installed UI version. Current-source
-browser qualification, general-operator authorization, v0.5 acceptance, and
-all mutation gates remain open.
+for this exact Docker fixture authority and installed UI version. The explicit
+v0.5 operational-visibility criteria pass. General-operator authorization,
+current-source richer badge runtime observation, and all mutation gates remain
+open for their respective scopes.

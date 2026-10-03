@@ -3,7 +3,7 @@
   <Document name="opsdeck.ZPM">
     <Module>
       <Name>opsdeck</Name>
-      <Version>0.2.3</Version>
+      <Version>0.5.0</Version>
       <Description>OpsDeck read-only operations console for InterSystems IRIS</Description>
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>
