@@ -176,6 +176,10 @@ td { color:var(--muted); font-size:10px; }
 .spec-summary p { margin:7px 0 0; color:var(--subtle); }
 .source-message { padding:22px 14px; border:1px dashed var(--border-strong); border-radius:8px; color:var(--muted); font-size:11px; }
 .source-message p { margin:7px 0; }
+.fixed-log-lines { display:grid; gap:6px; max-height:560px; overflow:auto; padding:0; margin:12px 0; list-style:none; }
+.fixed-log-lines li { display:grid; grid-template-columns:42px minmax(0,1fr); gap:9px; align-items:start; min-width:0; padding:7px 9px; border:1px solid var(--border); border-radius:6px; }
+.fixed-log-lines code { min-width:0; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--text); font-size:10px; }
+.log-line-number { color:var(--subtle); font:9px "DM Mono",monospace; }
 .source-error { border-color:color-mix(in srgb,var(--danger) 45%,var(--border)); color:var(--danger); }
 .source-error code { display:inline-block; margin-top:5px; }
 .metric-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:9px; }

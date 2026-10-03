@@ -13,7 +13,7 @@ const domainSources = {
   security: ["walletCollections", "x509Credentials", "oauthResourceServers", "oauthServerDefinitions", "oauthServer"],
   tasks: ["tasks"],
   system: ["systemUsage", "processes", "databases", "devices"],
-  logs: ["auditEnabled", "auditEvents", "taskHistory", "journalFiles", "alerts"],
+  logs: ["auditEnabled", "auditEvents", "messagesLog", "systemMonitorLog", "taskHistory", "journalFiles", "alerts"],
 };
 
 // Product qualification maturity is separate from observed IRIS authority/provider results.
@@ -45,8 +45,12 @@ function providerUiEvidence(model, sourceId) {
     return { status: "UNSUPPORTED", detail: "No fixed provider is registered for this source." };
   }
   if (Object.hasOwn(model.sourceData || {}, sourceId) && model.sourceData[sourceId]) {
+    const state = model.sourceData[sourceId].status;
+    if (state === "denied") return { status: "DENIED", detail: "IRIS denied this fixed-source read." };
+    if (state === "unavailable") return { status: "UNAVAILABLE", detail: "The fixed source is unavailable." };
+    if (state === "read-failure") return { status: "FAILED", detail: "The fixed-source read failed." };
     // A valid empty collection is still an observed, available provider result.
-    return { status: "SUPPORTED", detail: `${READ_ONLY_SOURCES[sourceId].label} returned a mapped result.` };
+    return { status: "SUPPORTED", detail: state === "empty" ? `${READ_ONLY_SOURCES[sourceId].label} returned a valid empty result.` : `${READ_ONLY_SOURCES[sourceId].label} returned a mapped result.` };
   }
   if (Object.hasOwn(model.sourceErrors || {}, sourceId)) {
     const error = model.sourceErrors[sourceId];
@@ -488,6 +492,19 @@ function sourcePanel(sourceId) {
     const fieldShapes = data.items.map((item) => `<li><strong>${esc(item.ref.label)}</strong><span>${item.values.observedFields.length ? item.values.observedFields.map((field) => `<code>${esc(field)}</code>`).join(" ") : "No fields returned"}</span></li>`).join("");
     return `<div class="source-toolbar"><div><strong>${data.count}</strong><span> alerts returned in this batch</span></div><button class="button quiet" data-load-alerts>Read next batch</button></div>${data.count ? `<p class="source-caveat">Alert values are withheld until the live record schema and safe display fields are qualified. These field names describe shape only.</p><ul class="relationship-list">${fieldShapes}</ul>` : `<div class="source-message" role="status">IRIS returned no alerts in this batch.</div>`}<div class="panel-foot">GET <code>${esc(source.path)}</code> · stateful feed · ${fmtTime(data.observedAt)}</div>`;
   }
+  if (sourceId === "messagesLog" || sourceId === "systemMonitorLog") {
+    if (!data) return `<div class="source-message">Select the fixed source to read its bounded recent observation.</div>`;
+    const labels = { available: "Available", empty: "Valid empty", truncated: "Truncated", unavailable: "Unavailable", denied: "Denied", "read-failure": "Read failure" };
+    const tone = data.status === "available" ? "success" : data.status === "empty" ? "accent" : ["denied", "read-failure"].includes(data.status) ? "error" : "warning";
+    const rows = data.items.map((item) => `<li><span class="log-line-number">${esc(item.ref.key.slice(5))}</span><code>${esc(item.values.line)}</code></li>`).join("");
+    const stateMessage = {
+      empty: "The source was read successfully and contained no lines in the bounded observation.",
+      unavailable: "IRIS could not locate or open this fixed source.",
+      denied: "The current IRIS process lacks the required log-inspection authority.",
+      "read-failure": "IRIS failed while reading this fixed source.",
+    }[data.status] || "";
+    return `<div class="source-toolbar"><div>${badge(labels[data.status] || "Unresolved", tone)} <strong>${data.count}</strong><span> complete lines returned${data.truncated ? " · recent observation is truncated" : ""}</span></div><button class="button quiet" data-refresh-source="${sourceId}">Read again</button></div>${stateMessage ? `<div class="source-message" role="status">${esc(stateMessage)}</div>` : ""}${rows ? `<ol class="fixed-log-lines" aria-label="${esc(source.label)} recent lines">${rows}</ol>` : ""}<div class="panel-foot">GET <code>${esc(source.path)}</code> · ${esc(data.provider)} · at most 64 KiB / 250 complete lines · ${fmtTime(data.observedAt)}</div>`;
+  }
   if (!data) return `<div class="source-message">Select a source to load authoritative IRIS data.</div>`;
   const items = data.items;
   const selectedKey = state.selectedItems[sourceId];
@@ -602,11 +619,11 @@ function providerDomainView(route) {
     security: "Credential and OAuth configuration metadata. Secret material is never rendered.",
     tasks: "Scheduled task definitions from the live IRIS management API.",
     system: "Live system usage, processes, databases, and device inventory.",
-    logs: "Audit configuration, task history, and journal inventory. Audit record retrieval is not qualified.",
+    logs: "Audit configuration, bounded fixed log observations, task history, and journal inventory. Each reader remains qualified only within its recorded scope.",
   };
   const sourceId = state.sourceTabs[route] || domainSources[route]?.[0];
   const logTools = route === "logs" ? auditQueryPanel() : "";
-  const caveat = route === "logs" ? `<p class="source-caveat">Messages and System Monitor files require an IRIS-owned fixed-source reader. Alerts are a stateful feed and are read only when explicitly requested.</p>` : "";
+  const caveat = route === "logs" ? `<p class="source-caveat">Fixed log routes accept only the two semantic source identities. Returned lines preserve legitimate log text; the resolved filesystem location is never returned. Alerts are a stateful feed and are read only when explicitly requested.</p>` : "";
   return shell(`${pageHeader(title, descriptions[route] || "Live IRIS provider data.")}${logTools}<section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">LIVE PROVIDER DATA</div><h2>${esc(READ_ONLY_SOURCES[sourceId]?.label || title)}</h2></div>${badge("Read only", "accent")}</div>${sourceSelector(route)}${sourcePanel(sourceId)}${caveat}</section>`);
 }
 

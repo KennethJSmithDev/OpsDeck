@@ -25,6 +25,8 @@ export const READ_ONLY_SOURCES = Object.freeze({
   devices: { path: "/api/admin/v2/devices", domain: "system", label: "Devices", requiredPrivilege: "%Admin_Manage:U" },
   auditEnabled: { path: "/api/admin/v2/security/audit/enabled", domain: "logs", label: "Audit status", requiredPrivilege: "%Admin_Secure:U" },
   auditEvents: { path: "/api/admin/v2/security/audit/events", domain: "logs", label: "Audit event definitions", requiredPrivilege: "%Admin_Secure:U" },
+  messagesLog: { path: "/opsdeck-api/messages", domain: "logs", label: "messages.log", requiredPrivilege: "%Admin_Operate:Use", nativeOnly: true },
+  systemMonitorLog: { path: "/opsdeck-api/system-monitor", domain: "logs", label: "SystemMonitor.log", requiredPrivilege: "%Admin_Operate:Use", nativeOnly: true },
   journalFiles: { path: "/api/admin/v2/journal/files", domain: "logs", label: "Journal files", requiredPrivilege: "%Admin_Operate:U" },
   alerts: { path: "/api/monitor/alerts", domain: "logs", label: "Alerts (stateful feed)", requiredPrivilege: "provider-defined" },
 });
@@ -180,8 +182,8 @@ export function mapAuditAsyncResult(payload, identity) {
 }
 
 const FIXED_LOGS = Object.freeze({
-  messagesLog: { name: "messages.log", maxBytes: 65536, maxLines: 250 },
-  systemMonitorLog: { name: "SystemMonitor.log", maxBytes: 65536, maxLines: 250 },
+  messagesLog: { name: "messages.log", maxBytes: 65536, maxLines: 250, maxProjectionUnits: 9000, maxLineUnits: 2048 },
+  systemMonitorLog: { name: "SystemMonitor.log", maxBytes: 65536, maxLines: 250, maxProjectionUnits: 9000, maxLineUnits: 2048 },
 });
 
 export function mapFixedLogResult(sourceId, payload) {
@@ -196,22 +198,25 @@ export function mapFixedLogResult(sourceId, payload) {
   if (!Array.isArray(payload.lines) || payload.lines.some((line) => typeof line !== "string")) {
     throw new Error("IRIS fixed log lines must be an array of strings.");
   }
-  const lines = [];
+  const newestFirst = [];
   let bytesReturned = 0;
+  let projectionUnits = 0;
   let truncated = payload.truncated === true || payload.status === "truncated";
-  for (const rawLine of payload.lines) {
-    const sanitizedLine = rawLine.replace(/[\u0000-\u0008\u000a-\u001f\u007f]/gu, "�");
-    const safeLine = sanitizedLine.slice(0, 2048);
-    if (safeLine.length < sanitizedLine.length) truncated = true;
+  for (let index = payload.lines.length - 1; index >= 0; index -= 1) {
+    const rawLine = payload.lines[index];
+    const safeLine = rawLine.replace(/[\u0000-\u0008\u000a-\u001f\u007f]/gu, "�");
     const lineBytes = new TextEncoder().encode(safeLine).byteLength;
-    if (lines.length >= source.maxLines || bytesReturned + lineBytes > source.maxBytes) {
+    if (newestFirst.length >= source.maxLines || safeLine.length > source.maxLineUnits ||
+      projectionUnits + safeLine.length > source.maxProjectionUnits || bytesReturned + lineBytes > source.maxBytes) {
       truncated = true;
       break;
     }
-    lines.push(safeLine);
+    newestFirst.push(safeLine);
+    projectionUnits += safeLine.length;
     bytesReturned += lineBytes;
   }
-  if (lines.length < payload.lines.length) truncated = true;
+  if (newestFirst.length < payload.lines.length) truncated = true;
+  const lines = newestFirst.reverse();
   return { source: source.name, status: truncated ? "truncated" : lines.length ? "available" : "empty", lines, truncated, bytesReturned };
 }
 
@@ -580,6 +585,18 @@ function displayValue(value) {
 export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toISOString()) {
   if (!Object.hasOwn(READ_ONLY_SOURCES, sourceId)) throw new Error("Unknown IRIS read source.");
   const source = READ_ONLY_SOURCES[sourceId];
+  if (sourceId === "messagesLog" || sourceId === "systemMonitorLog") {
+    const mapped = mapFixedLogResult(sourceId, payload);
+    return {
+      sourceId, provider: "opsdeck-native-fixed-log-v1", observedAt,
+      resultType: "log-lines", count: mapped.lines.length, status: mapped.status,
+      truncated: mapped.truncated, bytesReturned: mapped.bytesReturned,
+      items: mapped.lines.map((line, index) => ({
+        ref: { domain: "logs", kind: sourceId, provider: "opsdeck-native-fixed-log-v1", key: `line:${index + 1}`, scope: null, label: `Line ${index + 1}`, observedAt },
+        values: { line },
+      })),
+    };
+  }
   let result;
   if (source.path.startsWith("/api/admin/")) result = unwrapIrisResult(payload);
   else result = payload;

@@ -1,8 +1,9 @@
-Class OpsDeck.FixedLogReader Extends %RegisteredObject
+Class OpsDeck.Product.FixedLogReader Extends %RegisteredObject
 {
 
 /// Read one of two fixed IRIS-owned logs. No caller-controlled path is accepted.
-/// This source is not included in the IPM module until its privilege contract is qualified.
+/// This class is installed by the OpsDeck module under the reserved
+/// OpsDeck.Product package ownership boundary.
 /// The reader observes only a bounded tail window and returns at most 250 complete lines.
 ClassMethod Read(sourceId As %String, ByRef result As %DynamicObject) As %Status
 {
@@ -97,11 +98,24 @@ ClassMethod Read(sourceId As %String, ByRef result As %DynamicObject) As %Status
                     set truncated=1
                 }
 
+                // JSON escaping can expand every source character. Budget the
+                // projected text in UCS-2 units: even six-byte \uXXXX escaping
+                // of all 9,000 units plus 250 bounded line separators and fixed
+                // metadata remains below the 64 KiB response ceiling. Preserve
+                // only a suffix of complete lines when the projection is full.
+                set keepFrom=pieceCount+1,projectionUnits=0
+                for index=pieceCount:-1:firstPiece {
+                    set line=$piece(content,$char(10),index)
+                    set line=$translate(line,$char(0,1,2,3,4,5,6,7,8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,127),"")
+                    set lineUnits=$length(line)
+                    if projectionUnits+lineUnits>9000 set truncated=1 quit
+                    set keepFrom=index,projectionUnits=projectionUnits+lineUnits
+                }
+
                 set lines=##class(%DynamicArray).%New()
                 set rowCount=0
-                for index=firstPiece:1:pieceCount {
+                for index=keepFrom:1:pieceCount {
                     set line=$piece(content,$char(10),index)
-                    // Preserve TAB; remove CR/LF and other control characters from each row.
                     set line=$translate(line,$char(0,1,2,3,4,5,6,7,8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,127),"")
                     do lines.%Push(line)
                     set rowCount=rowCount+1

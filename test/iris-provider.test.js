@@ -375,6 +375,23 @@ test("fixed log UTF-8 byte cap, explicit truncation, and stable provider identit
   assert.equal(mapFixedLogResult("systemMonitorLog", { status: "truncated", lines: ["partial"], truncated: true }).status, "truncated");
 });
 
+test("fixed log JSON projection keeps complete newest lines within the conservative escape budget", () => {
+  const payloadLines = Array.from({ length: 250 }, (_, index) => `${String(index).padStart(3, "0")}${"\\\"".repeat(18)}`);
+  const result = mapFixedLogResult("messagesLog", { status: "available", lines: payloadLines });
+  assert.equal(result.status, "truncated");
+  assert.equal(result.lines.length, 230);
+  assert.equal(result.lines[0].slice(0, 3), "020");
+  assert.equal(result.lines.at(-1).slice(0, 3), "249");
+  assert.ok(result.lines.reduce((sum, line) => sum + line.length, 0) <= 9000);
+  assert.ok(new TextEncoder().encode(JSON.stringify({ status: result.status, lines: result.lines, truncated: result.truncated })).byteLength < 65_536);
+
+  const overBudget = Array.from({ length: 250 }, (_, index) => `${index}|${"x".repeat(80)}`);
+  const suffix = mapFixedLogResult("systemMonitorLog", { status: "available", lines: overBudget });
+  assert.equal(suffix.status, "truncated");
+  assert.equal(suffix.lines[0], overBudget.at(-suffix.lines.length), "when the projection fills, keep the most recent complete-line suffix");
+  assert.match(suffix.lines.at(-1), /^249\|/u);
+});
+
 test("maps the stateful IRIS alert feed without exposing unqualified alert values", () => {
   assert.equal(READ_ONLY_SOURCES.alerts.path, "/api/monitor/alerts");
   const empty = mapReadOnlySource("alerts", [], "2026-09-24T12:00:00Z");
