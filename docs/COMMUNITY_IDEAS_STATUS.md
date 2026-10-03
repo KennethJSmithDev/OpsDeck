@@ -30,3 +30,18 @@ This record distinguishes Community Ideas Portal requests from adjacent product 
 | Representation cost | See the latest measured source bytes in `OPSDECK_0_9_PERFORMANCE_BASELINE.md`. Help text is shipped once in the existing app module; no request or runtime dependency is added. |
 | Public demo path | Any page with a supported concept displays the collapsed “IRIS concepts in this view” disclosure. |
 | Bonus claim | None. |
+
+## Code Snippets Library — read-only learning capability
+
+| Field | Status |
+|---|---|
+| Idea ID | No Ideas Portal ID supplied or verified; this is a product capability, not an asserted portal submission. |
+| Community status | Not claimed as a Community Opportunity implementation. |
+| Problem requested | Offer reusable IRIS/ObjectScript administration and development examples in a compact library. |
+| OpsDeck implementation | A collapsed catalog exposes three snippet identities. Each body is fetched only when selected and can be downloaded as plain `.txt` for editor use. |
+| Semantic equivalence | The snippets are static learning text, not an execution surface; examples cover namespace identity, exception handling, and bounded HTTP GET shape. |
+| Authority boundary | No ObjectScript execution, terminal, credentials, or new IRIS endpoint is introduced. HTTP example is fixed and illustrative; users must select a reviewed endpoint/TLS configuration. |
+| Test | Focused render/package assertions check collapsed catalog metadata, lazy-body behavior, inert text rendering, and declared static ownership; full JS suite passes **154/154**. |
+| Representation cost | Snippet bodies are separate text assets fetched on selection; no additional initial request or framework. Current source bytes are recorded in `OPSDECK_0_9_PERFORMANCE_BASELINE.md`. |
+| Public demo path | Open the safe demo and expand “ObjectScript snippet library”; select an entry to load its text. |
+| Bonus claim | None. |

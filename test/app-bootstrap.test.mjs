@@ -32,6 +32,14 @@ test("frontend assets resolve from the current application path", async () => {
   assert.match(moduleXml, /Name="public\/operation-engine\.js" Target="\{\$cspdir\}opsdeck\/operation-engine\.js"/u);
   assert.match(moduleXml, /Name="public\/packages-workspace\.js" Target="\{\$cspdir\}opsdeck\/packages-workspace\.js"/u);
   assert.match(moduleXml, /Name="public\/job-center\.js" Target="\{\$cspdir\}opsdeck\/job-center\.js"/u);
+  for (const file of ["snippet-namespace.txt", "snippet-try-catch.txt", "snippet-http-read.txt"]) {
+    assert.match(moduleXml, new RegExp(`Name="public/${file}" Target="\\{\\$cspdir\\}opsdeck/${file}"`, "u"));
+    const content = await readFile(new URL(`../public/${file}`, import.meta.url), "utf8");
+    assert.ok(content.length > 0 && content.length <= 12000, `${file} must remain a bounded text asset`);
+    assert.doesNotMatch(content, /(^|\n)\s*(zpm\s+|##class\([^)]*\)\.%Execute|\$SYSTEM\.OBJ\.Load|Do \$SYSTEM\.OBJ)/iu);
+  }
+  const demoWorkflow = await readFile(new URL("../.github/workflows/pages-demo.yml", import.meta.url), "utf8");
+  assert.match(demoWorkflow, /cp public\/snippet-\*\.txt _site\//u);
 });
 const apps = {
   status: { errors: [], summary: "" }, console: [],

@@ -17,6 +17,9 @@
       <FileCopy Name="public/operation-engine.js" Target="{$cspdir}opsdeck/operation-engine.js" />
       <FileCopy Name="public/packages-workspace.js" Target="{$cspdir}opsdeck/packages-workspace.js" />
       <FileCopy Name="public/job-center.js" Target="{$cspdir}opsdeck/job-center.js" />
+      <FileCopy Name="public/snippet-namespace.txt" Target="{$cspdir}opsdeck/snippet-namespace.txt" />
+      <FileCopy Name="public/snippet-try-catch.txt" Target="{$cspdir}opsdeck/snippet-try-catch.txt" />
+      <FileCopy Name="public/snippet-http-read.txt" Target="{$cspdir}opsdeck/snippet-http-read.txt" />
 
       <WebApplication
         Name="/opsdeck-api"

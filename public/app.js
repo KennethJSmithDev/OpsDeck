@@ -147,6 +147,10 @@ const state = {
   availablePackageError: "",
   availablePackageErrorStatus: 0,
   availablePackageLoading: false,
+  selectedSnippet: "",
+  snippetText: "",
+  snippetLoading: false,
+  snippetError: "",
   webAppDetails: {}, webAppDetailErrors: {}, webAppDetailLoading: "",
   userDetails: {}, userDetailErrors: {}, userDetailLoading: "", userDetailVerification: {},
   roleDetails: {}, roleDetailErrors: {}, roleDetailLoading: "", roleDetailVerification: {},
@@ -196,6 +200,11 @@ const CONCEPTS_BY_ROUTE = Object.freeze({
   access: ["access"], security: ["access"], tasks: ["job", "readback"],
   system: ["namespace"], logs: ["logs", "access"], evidence: ["evidence", "certainty", "readback"],
 });
+const LEARNING_SNIPPETS = Object.freeze([
+  Object.freeze({ id: "namespace", title: "Inspect the current namespace", file: "snippet-namespace.txt" }),
+  Object.freeze({ id: "try-catch", title: "Handle an ObjectScript exception", file: "snippet-try-catch.txt" }),
+  Object.freeze({ id: "http-read", title: "Make a bounded HTTP GET", file: "snippet-http-read.txt" }),
+]);
 
 async function requestJson(path, options = {}) {
   const owner = sessionEpoch;
@@ -415,7 +424,9 @@ function pageHeader(title, description) {
   const routeHelp = CONCEPTS_BY_ROUTE[state.route];
   const conceptIds = Array.isArray(routeHelp) ? routeHelp : routeHelp?.[state.applicationsTab] || [];
   const help = conceptIds.length ? `<details class="concept-help"><summary>IRIS concepts in this view</summary><ul>${conceptIds.map((id) => `<li><strong>${esc(IRIS_CONCEPTS[id].title)}:</strong> ${esc(IRIS_CONCEPTS[id].body)}</li>`).join("")}</ul></details>` : "";
-  return `<div class="page-header"><div><div class="eyebrow"><span class="eyebrow-rule"></span>OPSDECK WORKSPACE</div><h1>${title}</h1><p>${description}</p></div><div class="page-header-meta">${demoMode ? badge("Evaluator mode", "warning") : badge("IRIS 2026.2", "accent")}${help}</div></div>`;
+  const snippetBody = state.selectedSnippet ? `<div class="snippet-body"><pre><code>${esc(state.snippetText || "")}</code></pre>${state.snippetLoading ? '<p role="status">Loading text…</p>' : ""}${state.snippetError ? `<p class="snippet-error" role="alert">${esc(state.snippetError)}</p>` : ""}${state.snippetText ? `<button class="button quiet" type="button" data-download-snippet="${esc(state.selectedSnippet)}">Download .txt</button>` : ""}<p class="snippet-note">Text for learning and review only. OpsDeck never executes snippets.</p></div>` : "";
+  const snippets = `<details class="concept-help snippet-library" ${state.selectedSnippet ? "open" : ""}><summary>ObjectScript snippet library</summary><p class="snippet-note">Small read-only examples. Select one to load its text.</p><ul>${LEARNING_SNIPPETS.map(item => `<li><button class="snippet-select" type="button" data-snippet="${esc(item.id)}">${esc(item.title)}</button></li>`).join("")}</ul>${snippetBody}</details>`;
+  return `<div class="page-header"><div><div class="eyebrow"><span class="eyebrow-rule"></span>OPSDECK WORKSPACE</div><h1>${title}</h1><p>${description}</p></div><div class="page-header-meta">${demoMode ? badge("Evaluator mode", "warning") : badge("IRIS 2026.2", "accent")}${help}${snippets}</div></div>`;
 }
 
 function applicationsView() {
@@ -836,6 +847,42 @@ function render() {
     location.hash = state.route;
     render();
     ensureRouteSource();
+  }));
+  app.querySelectorAll("[data-snippet]").forEach((button) => button.addEventListener("click", async () => {
+    const item = LEARNING_SNIPPETS.find(entry => entry.id === button.dataset.snippet);
+    if (!item) return;
+    state.selectedSnippet = item.id;
+    state.snippetText = "";
+    state.snippetError = "";
+    state.snippetLoading = true;
+    render();
+    try {
+      const base = nativeMode ? "/opsdeck/" : "./";
+      const response = await fetch(`${base}${encodeURIComponent(item.file)}`, { headers: { Accept: "text/plain" }, cache: "force-cache" });
+      if (state.selectedSnippet !== item.id) return;
+      if (!response.ok) throw new Error(`Snippet text unavailable (HTTP ${response.status}).`);
+      state.snippetText = (await response.text()).slice(0, 12000);
+    } catch (error) {
+      if (state.selectedSnippet !== item.id) return;
+      state.snippetError = error.message || "Snippet text unavailable.";
+    } finally {
+      if (state.selectedSnippet === item.id) {
+        state.snippetLoading = false;
+        render();
+      }
+    }
+  }));
+  app.querySelectorAll("[data-download-snippet]").forEach((button) => button.addEventListener("click", () => {
+    if (!state.snippetText || button.dataset.downloadSnippet !== state.selectedSnippet) return;
+    const item = LEARNING_SNIPPETS.find(entry => entry.id === state.selectedSnippet);
+    if (!item) return;
+    const blob = new Blob([state.snippetText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = item.file;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }));
   app.querySelectorAll("[data-source]").forEach((button) => button.addEventListener("click", () => {
     const route = state.route;

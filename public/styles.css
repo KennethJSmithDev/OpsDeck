@@ -58,6 +58,12 @@ a { color:inherit; text-decoration:none; }
 .concept-help summary { cursor:pointer; color:var(--accent); }
 .concept-help ul { margin:8px 0 0; padding:10px 12px 10px 28px; border:1px solid var(--border); border-radius:8px; background:var(--surface); text-align:left; line-height:1.55; }
 .concept-help li+li { margin-top:7px; }
+.snippet-library { margin-top:7px; }
+.snippet-select { border:0; padding:0; color:var(--accent); background:transparent; text-align:left; cursor:pointer; font:inherit; }
+.snippet-body { max-width:min(700px,84vw); margin-top:8px; padding:10px; border:1px solid var(--border); border-radius:8px; background:var(--surface); text-align:left; }
+.snippet-body pre { max-height:260px; overflow:auto; margin:0 0 8px; white-space:pre-wrap; font-size:10px; line-height:1.5; }
+.snippet-note,.snippet-error { margin:7px 0 0; font-size:10px; line-height:1.45; }
+.snippet-error { color:var(--danger); }
 .eyebrow { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
 .eyebrow-rule { display:inline-block; width:18px; height:1px; background:var(--accent); }
 .page-header h1 { margin:0; font-size:28px; letter-spacing:-.05em; }

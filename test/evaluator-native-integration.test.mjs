@@ -73,7 +73,40 @@ test("contextual IRIS help is collapsed, route-scoped, and read-only learning co
   assert.doesNotMatch(logs, /<script|%Execute|terminal/iu);
 
   const unknown = header("not-a-route");
-  assert.doesNotMatch(unknown, /concept-help/u);
+  assert.doesNotMatch(unknown, /IRIS concepts in this view/u);
+});
+
+test("ObjectScript learning snippets load on selection as inert text and have a text-only export", () => {
+  const { context } = contextFor();
+  const header = vm.runInContext('state.route="overview"; pageHeader("Title", "Description")', context);
+  assert.match(header, /ObjectScript snippet library/u);
+  assert.match(header, /Inspect the current namespace/u);
+  assert.doesNotMatch(header, /\$NAMESPACE|ex\.DisplayString|%Net\.HttpRequest/u);
+  assert.doesNotMatch(header, /<script|eval\(|%Execute/iu);
+  const native = source;
+  assert.match(native, /nativeMode \? "\/opsdeck\/" : "\.\/"/u);
+  assert.match(native, /Download \.txt/u);
+  assert.match(native, /never executes snippets/u);
+});
+
+test("snippet body is fetched from its product asset only after a selection", async () => {
+  const requests = [];
+  const { context, element } = contextFor("/opsdeck/index.html", async (path, options) => {
+    requests.push({ path, options });
+    return { ok: true, status: 200, text: async () => 'write "Selected",!' };
+  });
+  const button = { dataset: { snippet: "namespace" }, addEventListener(type, handler) { context.snippetHandler = handler; } };
+  element.querySelectorAll = (selector) => selector === "[data-snippet]" ? [button] : [];
+  vm.runInContext('state.connected=true; state.info={systemMode:"DEMO"}; render()', context);
+  assert.equal(requests.length, 0);
+  assert.doesNotMatch(element.innerHTML, /write &quot;Selected/u);
+  await vm.runInContext("snippetHandler()", context);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].path, "/opsdeck/snippet-namespace.txt");
+  assert.equal(requests[0].options.headers.Accept, "text/plain");
+  assert.match(element.innerHTML, /write &quot;Selected&quot;,!/u);
+  assert.match(element.innerHTML, /<details class="concept-help snippet-library" open>/u);
+  assert.match(element.innerHTML, /Text for learning and review only\. OpsDeck never executes snippets/u);
 });
 
 test("live Packages stays empty before an installed IPM read and never substitutes fixtures", () => {
