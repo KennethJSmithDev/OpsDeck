@@ -9,9 +9,11 @@ Read-only qualification of the installed product REST routes on the isolated
 `65fa4a250c120b43998bb11b7734c6e83553e5c7`; the installed package was
 `opsdeck@0.2.2`, while the source manifest is `0.2.3`.
 
-No request touched host `IRISTesting`. No browser authentication, package
-mutation, web-application mutation, repository configuration change, or
-product package update was performed.
+No request touched host `IRISTesting`. No package mutation, web-application
+mutation, repository configuration change, or product package update was
+performed. A later Edge sign-in attempt stopped before submission because the
+Edge control clipboard could not access the Windows clipboard; no password
+was submitted and no connected browser session was established.
 
 ## Authorization localization
 
@@ -34,7 +36,8 @@ IRISSYS database, and the official IRIS REST guidance requires the executing
 identity to read databases used by the REST service. The authorized
 `%Admin_Operate:USE` permission alone did not open the dispatch. Adding only
 `%DB_IRISSYS:READ` to the disposable fixture role changed authenticated
-product requests from 403 to HTTP 200 JSON. `%Admin_Secure:USE` remains absent.
+product requests from 403 to HTTP 200 JSON. This dispatch fix is separate
+from the subsequent IPM provider authority checks described below.
 
 The provider then returned an installed inventory with no visible rows and an
 available-catalog result of `unavailable/no-enabled-repositories`. Runtime
@@ -46,7 +49,7 @@ permission even though its specific SQL SELECT checks passed. Adding only
 attempt to grant `%DB_IPM:READ` was rejected because that resource does not
 exist; the rejected attempt made no change.
 
-## Authenticated results after minimum qualified authority
+## Authenticated results under the disposable qualification role
 
 The role's effective resources after the catalog qualification grants are:
 
@@ -56,6 +59,11 @@ The role's effective resources after the catalog qualification grants are:
 %DB_IRISSYS:READ
 %DB_%DEFAULT:READ
 ```
+
+The role also has the expressly authorized `%Admin_Secure:USE` grant, SQL
+SELECT on `%IPM_Storage.ModuleItem` and `%IPM_Repo.Definition`, and SQL
+EXECUTE on `%IPM_Repo.Definition_SortOrder` in `%SYS`. This is the observed
+qualification authority set, not a minimum-privilege product recommendation.
 
 Its existing SQL SELECT access to `%IPM_Storage.ModuleItem` and
 `%IPM_Repo.Definition` remains the provider's table-level guard. In `%SYS`, it
@@ -158,7 +166,8 @@ the repository table SELECT before calling IPM.
   registry result `0.2.0`; browser display of the `INSTALLED_NEWER`
   relationship remains unqualified.
 - The Docker qualification identity and DPAPI-protected local credential are
-  retained for the campaign. Plaintext was not output or committed.
+  retained for the campaign. Plaintext was not output or committed. The
+  Windows clipboard was cleared after the unsuccessful Edge handoff.
 - `IRISTesting` is untouched. No Edge session was authenticated. No product
   package, repository, class, web application, or package data was mutated.
 - **v0.5 remains NOT ACCEPTED.** Authenticated HTTP catalog behavior now
