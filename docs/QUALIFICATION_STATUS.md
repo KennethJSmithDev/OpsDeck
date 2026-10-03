@@ -57,7 +57,7 @@ All entries below are local source work. They have not been installed into IRIST
 | 0.7 Evidence Center | `feature/durable-evidence-center-0.7` / `88f22c9537df11d1340380a446df74c146f2b9be` | **EVIDENCE-CONTRACT/UI SOURCE-READY / PERSISTENCE BACKEND UNQUALIFIED**. Bounded redacted session evidence, filtering, and JSON/Markdown export; no durable IRIS provider. |
 | 0.8 Applications → Packages | `feature/applications-packages-0.8` / `ed490e94af92fce52c2d564cc95377a9f3baee38` | **WORKSPACE SOURCE-READY / PLANNING-FIXTURE FLOW QUALIFIED / LIVE IPM EXECUTION UNQUALIFIED**. Package rows are visibly synthetic; plans are HIGH risk and confirmation remains disabled. |
 
-Local regression results at those source commits: 0.6 **95/95**, 0.7 **100/100**, and 0.8 **104/104**. Tests prove the local contracts and fixture behavior only.
+Local regression results at those source commits: 0.6 **95/95**, 0.7 **100/100**, and 0.8 **104/104**. The current integrated branch passes **141/141** tests, JavaScript syntax checks, module XML parsing, and `git diff --check`. Tests prove the local contracts and fixture behavior only.
 
 ## Unverified / deferred boundaries
 
@@ -78,4 +78,4 @@ Local regression results at those source commits: 0.6 **95/95**, 0.7 **100/100**
 4. Preserve session-scoped Evidence for contest 0.8/1.0; durable persistence and Vector Search remain deferred by architecture decision.
 5. Establish read-only available-package discovery and the exact install/update/remove contracts before enabling any package mutation path.
 
-The accepted 0.2.0 and 0.2.1 historical evidence is preserved. No Phase C continuation, 0.9 work, public push, merge, tag, release, registry claim, or Open Exchange action is included in these source branches.
+The accepted 0.2.0 and 0.2.1 historical evidence is preserved. The current source and qualification record were pushed to the integration branch. No Phase C continuation, 0.9 work, main merge, tag, release, registry claim, or Open Exchange action is included in this checkpoint.
