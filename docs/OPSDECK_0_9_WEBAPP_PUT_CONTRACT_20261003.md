@@ -23,14 +23,21 @@
 - `RunGet` uses the same name identity and `Security.Applications.Exists`. It returns HTTP 404 if the application is absent and serializes the object if present. Read-back route: `GET /api/admin/v2/web-app?name=<exact-name>`.
 - The endpoint is synchronous; there is no Job handoff in `RunPut`.
 - Official 2026.2 `Security.Applications` documentation states `%Admin_Secure:Use` is required. OpsDeck's local proxy passes the authenticated session Authorization header to the upstream IRIS API; it does not substitute another identity. This establishes the intended non-elevating route, but authenticated HTTP behavior remains unqualified.
+- The installed dispatch UrlMap also maps `DELETE /web-app` to `DeleteWebApp`. Its endpoint `RunDelete(&sc:%Status, requestBody:%DynamicObject)` checks the same query name; it returns 404 when absent and otherwise calls `Security.Applications.Delete(name)`, then returns an empty object. The endpoint does not expose that method's `%Status` in its response body. A successful DELETE transport response is therefore not sufficient proof of removal; `GET /api/admin/v2/web-app?name=/opsdeck-fixture` must return 404 afterward.
 
 ## Candidate fixture operation contract
 
-For an existing web app, the body needed to request a state transition is exactly `{"Enabled":true}` or `{"Enabled":false}`; query identity remains `name=/opsdeck-fixture`. The endpoint uses patch semantics for existing records. The common executor must independently read and fingerprint fresh pre-state, check the caller's authority, require explicit confirmation, dispatch one request, and use the GET above for authoritative read-back.
+The target was authoritatively observed absent through `Security.Applications.Exists("/opsdeck-fixture")` under the disposable target's `irisowner` console identity. A read of the existing `/opsdeck` application established a runtime-valid property set: `NameSpace=%SYS`, `Path=/usr/irissys/csp/opsdeck/`, `Enabled=1`, `ServeFiles=1`, `Recurse=1`, and `AutheEnabled=32`. Based on those installed values, the bounded candidate create body is:
 
-For creating an absent fixture, a candidate request must also provide the fields required for a CSP application. The installed method/schema and class metadata do not enumerate type-specific required fields. A body such as `{"Enabled":false,"NameSpace":"%SYS","Path":"..."}` is therefore a hypothesis, not an established exact create payload. It was not sent.
+```json
+{"Enabled":false,"NameSpace":"%SYS","Path":"/usr/irissys/csp/opsdeck/","ServeFiles":1,"Recurse":1,"AutheEnabled":32}
+```
 
-**Execution readiness: NOT READY.** The contract owner, route identity, patch payload, sync behavior, and read-back are established. Exact absent-fixture create semantics have no runtime proof; the shared generic live executor and browser authority/confirmation flow have not yet been integrated; no authenticated disposable HTTP identity is available in this turn. No PUT, fixture creation, privilege grant, or application mutation occurred.
+Use query identity `name=/opsdeck-fixture`. This uses only fields present in the installed request schema and mirrors the tested settings of the existing OpsDeck CSP app; it was not sent and therefore remains a candidate, not an accepted create payload.
+
+For an existing web app, the body needed to request a state transition is exactly `{"Enabled":true}` or `{"Enabled":false}`; query identity remains `name=/opsdeck-fixture`. The endpoint uses patch semantics for existing records. Reversal is `DELETE /api/admin/v2/web-app?name=/opsdeck-fixture`, followed by authoritative GET absence. The common executor must independently read and fingerprint fresh pre-state, check the caller's authority, require explicit confirmation, dispatch one request, and use the GET above for authoritative read-back.
+
+**Execution readiness: NOT READY.** Owner, route identity, candidate create payload, patch payload, synchronous behavior, deletion path, and read-back are established to source/runtime-metadata scope. The candidate create body and end-to-end `/opsdeck-fixture` cycle have no HTTP runtime proof; the shared generic live executor and browser authority/confirmation flow have not yet been integrated; no authenticated disposable HTTP identity is available in this turn. No PUT, DELETE, fixture creation, privilege grant, or application mutation occurred.
 
 ## Official corroboration
 
@@ -39,8 +46,8 @@ For creating an absent fixture, a candidate request must also provide the fields
 
 ## State and next boundary
 
-**Known:** owner, method signature, upsert branch, name source, accepted body-property schema, forced CSP type, create status 201, GET absence as 404, and required security resource.
+**Known:** owner, method signatures, upsert/delete branches, name source, body-property schema, forced CSP type, create status 201, synchronous result, GET absence as 404, DELETE route, and required security resource. The disposable fixture is absent; `/opsdeck` values provide a runtime-valid candidate CSP property set.
 
-**Inferred:** a closed `Enabled` patch is appropriate for an existing disposable CSP application; an absent app needs path/namespace configuration suitable for its type.
+**Inferred:** a closed `Enabled` patch is appropriate for an existing disposable CSP application; the candidate create payload should create a disabled route pointing at the existing OpsDeck CSP directory, then permit a same-identity delete.
 
-**Unverified:** exact accepted create payload, error-to-HTTP mapping, authenticated HTTP identity/privilege outcome, generic executor integration, and an end-to-end reversible operation receipt. Continue source work only through the shared executor; do not bypass it with direct console/API mutations.
+**Unverified:** acceptance of the candidate create payload, error-to-HTTP mapping, authenticated HTTP identity/privilege outcome, generic executor integration, and an end-to-end reversible operation receipt. Continue source work only through the shared executor; do not bypass it with direct console/API mutations.
