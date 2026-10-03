@@ -449,7 +449,9 @@ function packagesWorkspaceView() {
     const rows = inventory?.packages.filter(item => state.packageFilter === "all" || item.state === "installed") || [];
     const stateLabel = state.packageInventoryLoading ? "LOADING" : state.packageInventoryError ? "FAILED" : inventory?.state || "NOT READ";
     const stateStyle = inventory?.state === "AVAILABLE" ? "accent" : "warning";
-    const catalog = state.availablePackageCatalog;
+    const catalogResult = state.availablePackageCatalog;
+    const catalog = catalogResult?.coverage === "partial" && ["AVAILABLE", "TRUNCATED"].includes(catalogResult.state)
+      ? { ...catalogResult, state: "PARTIAL COVERAGE" } : catalogResult;
     const catalogRows = catalog ? comparePackageCatalogToInstalled(catalog, inventory) : [];
     const catalogErrorState = state.availablePackageErrorStatus === 403 ? "DENIED" : "FAILED";
     const catalogBadge = state.availablePackageLoading ? "LOADING" : state.availablePackageError ? catalogErrorState : catalog?.state || "NOT QUERIED";

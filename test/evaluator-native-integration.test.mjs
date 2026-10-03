@@ -164,6 +164,29 @@ test("live Packages preserves an upstream catalog HTTP 403 as DENIED", async () 
   assert.doesNotMatch(live, /badge warning">FAILED/u);
 });
 
+test("live Packages labels partial repository coverage while retaining observed rows", () => {
+  const { context } = contextFor();
+  vm.runInContext(`
+    state.connected = true;
+    state.info = { username: "OpsDeckTest", systemMode: "NATIVE" };
+    state.applicationsTab = "packages";
+    state.availablePackageName = "opsdeck";
+    state.packageInventory = mapInstalledPackageInventory({
+      provider: "iris-ipm-installed-v1", namespace: "%SYS", status: "empty", packages: [],
+    });
+    state.availablePackageCatalog = mapAvailablePackageCatalog({
+      provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status: "available",
+      packages: [{ name: "opsdeck", availableVersion: "0.2.0", repository: "registry" }],
+      truncated: false, repositoryCount: 2, availableRepositoryCount: 1, coverage: "partial",
+    });
+  `, context);
+  const live = vm.runInContext("applicationsView()", context);
+  assert.match(live, /badge warning">PARTIAL COVERAGE/u);
+  assert.match(live, /opsdeck/u);
+  assert.match(live, /0\.2\.0/u);
+  assert.match(live, /absence is not established/u);
+});
+
 test("Evidence projects bounded audit outcomes without retaining audit row values", () => {
   const { context } = contextFor();
   const serialized = vm.runInContext(`
