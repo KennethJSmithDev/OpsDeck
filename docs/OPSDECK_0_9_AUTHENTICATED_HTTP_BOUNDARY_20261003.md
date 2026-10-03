@@ -11,9 +11,10 @@ Read-only qualification of the installed product REST routes on the isolated
 
 No request touched host `IRISTesting`. No package mutation, web-application
 mutation, repository configuration change, or product package update was
-performed. A later Edge sign-in attempt stopped before submission because the
-Edge control clipboard could not access the Windows clipboard; no password
-was submitted and no connected browser session was established.
+performed. At the time of the original HTTP-only checkpoint, Edge had not
+connected. A later connected Edge session is recorded in the addendum below;
+its authentication mechanism was not established and no credential value was
+observed or recorded.
 
 ## Authorization localization
 
@@ -159,17 +160,19 @@ the repository table SELECT before calling IPM.
   be denied by this IPM implementation's SSL-configuration lookup. The
   browser can represent this as DENIED; no role was broadened outside the
   disposable target.
-- **UNVERIFIED:** connected Edge rendering under `OpsDeckQualify`, the
-  operation denial/result boundary, operation authority/qualification, live
-  receipt, and package install/remove.
+- **UNVERIFIED at the original HTTP-only checkpoint:** connected Edge rendering
+  under `OpsDeckQualify`. The later result is documented in the addendum.
+  Operation denial/result boundary, operation authority/qualification, live
+  receipt, and package install/remove remain unverified.
 - The target still has installed `opsdeck@0.2.2`, newer than the authenticated
   registry result `0.2.0`; browser display of the `INSTALLED_NEWER`
   relationship remains unqualified.
 - The Docker qualification identity and DPAPI-protected local credential are
   retained for the campaign. Plaintext was not output or committed. The
   Windows clipboard was cleared after the unsuccessful Edge handoff.
-- `IRISTesting` is untouched. No Edge session was authenticated. No product
-  package, repository, class, web application, or package data was mutated.
+- `IRISTesting` is untouched. At the original HTTP-only checkpoint no Edge
+  session was authenticated; the later browser observation did not mutate
+  product package, repository, class, web application, or package data.
 - **v0.5 remains NOT ACCEPTED.** Authenticated HTTP catalog behavior now
   passes at the recorded fixture authority scope, but the connected Edge
   rendering gate is pending. No v0.6 mutation was attempted.
@@ -180,3 +183,34 @@ the repository table SELECT before calling IPM.
 - [IRIS REST specification and database access guidance](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls/framework-api/scbi/changes/DocBook.UI.Page.cls?KEY=GREST_specification)
 - [IRIS privileges and permissions](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=GSA_config_privs)
 - [InterSystems IRIS 2026.2 IPM documentation](https://irisdocs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=AIPM)
+
+## Connected Edge addendum — 2026-10-03
+
+In Edge tab `130315544` at the Docker-only loopback URL, the live OpsDeck shell
+identified `OpsDeckQualify` in `%SYS`. The Packages workspace showed the two
+installed IPM rows and, after an exact `opsdeck` lookup, rendered the real
+available row `opsdeck@0.2.0` from `registry`, installed `opsdeck@0.2.2`, and
+coverage `1/1 repositories reachable`. No demo fallback appeared. This
+qualifies a connected live catalog rendering at the tested fixture identity's
+authority scope.
+
+The installed package's browser badge read `INSTALLED`, not the
+`INSTALLED_NEWER` relationship present in the current source renderer. A
+read-only SHA-256 comparison found the installed `/usr/irissys/csp/opsdeck/app.js`
+does not match local `public/app.js`; the Docker image still contains
+`opsdeck@0.2.2`, while the working source manifest is `0.2.3`. Therefore this
+smoke does **not** qualify the current integrated source's relationship label
+or close v0.5. The values themselves establish local installed version
+`0.2.2` newer than catalog `0.2.0`; no update is available from that observed
+catalog result.
+
+The browser session was already connected when inspected. This observation
+does not establish whether a saved-password-manager entry or another prior
+session action performed authentication. No password was read, printed, or
+stored in evidence. No account/role/grant, package, application, repository,
+or host IRISTesting state changed during this browser check.
+
+**Updated gate:** live HTTP and connected Edge catalog rendering are qualified
+for this exact Docker fixture authority and installed UI version. Current-source
+browser qualification, general-operator authorization, v0.5 acceptance, and
+all mutation gates remain open.
