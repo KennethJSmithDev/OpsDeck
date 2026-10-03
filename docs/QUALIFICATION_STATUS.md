@@ -2,21 +2,22 @@
 
 ## Current integration snapshot — 2026-10-03
 
-- Branch: `integration/opsdeck-1.0-20261002`, tested source checkpoint `91d69ab09d9b563bbac4773acfae1c865af76780`.
+- Branch: `integration/opsdeck-1.0-20261002`, tested source checkpoint `51989123260526c2d6a96a25868ea2b1d3f7e211` (the current code is unchanged from the catalog source tested at `91d69ab09d9b563bbac4773acfae1c865af76780`; this turn changed qualification documentation only).
 - Source package version remains `0.2.3`; this work does not advance the evidence-gated product version.
 - Current local JavaScript suite: **148/148 PASS** at the tested source checkpoint. Browser-rendered catalog tests cover `INSTALLED_NEWER` without an update recommendation, simulated upstream HTTP 403 as `DENIED`, and partial configured-repository coverage with rows retained. Syntax checks pass locally. The changed browser assets have not been reloaded into or qualified on the installed disposable target.
 - The catalog comparison now distinguishes `INSTALLED_CURRENT`, `INSTALLED_OLDER`, `INSTALLED_NEWER`, `AVAILABLE_ONLY`, `INSTALLED_STATE_UNKNOWN`, and `INSTALLED_VERSION_UNCOMPARABLE`. This is source/test evidence, not a new live browser observation.
 - The disposable `OPSDECK_08_TEST_TARGET` was observed running at loopback ports 51972 and 52774. Its OpsDeck installation was left untouched; the browser reached the login screen and no credentials were entered. Authenticated catalog rendering therefore remains unqualified.
 - A read-only unauthenticated `GET /opsdeck-api/available-packages?name=opsdeck` against that target returned **401**, confirming the installed flat catalog route reaches its authentication boundary. It does not establish authenticated REST dispatch, the authenticated IRIS identity, repository-read authority, or an IPM query result.
 - The live operation engine remains fixture-only. No real web-app operation, package operation, or OperationReceipt has been qualified in this continuation.
-- ObjectScript Quality remains **NOT RUN** because the prescribed remote hook failed trust review; see [the gate record](OBJECTSCRIPT_QUALITY_GATE_20261003.md). This is a required hygiene gate before a human-approved mainline candidate, not a product version advancement.
+- ObjectScript Quality is **UNAVAILABLE UNDER ACCEPTABLE TRUST BOUNDARY** because the prescribed remote hook failed trust review; it is not a mainline-blocking OpsDeck acceptance gate. The workflow was not added or executed. Ordinary product quality gates remain required; see [the gate record](OBJECTSCRIPT_QUALITY_GATE_20261003.md).
+- A connected local safe-demo browser smoke rendered Overview, Applications, Logs with the deterministic synthetic Embedded Python finding, Tasks and its synthetic Job Center entry, Packages with the synthetic `opsdeck 0.2.1` versus `0.2.0` `INSTALLED NEWER` example, and Evidence. The demo banner identified sanitized sample data/no IRIS connection; the Packages screen explicitly said it queried no registry or installed IPM inventory. This is static/demo rendering evidence only and does not qualify the live authenticated provider. The loopback server and temporary staged bundle were stopped and removed.
 - No IRIS state was changed in this continuation. No merge, tag, or release was made.
 
 ### Evidence-gated frontier
 
 | Milestone | Current status | Remaining acceptance evidence |
 |---|---|---|
-| 0.5 operational visibility | **NOT ACCEPTED** | Authenticated connected-browser smoke of the live available catalog and its authority/coverage/version states; safe-demo and representation-cost acceptance record for the complete 0.5 surface. |
+| 0.5 operational visibility | **NOT ACCEPTED** | Safe-demo product-shape smoke passed and source representation cost is recorded. Authenticated connected-browser smoke of the live available catalog and its authority/coverage/version states remains outstanding. |
 | 0.6 verified operations | **NOT ACCEPTED** | One real reversible operation through the shared executor, authoritative read-back, receipt, and cleanup on the disposable target. |
 | 0.7 operational Evidence | **NOT ACCEPTED** | A real OperationReceipt consumed and rendered with its evidence-backed findings. |
 | 0.8 package operations | **NOT ACCEPTED** | Same-executor package install/remove, DPI-I-261 completion, and unrelated-package preservation. |

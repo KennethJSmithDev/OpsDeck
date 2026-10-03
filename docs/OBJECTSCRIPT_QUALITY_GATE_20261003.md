@@ -2,7 +2,7 @@
 
 ## Decision
 
-**NOT RUN — trust boundary rejected.** The Open Exchange workflow prescribes downloading and executing a mutable shell script from the `master` branch of `litesolutions/objectscriptquality-jenkins-integration`. The script is not pinned or verified before execution. Its inspected implementation disables TLS certificate validation for Jenkins calls (`curl -k`), contains shared Jenkins credentials and a job trigger token in public source, and submits the repository URL and branch to an external Jenkins service. The generated Jenkins job clones that public repository and runs SonarQube over its source tree. This is not an acceptable release gate for the current integration without an independently acceptable trust boundary.
+**UNAVAILABLE UNDER ACCEPTABLE TRUST BOUNDARY; NOT A MAINLINE-BLOCKING ACCEPTANCE GATE.** The Open Exchange workflow prescribes downloading and executing a mutable shell script from the `master` branch of `litesolutions/objectscriptquality-jenkins-integration`. The script is not pinned or verified before execution. Its inspected implementation disables TLS certificate validation for Jenkins calls (`curl -k`), contains shared Jenkins credentials and a job trigger token in public source, and submits the repository URL and branch to an external Jenkins service. The generated Jenkins job clones that public repository and runs SonarQube over its source tree. This trust boundary is not acceptable, so OpsDeck will not add or execute this integration. The external scanner does not block an otherwise accepted OpsDeck milestone or human-approved mainline candidate.
 
 ## Workflow and hook inspected
 
@@ -21,12 +21,12 @@
 
 ## Results
 
-- Workflow added: **No**.
+- Workflow added: **No**; intentionally excluded after trust review.
 - Workflow execution: **Not run**.
 - Analyzer finding count: **Unavailable; analyzer did not run**. Trust review recorded **5 distinct findings**.
 - Relevant findings: mutable remote executable; disabled TLS verification; shared service credentials and trigger token embedded in public hook; source URL/branch sent to and source cloned by a third-party analysis service; hook does not wait for or check the analyzer outcome.
 - Fixes made: **None**. No finding was suppressed and no workflow was altered to disguise the inspected trust behavior.
-- Remaining limitation: no acceptable, pinned and transport-verified ObjectScript quality service integration is established. This gate remains required before a human-approved mainline candidate if a suitable service/integration is established.
+- Remaining limitation: no acceptable, pinned and transport-verified external ObjectScript quality service integration is established. Record this as `OBJECTSCRIPT_QUALITY = UNAVAILABLE_UNDER_ACCEPTABLE_TRUST_BOUNDARY`; it is not a release blocker. Continue ordinary OpsDeck gates: tests, compilation, syntax, package lifecycle, runtime qualification, diff/format checks, security review, and representation-cost sanity. Reconsider an external scanner only if a separately inspected integration provides an acceptable trust boundary.
 
 ## Scope and sources
 
