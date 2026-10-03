@@ -2,8 +2,9 @@ const SAFE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/u;
 const SAFE_REF = /^[A-Za-z0-9][A-Za-z0-9:._/-]{0,255}$/u;
 const SAFE_PLAN_ID = /^[A-Za-z0-9][A-Za-z0-9:._/-]{0,127}$/u;
 const SECRET_KEY = /(?:password|secret|token|authorization|private.?key|credential|cookie)/iu;
-const TERMINAL = new Set(["CANCELLED", "DENIED", "UNAVAILABLE", "STALE", "AMBIGUOUS", "VERIFIED", "MISMATCH", "UNVERIFIED"]);
+const TERMINAL = new Set(["CANCELLED", "DENIED", "UNAVAILABLE", "STALE", "AMBIGUOUS", "VERIFIED", "FAILED", "MISMATCH", "UNVERIFIED"]);
 const validatedOperationPlans = new WeakSet();
+const operationAttempts = new WeakMap();
 const OPERATION_PLAN_SCHEMA = "opsdeck-operation-plan-v1";
 export const OPERATION_POLICIES = Object.freeze({
   "webapp.enable": Object.freeze({
@@ -251,46 +252,119 @@ export function cancelOperationPlan(plan) {
   return deepFreeze({ state: "CANCELLED", planId: plan.id, cancelledAt: new Date().toISOString() });
 }
 
-export async function executeFixturePlan(plan, options = {}) {
+export async function executeOperationPlan(plan, provider, options = {}) {
   if (!plan || !validatedOperationPlans.has(plan) || plan.schemaVersion !== OPERATION_PLAN_SCHEMA || plan.state !== "REVIEW_REQUIRED") {
     return { state: "UNRESOLVED", reason: "plan-not-qualified" };
   }
-  if (options.providerIdentity !== "opsdeck-fixture-v1") return { state: "UNAVAILABLE", reason: "qualified-executor-unavailable" };
+  const priorAttempt = operationAttempts.get(plan);
+  if (priorAttempt) return priorAttempt.state === "IN_FLIGHT"
+    ? { state: "AMBIGUOUS", reason: "operation-plan-dispatch-in-progress", retryAllowed: false }
+    : priorAttempt.result;
+  let providerIdentity;
+  try { providerIdentity = boundedText(provider?.identity, "provider identity", 128); }
+  catch { return { state: "UNAVAILABLE", reason: "operation-provider-contract-unavailable" }; }
+  if (providerIdentity !== options.providerIdentity ||
+      provider.targetProvider !== plan.target.provider || typeof provider.readPreState !== "function" ||
+      typeof provider.checkAuthority !== "function" || typeof provider.dispatch !== "function" ||
+      typeof provider.readBack !== "function" || typeof provider.verifyReadback !== "function") {
+    return { state: "UNAVAILABLE", reason: "operation-provider-contract-unavailable" };
+  }
   const executionTime = options.now ?? Date.now();
   if (Date.parse(plan.expiresAt) <= executionTime) return { state: "STALE", reason: "plan-expired" };
-  if (options.currentPreState == null || fingerprintPreState(options.currentPreState) !== plan.preStateFingerprint) return { state: "STALE", reason: "pre-state-changed" };
   if (plan.capability.state !== "SUPPORTED") return { state: "UNAVAILABLE", reason: `capability-${String(plan.capability.state).toLowerCase()}` };
-  if (plan.authorityValidation.state !== "SUPPORTED" || !plan.authorityValidation.evidence || options.authority?.state !== "SUPPORTED" || !options.authority?.evidence) {
-    return { state: plan.authorityValidation.state === "DENIED" || options.authority?.state === "DENIED" ? "DENIED" : "UNAVAILABLE", reason: "authoritative-privilege-evidence-required" };
+  let currentPreState;
+  try { currentPreState = await provider.readPreState(plan); }
+  catch { return { state: "UNAVAILABLE", reason: "fresh-pre-state-unavailable" }; }
+  let currentFingerprint;
+  try { currentFingerprint = plain(currentPreState) ? fingerprintPreState(safeProjection(currentPreState)) : null; }
+  catch { currentFingerprint = null; }
+  if (currentFingerprint === null) return { state: "UNAVAILABLE", reason: "fresh-pre-state-invalid" };
+  if (currentFingerprint !== plan.preStateFingerprint) {
+    return { state: "STALE", reason: "pre-state-changed" };
+  }
+  let authority;
+  try { authority = await provider.checkAuthority(plan); }
+  catch { return { state: "UNAVAILABLE", reason: "authority-check-unavailable" }; }
+  if (authority?.state === "DENIED") return { state: "DENIED", reason: "authoritative-privilege-denied" };
+  if (plan.authorityValidation.state !== "SUPPORTED" || !plan.authorityValidation.evidence ||
+      authority?.state !== "SUPPORTED" || !authority?.evidence) {
+    return { state: "UNAVAILABLE", reason: "authoritative-privilege-evidence-required" };
   }
   if (plan.preconditions.some(item => item.observed === false)) return { state: "BLOCKED", reason: "precondition-failed" };
   if (plan.preconditions.some(item => item.observed !== true)) return { state: "BLOCKED", reason: "precondition-unverified" };
-  if (plan.requiresConfirmation && options.confirmed !== true) return { state: "BLOCKED", reason: "explicit-confirmation-required" };
-  const outcome = options.outcome || "success";
-  if (outcome === "ambiguous") return { state: "AMBIGUOUS", reason: "provider-result-ambiguous", retryAllowed: false };
-  if (["denied", "unavailable", "cancelled"].includes(outcome)) return { state: outcome.toUpperCase(), reason: `fixture-${outcome}` };
-  if (outcome !== "success") return { state: "UNRESOLVED", reason: "unsupported-fixture-outcome" };
-  const readback = options.readback;
-  if (readback == null) return { state: "UNVERIFIED", reason: "authoritative-read-back-required" };
-  const verification = verifyFixtureReadback(plan, readback);
-  if (!verification.supported) return { state: "UNVERIFIED", reason: "fixture-read-back-policy-unavailable" };
+  const confirmation = options.confirmation;
+  if (plan.requiresConfirmation && (!plain(confirmation) || confirmation.planId !== plan.id ||
+      confirmation.preStateFingerprint !== plan.preStateFingerprint || confirmation.confirmed !== true)) {
+    return { state: "BLOCKED", reason: "explicit-confirmation-required" };
+  }
+  operationAttempts.set(plan, { state: "IN_FLIGHT" });
+  let dispatch;
+  const finishAttempt = result => { operationAttempts.set(plan, { state: "COMPLETE", result }); return result; };
+  try { dispatch = await provider.dispatch(plan); }
+  catch { return finishAttempt({ state: "AMBIGUOUS", reason: "dispatch-result-ambiguous", retryAllowed: false }); }
+  if (dispatch?.state === "AMBIGUOUS") return finishAttempt({ state: "AMBIGUOUS", reason: "provider-result-ambiguous", retryAllowed: false });
+  if (["CANCELLED", "DENIED", "UNAVAILABLE", "FAILED"].includes(dispatch?.state)) {
+    return finishAttempt({ state: dispatch.state, reason: typeof dispatch.reason === "string" ? dispatch.reason : "provider-rejected-operation" });
+  }
+  if (dispatch?.state !== "ACCEPTED") return finishAttempt({ state: "AMBIGUOUS", reason: "dispatch-result-unclassified", retryAllowed: false });
+  let readback;
+  try { readback = await provider.readBack(plan, dispatch); }
+  catch { return finishAttempt({ state: "AMBIGUOUS", reason: "authoritative-read-back-failed-after-dispatch", retryAllowed: false }); }
+  if (readback == null) return finishAttempt({ state: "AMBIGUOUS", reason: "authoritative-read-back-missing-after-dispatch", retryAllowed: false });
+  let verification;
+  let safeReadback;
+  try {
+    safeReadback = safeProjection(readback);
+    verification = await provider.verifyReadback(plan, safeReadback);
+  } catch { return finishAttempt({ state: "AMBIGUOUS", reason: "read-back-verification-unavailable", retryAllowed: false }); }
+  if (!plain(verification) || verification.supported !== true || typeof verification.matched !== "boolean") {
+    return finishAttempt({ state: "AMBIGUOUS", reason: "read-back-policy-unavailable", retryAllowed: false });
+  }
+  const verified = verification.matched;
   const receipt = deepFreeze({
-    id: `fixture-receipt:${plan.id}`,
+    id: `${providerIdentity}:receipt:${plan.id}`,
     operationId: plan.id,
     target: plan.target,
     intent: plan.intent,
-    provider: "opsdeck-fixture-v1",
+    provider: providerIdentity,
     preStateFingerprint: plan.preStateFingerprint,
     requestSummary: plan.parameters,
-    postStateFingerprint: fingerprintPreState(verification.safeReadback),
-    verification: verification.matched ? "VERIFIED" : "FAILED",
-    verificationReason: verification.matched ? "read-back-matched" : "read-back-mismatch",
-    providerResponseStatus: "fixture-success",
-    evidenceSources: ["fixture-provider", "fixture-readback"],
-    timestamps: { completedAt: new Date(executionTime).toISOString() },
-    warnings: ["Fixture evidence does not qualify a live IRIS operation."],
+    postStateFingerprint: fingerprintPreState(safeReadback),
+    verification: verified ? "VERIFIED" : "FAILED",
+    verificationReason: verified ? "read-back-matched" : "read-back-mismatch",
+    providerResponseStatus: typeof dispatch.status === "string" && dispatch.status.length <= 64 ? dispatch.status : "accepted",
+    evidenceSources: [providerIdentity, "authoritative-readback"],
+    timestamps: { completedAt: new Date().toISOString() },
+    warnings: Array.isArray(dispatch.warnings) ? dispatch.warnings.slice(0, 8).filter(value =>
+      typeof value === "string" && value.length <= 256 && !/[\u0000-\u001f\u007f]/u.test(value)) : [],
   });
-  return { state: verification.matched ? "VERIFIED" : "MISMATCH", receipt };
+  return finishAttempt({ state: verified ? "VERIFIED" : "MISMATCH", receipt });
+}
+
+export async function executeFixturePlan(plan, options = {}) {
+  if (options.providerIdentity !== "opsdeck-fixture-v1") return { state: "UNAVAILABLE", reason: "qualified-executor-unavailable" };
+  const provider = {
+    identity: "opsdeck-fixture-v1",
+    targetProvider: plan?.target?.provider,
+    readPreState: async () => options.currentPreState,
+    checkAuthority: async () => options.authority,
+    dispatch: async () => {
+      const outcome = options.outcome || "success";
+      if (outcome === "ambiguous") return { state: "AMBIGUOUS" };
+      if (outcome === "cancelled") return { state: "CANCELLED", reason: "fixture-cancelled" };
+      if (["denied", "unavailable", "cancelled"].includes(outcome)) {
+        return { state: outcome.toUpperCase(), reason: `fixture-${outcome}` };
+      }
+      if (outcome !== "success") return { state: "FAILED", reason: "unsupported-fixture-outcome" };
+      return { state: "ACCEPTED", status: "fixture-success", warnings: ["Fixture evidence does not qualify a live IRIS operation."] };
+    },
+    readBack: async () => options.readback,
+    verifyReadback: async (currentPlan, readback) => verifyFixtureReadback(currentPlan, readback),
+  };
+  const confirmation = options.confirmed === true
+    ? { planId: plan?.id, preStateFingerprint: plan?.preStateFingerprint, confirmed: true }
+    : undefined;
+  return executeOperationPlan(plan, provider, { ...options, confirmation });
 }
 
 export function isTerminalOperationState(state) { return TERMINAL.has(state); }

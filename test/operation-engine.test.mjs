@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { cancelOperationPlan, createOperationPlan, executeFixturePlan, fingerprintPreState, isTerminalOperationState } from "../src/operation-engine.js";
+import { cancelOperationPlan, createOperationPlan, executeFixturePlan, executeOperationPlan, fingerprintPreState, isTerminalOperationState } from "../src/operation-engine.js";
 
 const now = Date.parse("2026-10-02T12:00:00Z");
 const input = {
@@ -47,6 +47,71 @@ test("fixture execution requires exact fixture identity, fresh pre-state, suppor
   assert.equal(blocked.reason, "explicit-confirmation-required");
   const unresolvedPlan = createOperationPlan({ ...input, capability: { ...input.capability, state: "UNRESOLVED" } }, now);
   assert.equal((await executeFixturePlan(unresolvedPlan, { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority, now })).state, "UNAVAILABLE");
+});
+
+test("generic executor runs one provider through fresh state, authority, confirmation, dispatch, read-back and receipt", async () => {
+  const plan = makePlan();
+  const calls = [];
+  const provider = {
+    identity: "fixture-webapp-provider-v1",
+    targetProvider: "iris-admin-api",
+    readPreState: async () => { calls.push("pre-state"); return { enabled: false }; },
+    checkAuthority: async () => { calls.push("authority"); return { state: "SUPPORTED", evidence: "fixture-authority" }; },
+    dispatch: async () => { calls.push("dispatch"); return { state: "ACCEPTED", status: "201" }; },
+    readBack: async () => { calls.push("read-back"); return { enabled: true }; },
+    verifyReadback: async (_plan, current) => { calls.push("verify"); return { supported: true, matched: current.enabled === true }; },
+  };
+  const confirmation = { planId: plan.id, preStateFingerprint: plan.preStateFingerprint, confirmed: true };
+  const result = await executeOperationPlan(plan, provider, { providerIdentity: provider.identity, confirmation, now });
+  assert.equal(result.state, "VERIFIED");
+  assert.deepEqual(calls, ["pre-state", "authority", "dispatch", "read-back", "verify"]);
+  assert.equal(result.receipt.provider, provider.identity);
+  assert.equal(result.receipt.providerResponseStatus, "201");
+  assert.equal((await executeOperationPlan(plan, provider, { providerIdentity: provider.identity, confirmation, now })).state, "VERIFIED");
+  assert.equal(calls.filter(call => call === "dispatch").length, 1, "a dispatched plan cannot be executed a second time");
+});
+
+test("generic executor binds confirmation to exact plan and pre-state before dispatch", async () => {
+  const plan = makePlan();
+  let dispatchCount = 0;
+  const provider = {
+    identity: "fixture-webapp-provider-v1",
+    targetProvider: "iris-admin-api",
+    readPreState: async () => ({ enabled: false }),
+    checkAuthority: async () => ({ state: "SUPPORTED", evidence: "fixture-authority" }),
+    dispatch: async () => { dispatchCount += 1; return { state: "ACCEPTED" }; },
+    readBack: async () => ({ enabled: true }),
+    verifyReadback: async () => ({ supported: true, matched: true }),
+  };
+  const result = await executeOperationPlan(plan, provider, {
+    providerIdentity: provider.identity,
+    confirmation: { planId: plan.id, preStateFingerprint: "different-pre-state", confirmed: true },
+    now,
+  });
+  assert.equal(result.state, "BLOCKED");
+  assert.equal(result.reason, "explicit-confirmation-required");
+  assert.equal(dispatchCount, 0);
+});
+
+test("generic executor marks a thrown dispatch ambiguous and does not invoke it twice", async () => {
+  const plan = makePlan();
+  let dispatchCount = 0;
+  const provider = {
+    identity: "fixture-webapp-provider-v1",
+    targetProvider: "iris-admin-api",
+    readPreState: async () => ({ enabled: false }),
+    checkAuthority: async () => ({ state: "SUPPORTED", evidence: "fixture-authority" }),
+    dispatch: async () => { dispatchCount += 1; throw new Error("connection closed after request write"); },
+    readBack: async () => ({ enabled: true }),
+    verifyReadback: async () => ({ supported: true, matched: true }),
+  };
+  const confirmation = { planId: plan.id, preStateFingerprint: plan.preStateFingerprint, confirmed: true };
+  const first = await executeOperationPlan(plan, provider, { providerIdentity: provider.identity, confirmation, now });
+  const second = await executeOperationPlan(plan, provider, { providerIdentity: provider.identity, confirmation, now });
+  assert.deepEqual(first, { state: "AMBIGUOUS", reason: "dispatch-result-ambiguous", retryAllowed: false });
+  assert.deepEqual(second, first);
+  assert.equal(dispatchCount, 1);
+  assert.equal(isTerminalOperationState(first.state), true);
 });
 
 test("reversible web-app disable policy admits an exact plan and verifies its fixture read-back", async () => {
@@ -106,23 +171,25 @@ test("a changed read-back does not close an ambiguous dispatch into a receipt", 
 });
 
 test("denial, cancellation, unavailability and cancellation of review remain distinct", async () => {
-  const plan = makePlan();
   const base = { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority-observed" }, now };
-  assert.equal((await executeFixturePlan(plan, { ...base, outcome: "denied" })).state, "DENIED");
-  assert.equal((await executeFixturePlan(plan, { ...base, outcome: "unavailable" })).state, "UNAVAILABLE");
-  assert.equal((await executeFixturePlan(plan, { ...base, outcome: "cancelled" })).state, "CANCELLED");
+  assert.equal((await executeFixturePlan(makePlan(), { ...base, outcome: "denied" })).state, "DENIED");
+  assert.equal((await executeFixturePlan(makePlan(), { ...base, outcome: "unavailable" })).state, "UNAVAILABLE");
+  assert.equal((await executeFixturePlan(makePlan(), { ...base, outcome: "cancelled" })).state, "CANCELLED");
+  const plan = makePlan();
   assert.equal(cancelOperationPlan(plan).state, "CANCELLED");
 });
 
 test("receipt verification is policy-owned and cannot be overridden by a caller verifier", async () => {
-  const plan = makePlan();
   const base = { providerIdentity: "opsdeck-fixture-v1", currentPreState: { enabled: false }, confirmed: true, authority: { state: "SUPPORTED", evidence: "fixture-authority-observed" }, now };
-  assert.equal((await executeFixturePlan(plan, base)).state, "UNVERIFIED");
-  const verified = await executeFixturePlan(plan, { ...base, readback: { enabled: true } });
+  const unknown = await executeFixturePlan(makePlan(), base);
+  assert.equal(unknown.state, "AMBIGUOUS");
+  assert.equal(unknown.retryAllowed, false);
+  assert.equal(Object.hasOwn(unknown, "receipt"), false);
+  const verified = await executeFixturePlan(makePlan(), { ...base, readback: { enabled: true } });
   assert.equal(verified.state, "VERIFIED");
   assert.equal(verified.receipt.verification, "VERIFIED");
   assert.match(verified.receipt.warnings.join(" "), /does not qualify a live IRIS/u);
-  const mismatch = await executeFixturePlan(plan, { ...base, readback: { enabled: false }, verify: () => true });
+  const mismatch = await executeFixturePlan(makePlan(), { ...base, readback: { enabled: false }, verify: () => true });
   assert.equal(mismatch.state, "MISMATCH");
   assert.equal(mismatch.receipt.verification, "FAILED");
   assert.equal(mismatch.receipt.verificationReason, "read-back-mismatch");
