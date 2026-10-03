@@ -17,13 +17,14 @@
   - the generated job checks out the repository and runs the hosted SonarQube scanner across `.`.
 - Secret behavior observed in source: no OpsDeck or GitHub secret is requested by the prescribed hook. Instead, the public shell script embeds shared Jenkins username/password and a build trigger token, then uses them in Basic authentication requests. The hook also uses `curl -k`, so those requests do not validate TLS certificates.
 - Execution behavior: GitHub's hosted Ubuntu runner executes the downloaded shell; Jenkins creates/uses a project job, clones the branch, and runs its scanner. Source is therefore made available to the external analysis service. This repository is public, but that does not resolve the unpinned executable and TLS/credential risks.
+- Result handling: the hook triggers a Jenkins build and prints that it was executed, but it does not wait for completion or retrieve the analyzer outcome. A successful GitHub step therefore cannot serve as a passing-quality result.
 
 ## Results
 
 - Workflow added: **No**.
 - Workflow execution: **Not run**.
-- Analyzer finding count: **Unavailable; analyzer did not run**.
-- Relevant findings: mutable remote executable; disabled TLS verification; shared service credentials and trigger token embedded in public hook; source URL/branch sent to and source cloned by a third-party analysis service.
+- Analyzer finding count: **Unavailable; analyzer did not run**. Trust review recorded **5 distinct findings**.
+- Relevant findings: mutable remote executable; disabled TLS verification; shared service credentials and trigger token embedded in public hook; source URL/branch sent to and source cloned by a third-party analysis service; hook does not wait for or check the analyzer outcome.
 - Fixes made: **None**. No finding was suppressed and no workflow was altered to disguise the inspected trust behavior.
 - Remaining limitation: no acceptable, pinned and transport-verified ObjectScript quality service integration is established. This gate remains required before a human-approved mainline candidate if a suitable service/integration is established.
 
