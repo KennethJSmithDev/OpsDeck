@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+  <Document name="opsdeck-storage-lifecycle-fixture.ZPM">
+    <Module>
+      <Name>opsdeck-storage-lifecycle-fixture</Name>
+      <Version>0.0.1</Version>
+      <Description>Disposable OpsDeck IPM storage lifecycle qualification fixture</Description>
+      <Packaging>module</Packaging>
+      <SourcesRoot>src</SourcesRoot>
+      <Resource Name="OpsDeck.Qualification.StorageLifecycleFixture.CLS" />
+      <Resource Name="StorageLifecycleFixtureStore" ProcessorClass="OpsDeck.Qualification.StorageLifecycleFixture" />
+    </Module>
+  </Document>
+</Export>

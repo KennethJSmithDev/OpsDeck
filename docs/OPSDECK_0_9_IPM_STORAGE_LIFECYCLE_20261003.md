@@ -14,6 +14,11 @@ custom phase and rely on package uninstall to remove it?
 - `OPSDECK` was absent at the start of the broader Vector Search
   reconnaissance; its temporary SQL qualification namespace was dropped and
   verified absent afterward. This inspection did not create it.
+- For the separate lifecycle fixture below, namespace
+  `OPSDECK_STORAGE_FIXTURE`, its exact database directory, fixture package,
+  and fixture class were each proven absent before installation. The existing
+  console identity was `irisowner` in `%SYS`, with `%Admin_Manage:Use` already
+  present. No privilege was granted.
 
 ## Direct installed-runtime observations
 
@@ -63,6 +68,13 @@ Its source matches the observed dispatch structure:
 - Official [IPM lifecycle documentation](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls/documatic/history/DocBook.UI.Page.cls?KEY=AIPM)
   describes `module.xml` as declaring resources and before/after installation
   actions, and `uninstall` as removal of an installed module.
+- Official IRIS [Configuration Merge action documentation](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls/framework-api/scdata/DocBook.UI.Page.cls?KEY=GCMF_iris_customizing_useful_action)
+  supports `CreateDatabase` and `CreateNamespace` configuration actions. The
+  [IRIS sample download guidance](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls/framework-api/scbi/DocBook.UI.Page.cls?KEY=ASAMPLES)
+  recommends a dedicated `SAMPLES` namespace/database for sample classes.
+  These establish supported configuration primitives and a separation
+  precedent, but do not by themselves establish IPM package ownership or
+  uninstall behavior for OpsDeck.
 
 The test is evidence about IPM behavior, not a product implementation pattern
 for database ownership.
@@ -80,25 +92,80 @@ data, and must verify absence after cleanup. A custom phase may be useful for
 an explicit administrative action, but it cannot stand in for uninstall
 ownership.
 
-The minimum candidate to investigate is one manifest-declared resource with
-an OpsDeck-owned `ProcessorClass`: create or validate the dedicated derived
-store during an established install phase; during standard `Clean`, validate
-an OpsDeck ownership marker, remove only that disposable derived store, and
-mark the resource handled only after successful cleanup. Missing/mismatched
-ownership must fail closed and preserve the namespace/database. This is a
-design candidate, not an implementation instruction or a qualified contract:
-the exact install phase, update/reinstall behavior, failure rollback, and safe
-database deletion path still require an isolated lifecycle fixture.
+## Disposable lifecycle fixture
 
-No database or namespace lifecycle implementation was added. Manifest support
-for a processor-owned resource and its standard `Clean` hook is established;
-an OpsDeck-specific create-and-clean processor, its collision/ownership
-checks, update/reinstall behavior, and uninstall/reinstall behavior remain
-unqualified. Continue with a disposable isolated fixture before creating
-product storage.
+Added a test-only fixture at
+[`test/fixtures/ipm-storage-lifecycle`](/C:/DevOps/P001/OpsDeck-1.0/test/fixtures/ipm-storage-lifecycle).
+It declares a `.CLS` resource and a separate virtual resource with an explicit
+`ProcessorClass`. Its processor creates only the fixed
+`OPSDECK_STORAGE_FIXTURE` database/namespace at the fixed fixture path during
+`OnAfterPhase("Configure")`. During `OnPhase("Clean")`, it drops that exact
+fixture and sets the resource-handled output only after namespace absence is
+read back. This code is a disposable qualification fixture, not product code;
+it does not yet implement durable ownership markers or update/collision policy
+for the real OpsDeck database.
+
+**EGEHAR finding — manifest resource resolution:**
+
+- **Symptom:** The first `zpm load` failed during Reload with
+  `Resource path '.../src/OpsDeck/Qualification.xml' not found`.
+- **Boundary / earliest failure:** IPM manifest resource resolution in the
+  Reload phase; the database callback had not run.
+- **Owning layer:** IPM resource selection/path resolution.
+- **Runtime / authority:** IRIS 2026.2 Build 221U, IPM 0.10.8, disposable
+  target, `%SYS`, console identity `irisowner`.
+- **Reproduction:** A class resource without its `.CLS` suffix was interpreted
+  as a package/document resource. No fixture namespace, module registration,
+  or compiled class remained after the failed load.
+- **Resolution class:** Declare the ObjectScript class as a `.CLS` resource,
+  following the official IPM integration fixture pattern. A separate virtual
+  resource names the processor class.
+- **Evidence:** The matching IPM 0.10.8 official custom-phase fixture declares
+  its class resource with `.CLS`; the corrected fixture loaded and compiled.
+- **Official corroboration:** The pinned [`CustomPhase` IPM fixture](https://github.com/intersystems/ipm/blob/v0.10.8/tests/integration_tests/Test/PM/Integration/_data/custom-phase-without-lifecycle/module.xml)
+  uses the `.CLS` resource form. No contestant material was used.
+
+**Lifecycle result:**
+
+| Step | Result |
+|---|---|
+| Fresh pre-state | Fixture namespace, database directory, package registration, and processor class absent. |
+| Local IPM load | PASS. The class compiled, `OnAfterPhase("Configure")` created the namespace/database, and the fixture package registered. The runtime showed its `Compile`, `Configure`, and `Activate` after-phase callbacks. |
+| Stored data | PASS. One synthetic `StorageMarker` row was inserted and read back inside the fixture namespace. |
+| Uninstall | PASS. IPM ran `Unconfigure` then `Clean`; the processor dropped the fixture database, IPM removed the fixture registration/class, and read-back found the namespace absent. |
+| Reinstall | PASS. From a clean state, the same package restored its registration, class, and dedicated namespace/database. |
+| Final uninstall | PASS. Fixture registration/class/namespace were absent; the exact empty `C`/`D` stream directories and staging directory were then removed individually. |
+| Unrelated OpsDeck control | PASS. `opsdeck@0.2.2` and `OpsDeck.Product.FixedLogREST` remained present. |
+
+The initial prototype used `Reload` for creation. With the processor class not
+yet compiled on a fresh load, that phase was too early: the package registered
+but the test namespace remained absent. Moving creation to the observed
+post-compilation `Configure` callback fixed the clean-install case. The
+fixture's first failure and phase adjustment are recorded here so the product
+implementation does not repeat either assumption.
+
+This qualifies the IPM hook and the isolated fixture's create/use/uninstall/
+reinstall path only. Product storage still needs an explicit marker that
+proves the exact database and namespace are OpsDeck-owned, refusal on
+name/path/resource collisions, an update/reinstall policy that preserves
+derived state, failure rollback semantics, and package lifecycle testing with
+the integrated OpsDeck manifest. The fixture's exact fixed-name deletion is
+safe only because the fixture namespace and path were proven absent before
+each run on the disposable target.
+
+No product database or namespace was created. Manifest support for a
+processor-owned resource and its standard `Clean` hook is established, and a
+disposable create/use/clean/reinstall fixture passed. The OpsDeck-specific
+ownership marker, collision checks, update behavior, failure rollback, and
+integrated manifest lifecycle remain unqualified. Product storage has not yet
+been created.
 
 ## State change
 
-No IRIS package, repository, namespace, database, mapping, class, web
-application, user, role, privilege, or browser authentication state was
-changed. No package operation was invoked.
+The only IRIS state changes were to the explicitly disposable
+`opsdeck-storage-lifecycle-fixture` package and its synthetic
+`OPSDECK_STORAGE_FIXTURE` namespace/database; both were uninstalled, read back
+absent, and their exact empty directory/staging paths were removed. OpsDeck
+package version/class state remained unchanged. No repository, mapping, user,
+role, privilege, or browser authentication state was changed. No OpsDeck
+operation was invoked.
