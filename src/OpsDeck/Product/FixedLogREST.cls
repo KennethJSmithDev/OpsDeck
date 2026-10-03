@@ -65,7 +65,34 @@ ClassMethod WriteSource(sourceId As %String) [ Private ]
         set result=##class(%DynamicObject).%New()
         set result.status="read-failure",result.reason="provider-failed"
     }
+    if (result.status="available")||(result.status="empty")||(result.status="truncated") {
+        try {
+            set analysisJSON=##class(OpsDeck.Product.LogInterpreter).Analyze(sourceId,result.%ToJSON())
+            set result.analysis=##class(%DynamicObject).%FromJSON(analysisJSON)
+        } catch exception {
+            set result.analysis=..AnalysisState(sourceId,"failed","analysis-failed")
+        }
+    } else {
+        set reason=""
+        if $data(result.reason) set reason=result.reason
+        set result.analysis=..AnalysisState(sourceId,result.status,reason)
+    }
     write result.%ToJSON()
     quit
+}
+
+ClassMethod AnalysisState(sourceId As %String, status As %String, reason As %String) As %DynamicObject [ Private ]
+{
+    set result=##class(%DynamicObject).%New()
+    set result.provider="opsdeck-embedded-python-log-analysis-v1"
+    set result.sourceId=sourceId
+    set result.status=status
+    set result.lineCount=0
+    set result.findingCount=0
+    set result.truncated=0
+    set result.findingsTruncated=0
+    set result.findings=##class(%DynamicArray).%New()
+    if reason'="" set result.reason=reason
+    quit result
 }
 }

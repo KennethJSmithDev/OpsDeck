@@ -37,15 +37,20 @@ The accepted slice projects navigation and contextual priority from observed pro
 
 | Milestone | Branch / tip | Evidence classification |
 |---|---|---|
-| Shared session Job Center source slice | `integration/opsdeck-1-20261002` / changes in current checkpoint | **SOURCE IMPLEMENTED / LOCAL TESTED 136/136 / IRIS MUTATING JOB FLOW UNQUALIFIED**. The accepted bounded audit async read is projected into one bounded session Job collection, Tasks Job Center, and session Evidence. Ambiguity is explicit and never retried. |
+| Shared session Job Center source slice | `integration/opsdeck-1-20261002` / prior checkpoint | **SOURCE IMPLEMENTED / LOCAL TESTED 136/136 / IRIS MUTATING JOB FLOW UNQUALIFIED**. The accepted bounded audit async read is projected into one bounded session Job collection, Tasks Job Center, and session Evidence. Ambiguity is explicit and never retried. |
 
-Docker reconnaissance found the CLI but no reachable configured Linux or default engine socket. No container/image/volume was created. User-authorized Decision A fixes Evidence as session-scoped for 0.8/1.0 and defers Vector Search absent an independently owned derived-index boundary. Existing installed-package observations and fixed-log qualification were not repeated.
+For this continuation, Docker Desktop 4.93.0 / Engine 29.8.1 (Linux/amd64, WSL2) was available. An isolated `OPSDECK_08_TEST_TARGET` used the official `intersystemsdc/iris-community:2026.2-zpm` image (`sha256:68bc1d43c98ca816f2e98a185edc1250bebb6b763f8159da35c8543b09c0df70`) bound only to loopback ports 51972 and 52774. The vendor entrypoint's normal after-start wrapper failed with its `dbapi.connect` wrapper error under `ISC_DATA_DIRECTORY`; IRIS started and qualified with the vendor image's `/iris-main` entrypoint. This does not qualify the wrapper path.
+
+The actual integration source was loaded and compiled with `zpm load /tmp/opsdeck-package`. `OpsDeck.Product.LogInterpreter` compiled and bounded 25 error fixtures to 20 findings, setting `findingsTruncated`. Authenticated `/opsdeck-api/packages`, `/messages`, and `/system-monitor` returned bounded results; anonymous package API access returned 401. The static `/opsdeck/index.html` and `/opsdeck/app.js` served successfully. The package lifecycle test installed a separate sentinel module, uninstalled OpsDeck, confirmed OpsDeck routes returned 404 while the sentinel static app and built-in system portal returned 200, then reloaded OpsDeck and confirmed its routes returned 200 and package inventory included `opsdeck@0.2.1` and the sentinel. This proves ownership only for this exact disposable runtime and local `zpm load` source path; it does not qualify public-registry `zpm install`.
+
+The target container, named data volume, pulled image, and temporary fixture files were removed after qualification. Docker returned to zero containers, volumes, and images. User-authorized Decision A fixes Evidence as session-scoped for 0.8/1.0 and defers Vector Search absent an independently owned derived-index boundary.
 
 All entries below are local source work. They have not been installed into IRISTesting and do not qualify live execution or persistence.
 
 | Milestone | Local branch / commit | Evidence classification |
 |---|---|---|
-| 0.4 Docker / clean-room | No new source change | **DEFERRED / ENVIRONMENT BLOCKED**. Docker repair, WSL changes, and elevation were explicitly deferred until PC return. |
+| 0.4 Docker / clean-room | Current integration source | **DISPOSABLE TARGET LIFECYCLE QUALIFIED FOR LOCAL SOURCE LOAD**. The isolated 2026.2 Docker target compiled and served the product, passed uninstall/sentinel-survival/reinstall checks, and was removed. Public registry install and normal vendor wrapper startup remain unqualified. |
+| 0.8 Embedded Python fixed-log interpretation | Current integration source | **SOURCE IMPLEMENTED / IRIS COMPILED / BOUNDED FIXTURE AND FIXED-ROUTE RUNTIME QUALIFIED**. Python stdlib analysis consumes only the existing fixed-source projection, returns capped rule findings without raw log values, and is attached to the existing `/messages` and `/system-monitor` responses. No Python authority or generic path/execution capability is added. |
 | 0.5 audit async | `feature/bounded-read-provider-coverage-0.5` / `6f24069cb6d15799e929519cdc2de504941d667c` | Bounded source slice; maxRows=1, strict same-origin/path validation, no redirect following. Complete official result schema remains UNVERIFIED. |
 | 0.5 fixed logs | `feature/fixed-log-reader-source-0.5` / `90108d61d33154ed497f19f0e3516353992c7c57` | **SOURCE PROTOTYPE / IRIS COMPILE AND PRIVILEGE CONTRACT UNQUALIFIED**. Provider-boundary tests pass. ObjectScript runtime byte accounting and denied-versus-unavailable classification require IRIS-side proof. Not packaged or installed. |
 | 0.6 operation engine | `feature/verified-operation-engine-0.6` / `57b5b022641e7a24d178bc9389a2dc229944a512` | **SOURCE-READY / FIXTURE-QUALIFIED / LIVE-EXECUTOR-UNQUALIFIED**. Deterministic risk policy, explicit authority evidence, stale-plan checks, cancellation, denial/unavailable/ambiguous states, no ambiguous retry, and read-back-gated receipts. |
@@ -56,21 +61,21 @@ Local regression results at those source commits: 0.6 **95/95**, 0.7 **100/100**
 
 ## Unverified / deferred boundaries
 
-- Docker clean-room reproduction and persistence across container restart.
+- The exact integrated lifecycle outside this one disposable container, public-registry installation, and normal vendor entrypoint wrapper path.
 - Audit async result schema beyond the observed bounded empty result.
-- Fixed-log ObjectScript compilation, exact byte/encoding behavior, denial classification, and minimum required privileges.
+- Cross-identity fixed-log denial mapping and minimum required privileges.
 - A disposable fixture for any live 0.6 mutation and a real qualified write executor.
 - A persistent, redacted IRIS-backed 0.7 Evidence provider.
-- Read-only IPM repository/inventory attachment and a disposable package fixture for 0.8.
+- Read-only IPM available-catalog discovery, live package operation executor, and public-registry package fixture for 0.8.
 - Real IPM install/update/remove result semantics and authoritative post-operation read-back.
 - Public registry installation of OpsDeck, public release of 0.2.1, and Open Exchange availability.
 
-## PC-return sequence
+## Next qualification sequence
 
-1. Restore Docker and qualify the 0.4 clean-room boundary.
-2. Compile and inspect the fixed-log reader on IRIS; determine the exact read privilege and denial/error mapping without widening privileges.
-3. Qualify the first real 0.6 mutation only against a disposable IRIS fixture after the operation executor is reviewed.
-4. Attach and qualify a persistent 0.7 evidence provider.
-5. Observe IPM read-only package metadata, then attach a disposable package fixture before considering any 0.8 execution path.
+1. Qualify the normal official Docker image wrapper path if its startup defect is resolved without weakening isolation.
+2. Determine fixed-log denial behavior under identities with their existing authority; do not widen privileges.
+3. Qualify the first real 0.6 mutation only against an isolated disposable fixture after the operation executor is reviewed.
+4. Preserve session-scoped Evidence for contest 0.8/1.0; durable persistence and Vector Search remain deferred by architecture decision.
+5. Establish read-only available-package discovery and the exact install/update/remove contracts before enabling any package mutation path.
 
 The accepted 0.2.0 and 0.2.1 historical evidence is preserved. No Phase C continuation, 0.9 work, public push, merge, tag, release, registry claim, or Open Exchange action is included in these source branches.

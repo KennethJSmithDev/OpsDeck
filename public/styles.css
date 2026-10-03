@@ -180,6 +180,13 @@ td { color:var(--muted); font-size:10px; }
 .fixed-log-lines li { display:grid; grid-template-columns:42px minmax(0,1fr); gap:9px; align-items:start; min-width:0; padding:7px 9px; border:1px solid var(--border); border-radius:6px; }
 .fixed-log-lines code { min-width:0; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--text); font-size:10px; }
 .log-line-number { color:var(--subtle); font:9px "DM Mono",monospace; }
+  .log-analysis { margin:16px 0 10px; padding:14px; border:1px solid var(--border); border-radius:9px; background:color-mix(in srgb,var(--surface) 82%,var(--accent) 4%); }
+  .log-analysis-head,.log-finding-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .log-analysis-head h3 { margin:3px 0 0; font-size:15px; }
+  .log-findings { display:grid; gap:8px; padding:0; margin:12px 0 0; list-style:none; }
+  .log-finding { min-width:0; padding:11px; border:1px solid var(--border); border-radius:7px; background:var(--surface); }
+  .log-finding p { margin:7px 0 0; color:var(--muted); font-size:10px; line-height:1.55; overflow-wrap:anywhere; }
+  .log-finding code { color:var(--accent-strong); }
 .source-error { border-color:color-mix(in srgb,var(--danger) 45%,var(--border)); color:var(--danger); }
 .source-error code { display:inline-block; margin-top:5px; }
 .metric-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:9px; }

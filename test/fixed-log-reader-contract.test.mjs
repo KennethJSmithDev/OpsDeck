@@ -41,8 +41,8 @@ test("reader source observes a bounded tail window, keeps newest lines, and omit
   assert.match(source, /firstBreak=\$find\(content,\$char\(10\)\)/u);
   assert.match(source, /pieceCount>250/u);
   assert.match(source, /firstPiece=pieceCount-249/u);
-  assert.match(source, /projectionUnits\+lineUnits>9000/u, "the JSON projection remains conservatively bounded after escaping expansion");
-  assert.match(source, /if projectionUnits\+lineUnits>9000 set truncated=1 quit/u, "the budget drops only older complete rows when full");
+  assert.match(source, /projectionUnits\+lineUnits>6500/u, "the JSON projection reserves space for bounded Embedded Python findings");
+  assert.match(source, /if projectionUnits\+lineUnits>6500 set truncated=1 quit/u, "the budget drops only older complete rows when full");
   assert.doesNotMatch(source, /\$zlength\(line\)|result\.bytesReturned/u, "IRIS does not compute per-line byte counts with the failing runtime primitive");
   assert.doesNotMatch(source, /result\.path|result\.canonicalName|result\.fileName/u);
 });

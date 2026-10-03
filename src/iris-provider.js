@@ -182,8 +182,8 @@ export function mapAuditAsyncResult(payload, identity) {
 }
 
 const FIXED_LOGS = Object.freeze({
-  messagesLog: { name: "messages.log", maxBytes: 65536, maxLines: 250, maxProjectionUnits: 9000, maxLineUnits: 2048 },
-  systemMonitorLog: { name: "SystemMonitor.log", maxBytes: 65536, maxLines: 250, maxProjectionUnits: 9000, maxLineUnits: 2048 },
+  messagesLog: { name: "messages.log", maxBytes: 65536, maxLines: 250, maxProjectionUnits: 6500, maxLineUnits: 2048 },
+  systemMonitorLog: { name: "SystemMonitor.log", maxBytes: 65536, maxLines: 250, maxProjectionUnits: 6500, maxLineUnits: 2048 },
 });
 
 export function mapFixedLogResult(sourceId, payload) {
@@ -218,6 +218,87 @@ export function mapFixedLogResult(sourceId, payload) {
   if (newestFirst.length < payload.lines.length) truncated = true;
   const lines = newestFirst.reverse();
   return { source: source.name, status: truncated ? "truncated" : lines.length ? "available" : "empty", lines, truncated, bytesReturned };
+}
+
+const LOG_ANALYSIS_RULES = Object.freeze({
+  "explicit-error-marker": Object.freeze({
+    title: "Error marker",
+    summary: "This line contains an explicit error marker.",
+    consequence: "The source reports an error condition; this excerpt does not establish current system health.",
+    nextAction: "Inspect this line and nearby entries in the Logs workspace.",
+  }),
+  "timeout-marker": Object.freeze({
+    title: "Timeout marker",
+    summary: "This line contains a timeout term.",
+    consequence: "The source reports a timeout term; the affected operation is not inferred from this line alone.",
+    nextAction: "Review the related operation and its authoritative result.",
+  }),
+  "access-denial-marker": Object.freeze({
+    title: "Access-denial marker",
+    summary: "This line contains an access-denial term.",
+    consequence: "The text mentions access denial; it does not prove an IRIS authorization decision by itself.",
+    nextAction: "Check the source context and the identity involved.",
+  }),
+  "retry-marker": Object.freeze({
+    title: "Retry marker",
+    summary: "This line contains a retry term.",
+    consequence: "A retry is mentioned; completion or recovery is not inferred.",
+    nextAction: "Inspect the related operation outcome before taking action.",
+  }),
+  "warning-marker": Object.freeze({
+    title: "Warning marker",
+    summary: "This line contains a warning marker.",
+    consequence: "The source reports a warning marker; no health score is inferred.",
+    nextAction: "Review this line with its source context.",
+  }),
+});
+
+export function mapLogAnalysisResult(sourceId, payload, observedAt = new Date().toISOString()) {
+  if (!Object.hasOwn(READ_ONLY_SOURCES, sourceId) || !["messagesLog", "systemMonitorLog"].includes(sourceId)) {
+    throw new Error("IRIS log analysis source is not enabled.");
+  }
+  requireRecord(payload, "IRIS log analysis result");
+  if (payload.provider !== "opsdeck-embedded-python-log-analysis-v1" || payload.sourceId !== sourceId) {
+    throw new Error("IRIS log analysis identity is invalid.");
+  }
+  const statuses = ["available", "empty", "truncated", "unavailable", "denied", "read-failure", "failed"];
+  if (!statuses.includes(payload.status)) throw new Error("IRIS log analysis result has an invalid status.");
+  const findings = payload.findings ?? [];
+  const lineCount = payload.lineCount ?? 0;
+  const findingCount = payload.findingCount ?? 0;
+  const truncated = payload.truncated === true;
+  const findingsTruncated = payload.findingsTruncated === true;
+  if (!Array.isArray(findings) || findings.length > 20 || !Number.isInteger(lineCount) || lineCount < 0 || lineCount > 250 ||
+    !Number.isInteger(findingCount) || findingCount < 0 || findingCount > 20 || findingCount !== findings.length ||
+    typeof payload.truncated !== "boolean" || typeof payload.findingsTruncated !== "boolean") {
+    throw new Error("IRIS log analysis result exceeds its contract.");
+  }
+  if (!(["available", "empty", "truncated"].includes(payload.status)) && findings.length !== 0) {
+    throw new Error("A failed or denied log analysis cannot publish findings.");
+  }
+  const mappedFindings = findings.map((finding, index) => {
+    requireRecord(finding, `IRIS log finding ${index + 1}`);
+    const lineNumber = finding.lineNumber;
+    if (!Number.isInteger(lineNumber) || lineNumber < 1 || lineNumber > lineCount || !Object.hasOwn(LOG_ANALYSIS_RULES, finding.ruleId)) {
+      throw new Error("IRIS log finding identity is invalid.");
+    }
+    const expectedId = `log:${sourceId}:line-${lineNumber}:${finding.ruleId}`;
+    const safeText = (value, limit) => typeof value === "string" && value.length <= limit && !/[\u0000-\u001f\u007f]/u.test(value);
+    if (finding.id !== expectedId || typeof finding.marker !== "string" || !/^(?:error|fatal|severe|time(?:d)?[ -]?out|denied|forbidden|unauthorized|retries?|retrying|warning|warn)$/iu.test(finding.marker) ||
+      !safeText(finding.marker, 48)) {
+      throw new Error("IRIS log finding projection is invalid.");
+    }
+    return Object.freeze({
+      id: expectedId, lineNumber, ruleId: finding.ruleId, marker: finding.marker,
+      ...LOG_ANALYSIS_RULES[finding.ruleId],
+    });
+  });
+  return Object.freeze({
+    sourceId, source: FIXED_LOGS[sourceId].name, provider: payload.provider, observedAt,
+    status: payload.status, lineCount, findingCount, truncated, findingsTruncated,
+    reason: typeof payload.reason === "string" ? payload.reason.slice(0, 80) : null,
+    findings: Object.freeze(mappedFindings),
+  });
 }
 
 const SAFE_FIELDS = Object.freeze({
@@ -587,10 +668,25 @@ export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toI
   const source = READ_ONLY_SOURCES[sourceId];
   if (sourceId === "messagesLog" || sourceId === "systemMonitorLog") {
     const mapped = mapFixedLogResult(sourceId, payload);
+    let analysis = null;
+    if (Object.hasOwn(payload, "analysis")) {
+      try {
+        analysis = mapLogAnalysisResult(sourceId, payload.analysis, observedAt);
+        if (analysis.status !== mapped.status || analysis.lineCount !== mapped.lines.length || analysis.truncated !== mapped.truncated) {
+          throw new Error("IRIS log analysis does not match its bounded source projection.");
+        }
+      } catch {
+        analysis = Object.freeze({
+          sourceId, source: FIXED_LOGS[sourceId].name, provider: "opsdeck-embedded-python-log-analysis-v1",
+          observedAt, status: "failed", lineCount: mapped.lines.length, findingCount: 0,
+          truncated: mapped.truncated, findingsTruncated: false, reason: "invalid-analysis-projection", findings: Object.freeze([]),
+        });
+      }
+    }
     return {
       sourceId, provider: "opsdeck-native-fixed-log-v1", observedAt,
       resultType: "log-lines", count: mapped.lines.length, status: mapped.status,
-      truncated: mapped.truncated, bytesReturned: mapped.bytesReturned,
+      truncated: mapped.truncated, bytesReturned: mapped.bytesReturned, analysis,
       items: mapped.lines.map((line, index) => ({
         ref: { domain: "logs", kind: sourceId, provider: "opsdeck-native-fixed-log-v1", key: `line:${index + 1}`, scope: null, label: `Line ${index + 1}`, observedAt },
         values: { line },

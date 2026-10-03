@@ -100,7 +100,7 @@ ClassMethod Read(sourceId As %String, ByRef result As %DynamicObject) As %Status
 
                 // JSON escaping can expand every source character. Budget the
                 // projected text in UCS-2 units: even six-byte \uXXXX escaping
-                // of all 9,000 units plus 250 bounded line separators and fixed
+                // of all 6,500 units plus bounded findings, 250 line separators, and fixed
                 // metadata remains below the 64 KiB response ceiling. Preserve
                 // only a suffix of complete lines when the projection is full.
                 set keepFrom=pieceCount+1,projectionUnits=0
@@ -108,7 +108,8 @@ ClassMethod Read(sourceId As %String, ByRef result As %DynamicObject) As %Status
                     set line=$piece(content,$char(10),index)
                     set line=$translate(line,$char(0,1,2,3,4,5,6,7,8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,127),"")
                     set lineUnits=$length(line)
-                    if projectionUnits+lineUnits>9000 set truncated=1 quit
+                    if lineUnits>2048 set truncated=1 quit
+                    if projectionUnits+lineUnits>6500 set truncated=1 quit
                     set keepFrom=index,projectionUnits=projectionUnits+lineUnits
                 }
 

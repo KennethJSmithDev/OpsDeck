@@ -379,10 +379,10 @@ test("fixed log JSON projection keeps complete newest lines within the conservat
   const payloadLines = Array.from({ length: 250 }, (_, index) => `${String(index).padStart(3, "0")}${"\\\"".repeat(18)}`);
   const result = mapFixedLogResult("messagesLog", { status: "available", lines: payloadLines });
   assert.equal(result.status, "truncated");
-  assert.equal(result.lines.length, 230);
-  assert.equal(result.lines[0].slice(0, 3), "020");
+  assert.equal(result.lines.length, 166);
+  assert.equal(result.lines[0].slice(0, 3), "084");
   assert.equal(result.lines.at(-1).slice(0, 3), "249");
-  assert.ok(result.lines.reduce((sum, line) => sum + line.length, 0) <= 9000);
+  assert.ok(result.lines.reduce((sum, line) => sum + line.length, 0) <= 6500);
   assert.ok(new TextEncoder().encode(JSON.stringify({ status: result.status, lines: result.lines, truncated: result.truncated })).byteLength < 65_536);
 
   const overBudget = Array.from({ length: 250 }, (_, index) => `${index}|${"x".repeat(80)}`);

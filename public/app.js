@@ -503,14 +503,19 @@ function sourcePanel(sourceId) {
     if (!data) return `<div class="source-message">Select the fixed source to read its bounded recent observation.</div>`;
     const labels = { available: "Available", empty: "Valid empty", truncated: "Truncated", unavailable: "Unavailable", denied: "Denied", "read-failure": "Read failure" };
     const tone = data.status === "available" ? "success" : data.status === "empty" ? "accent" : ["denied", "read-failure"].includes(data.status) ? "error" : "warning";
-    const rows = data.items.map((item) => `<li><span class="log-line-number">${esc(item.ref.key.slice(5))}</span><code>${esc(item.values.line)}</code></li>`).join("");
+    const rows = data.items.map((item) => `<li id="log-${sourceId}-${esc(item.ref.key.slice(5))}"><span class="log-line-number">${esc(item.ref.key.slice(5))}</span><code>${esc(item.values.line)}</code></li>`).join("");
+    const analysis = data.analysis;
+    const analysisLabels = { available: "Observed", empty: "No markers", truncated: "Partial", unavailable: "Unavailable", denied: "Denied", "read-failure": "Read failure", failed: "Analysis failed" };
+    const analysisTone = analysis?.status === "available" ? "accent" : analysis?.status === "empty" ? "muted" : ["denied", "read-failure", "failed"].includes(analysis?.status) ? "error" : "warning";
+    const findings = analysis?.findings?.map((finding) => `<li class="log-finding"><div class="log-finding-head"><strong>${esc(finding.title)}</strong>${badge(`Line ${finding.lineNumber}`, "muted")}</div><p>${esc(finding.summary)} Marker <code>${esc(finding.marker)}</code>.</p><p><strong>Consequence:</strong> ${esc(finding.consequence)}</p><p><strong>Next step:</strong> ${esc(finding.nextAction)}</p></li>`).join("") || "";
+    const analysisPanel = analysis ? `<section class="log-analysis" aria-label="Embedded Python log interpretation"><div class="log-analysis-head"><div><div class="panel-kicker">EMBEDDED PYTHON · RULE-BASED</div><h3>Interpretation of this observation</h3></div>${badge(analysisLabels[analysis.status] || "Unresolved", analysisTone)}</div><p class="source-caveat">Fixed markers are observations from these returned lines. They do not establish overall system health or an IRIS authorization decision.</p>${findings ? `<ol class="log-findings">${findings}</ol>` : `<div class="source-message" role="status">${analysis.status === "empty" ? "The source contained no lines in this observation." : ["available", "truncated"].includes(analysis.status) ? "No configured markers were found in this bounded observation." : "The log lines remain available, but this interpretation did not complete."}</div>`}${analysis.findingsTruncated ? `<div class="source-message" role="status">The interpretation is limited to the first 20 matching lines.</div>` : ""}<div class="panel-foot">${esc(analysis.provider)} · ${analysis.lineCount} lines reviewed${analysis.truncated ? " · source observation truncated" : ""} · session only</div></section>` : "";
     const stateMessage = {
       empty: "The source was read successfully and contained no lines in the bounded observation.",
       unavailable: "IRIS could not locate or open this fixed source.",
       denied: "The current IRIS process lacks the required log-inspection authority.",
       "read-failure": "IRIS failed while reading this fixed source.",
     }[data.status] || "";
-    return `<div class="source-toolbar"><div>${badge(labels[data.status] || "Unresolved", tone)} <strong>${data.count}</strong><span> complete lines returned${data.truncated ? " · recent observation is truncated" : ""}</span></div><button class="button quiet" data-refresh-source="${sourceId}">Read again</button></div>${stateMessage ? `<div class="source-message" role="status">${esc(stateMessage)}</div>` : ""}${rows ? `<ol class="fixed-log-lines" aria-label="${esc(source.label)} recent lines">${rows}</ol>` : ""}<div class="panel-foot">GET <code>${esc(source.path)}</code> · ${esc(data.provider)} · at most 64 KiB / 250 complete lines · ${fmtTime(data.observedAt)}</div>`;
+    return `<div class="source-toolbar"><div>${badge(labels[data.status] || "Unresolved", tone)} <strong>${data.count}</strong><span> complete lines returned${data.truncated ? " · recent observation is truncated" : ""}</span></div><button class="button quiet" data-refresh-source="${sourceId}">Read again</button></div>${stateMessage ? `<div class="source-message" role="status">${esc(stateMessage)}</div>` : ""}${rows ? `<ol class="fixed-log-lines" aria-label="${esc(source.label)} recent lines">${rows}</ol>` : ""}${analysisPanel}<div class="panel-foot">GET <code>${esc(source.path)}</code> · ${esc(data.provider)} · at most 64 KiB / 250 complete lines · ${fmtTime(data.observedAt)}</div>`;
   }
   if (!data) return `<div class="source-message">Select a source to load authoritative IRIS data.</div>`;
   const items = data.items;
@@ -734,6 +739,23 @@ function currentEvidenceCollection() {
       summary: `${job.operation}: ${job.status}. ${job.progress || "No additional progress was returned."}`,
       evidence: { providerState: job.status, identityBasis: job.resultIdentity ? "validated-location" : "session-correlation" },
     });
+  }
+  for (const sourceId of ["messagesLog", "systemMonitorLog"]) {
+    const observation = state.sourceData[sourceId];
+    const analysis = observation?.analysis;
+    for (const finding of analysis?.findings || []) {
+      records.push({
+        id: finding.id,
+        kind: "read-observation",
+        state: "PARTIAL",
+        title: finding.title,
+        observedAt: observation.observedAt,
+        source: { identity: observation.provider, provider: analysis.provider },
+        resource: { domain: "logs", kind: sourceId, provider: observation.provider, key: `line:${finding.lineNumber}`, label: `${analysis.source} line ${finding.lineNumber}`, observedAt: observation.observedAt },
+        summary: `${finding.summary} ${finding.consequence} Suggested next step: ${finding.nextAction}`,
+        evidence: { providerState: analysis.status, fields: ["ruleId", "lineNumber", "marker"], identityBasis: "bounded-fixed-log-line", truncated: observation.truncated, bytesReturned: observation.bytesReturned },
+      });
+    }
   }
   if (state.packagePlan?.plan) {
     const plan = state.packagePlan.plan;
