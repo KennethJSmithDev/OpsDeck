@@ -60,7 +60,7 @@ The DPI-I-261 idea is **not implemented as a whole** and no Community Opportunit
 
 ### Live web-app executor
 
-`PUT /api/admin/v2/web-app` remains unqualified. Read-only inspection of the installed dispatch and `%Api.Admin.Endpoints.WebApp.App` implementation established a required `name` query parameter, a JSON-object body drawn from the app-property schema, and an upsert through `Security.Applications.Modify` or `.Create`; PUT itself is not an async job. The endpoint checks `%Admin_Secure:U`. Its GET read-back is `GET /api/admin/v2/web-app?name=...`. However, `Security.Applications` is deployed and its implementation could not be exported, so the actual CREATE-specific required fields and acceptance semantics remain unknown. No payload was guessed and no fixture mutation was issued. The `/opsdeck-fixture` operation is not ready for execution.
+`PUT /api/admin/v2/web-app` remains unqualified for mutation. Direct read-only inspection of installed compiled method bodies and metadata has established the name query identity, JSON-object body schema, `Security.Applications.Modify`/`.Create` upsert branches, patch behavior for existing applications, create status 201, synchronous execution, and GET read-back. The official class contract requires `%Admin_Secure:Use`; the local proxy passes through the connected user's authorization. The CREATE-specific required body properties and successful authenticated HTTP semantics remain unverified. See [the 0.9 web-app PUT contract record](OPSDECK_0_9_WEBAPP_PUT_CONTRACT_20261003.md). No payload was sent and no fixture mutation was issued. The `/opsdeck-fixture` operation is not ready for execution.
 
 ### Package operations
 
