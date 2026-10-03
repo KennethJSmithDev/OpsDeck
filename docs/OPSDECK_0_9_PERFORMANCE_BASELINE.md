@@ -46,6 +46,8 @@ At source checkpoint `404fa9a4223f4a105df2e72ca0ef48c538b565e0`, the exact six b
 
 The small increase represents explicit installed/current/older/newer/unknown package-version relationships and preservation of an upstream catalog HTTP 403 as DENIED. Both states change what the operator can safely conclude; neither preloads additional catalog or inventory data. These are filesystem source-byte counts and a dependency-graph request count, not new network-transfer measurements. Browser cold/warm timing, transferred bytes, heap, authenticated usable-render, and navigation latency remain unmeasured after this change.
 
+At source checkpoint `91d69ab09d9b563bbac4773acfae1c865af76780`, a further **197 JavaScript bytes** render partial configured-repository coverage with an explicit `PARTIAL COVERAGE` warning while retaining observed rows. The graph totals **204,932 JavaScript + 36,550 CSS + 448 HTML = 241,930 uncompressed bytes**, **+197 bytes (+0.08% total)** from the preceding follow-up and **+13,593 bytes (+5.95%)** from the pre-intelligence baseline. There is no additional request or module. These remain source-size measurements; connected browser metrics remain unmeasured.
+
 ## Measurement notes
 
 - Sizes are filesystem byte counts for the exact browser assets copied by `module.xml`.
