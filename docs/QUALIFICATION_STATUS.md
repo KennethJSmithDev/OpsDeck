@@ -2,11 +2,12 @@
 
 ## Current integration snapshot — 2026-10-03
 
-- Branch: `integration/opsdeck-1.0-20261002`, tip `3045006acfd903dd797e5bef44735dbb11f8256e`.
+- Branch: `integration/opsdeck-1.0-20261002`, tip `cab8d7c7790332a445f3fdc77fbe48982156bf72` before this record update.
 - Source package version remains `0.2.3`; this work does not advance the evidence-gated product version.
 - Current local JavaScript suite: **145/145 PASS**. The latest catalog comparison source change and syntax checks pass locally; the changed browser assets have not been reloaded into or qualified on the installed disposable target.
 - The catalog comparison now distinguishes `INSTALLED_CURRENT`, `INSTALLED_OLDER`, `INSTALLED_NEWER`, `AVAILABLE_ONLY`, `INSTALLED_STATE_UNKNOWN`, and `INSTALLED_VERSION_UNCOMPARABLE`. This is source/test evidence, not a new live browser observation.
 - The disposable `OPSDECK_08_TEST_TARGET` was observed running at loopback ports 51972 and 52774. Its OpsDeck installation was left untouched; the browser reached the login screen and no credentials were entered. Authenticated catalog rendering therefore remains unqualified.
+- A read-only unauthenticated `GET /opsdeck-api/available-packages?name=opsdeck` against that target returned **401**, confirming the installed flat catalog route reaches its authentication boundary. It does not establish authenticated REST dispatch, the authenticated IRIS identity, repository-read authority, or an IPM query result.
 - The live operation engine remains fixture-only. No real web-app operation, package operation, or OperationReceipt has been qualified in this continuation.
 - ObjectScript Quality remains **NOT RUN** because the prescribed remote hook failed trust review; see [the gate record](OBJECTSCRIPT_QUALITY_GATE_20261003.md). This is a required hygiene gate before a human-approved mainline candidate, not a product version advancement.
 - No IRIS state was changed in this continuation. No merge, tag, or release was made.
