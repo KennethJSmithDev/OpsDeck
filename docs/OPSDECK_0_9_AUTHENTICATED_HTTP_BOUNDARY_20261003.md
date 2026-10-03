@@ -75,15 +75,47 @@ shows that the search criteria themselves are valid; it does not identify the
 additional caller-context failure or qualify an OpsDeck operator catalog
 result. No further privilege was added speculatively.
 
+## Installed search call chain
+
+Read-only inspection of the target's compiled method implementations
+established this call chain:
+
+```text
+OpsDeck.Product.FixedLogREST.SearchAvailablePackages
+  -> %IPM.Repo.Utils.SearchRepositoriesForModule
+  -> %IPM.Repo.Manager.SearchRepositoriesForModule
+  -> %IPM.Repo.Remote.PackageService.ListModules
+```
+
+The manager selects the configured repository, checks service availability,
+then invokes `ListModules`. The remote package service builds a GET for the
+exact `packages/<name>` endpoint, supplies `allVersions` and prerelease/
+snapshot flags, and parses the returned package/version JSON. The
+`SearchRepositoriesForModule` method catches thrown exceptions and returns a
+`%Status`; the OpsDeck provider currently preserves only the bounded generic
+reason `catalog-query-failed`.
+
+In the installed `ListModules` implementation, a non-200 HTTP response with no
+transport error returns an empty list without parsing the body. Since the
+OpsDeck response is `FAILED` rather than `empty`, a simple non-200 response is
+not sufficient to explain the observed failure. The exact exception/status
+origin—request setup or transport, response parsing, or subsequent manager
+processing—remains **UNVERIFIED**. The method implementation contains no
+explicit IRIS role/resource authorization check; this does not rule out
+underlying class, database, network, TLS, or credential access checks.
+
 ## State and acceptance
 
 - **KNOWN:** authenticated identity and namespace are preserved by the product
   HTTP path; the installed inventory endpoint returns two live rows; the
-  configured repository is reachable from the provider; console-owner exact
-  search returns `opsdeck@0.2.0` from `registry`.
-- **INFERRED:** the remaining available-catalog failure is inside the IPM
-  repository search call under the authenticated web request context, after
-  repository availability succeeds.
+  configured repository is reachable from the provider; the exact criteria
+  succeed in console-owner context and return `opsdeck@0.2.0` from `registry`;
+  the installed call chain and response handling described above are runtime
+  metadata/source observations.
+- **INFERRED:** the remaining failure is in request/response or manager
+  processing under the authenticated web request context, after repository
+  availability succeeds. The failure is not explained by criteria or a
+  simple non-200 response.
 - **UNVERIFIED:** the exact failing IPM sub-operation and its minimum caller
   authority; authenticated catalog data/version relationship; connected Edge
   rendering; operation authority/qualification; live receipt; package
