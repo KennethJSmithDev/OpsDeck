@@ -1,6 +1,6 @@
 import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.2.1";
 import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence } from "./evidence-center.js";
-import { fixturePackageInventory, preparePackagePlan } from "./packages-workspace.js";
+import { fixturePackageInventory, mapInstalledPackageInventory, preparePackagePlan } from "./packages-workspace.js";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -138,6 +138,9 @@ const state = {
   applicationsTab: "web-apps",
   packageFilter: "all",
   packagePlan: null,
+  packageInventory: null,
+  packageInventoryError: "",
+  packageInventoryLoading: false,
   webAppDetails: {}, webAppDetailErrors: {}, webAppDetailLoading: "",
   userDetails: {}, userDetailErrors: {}, userDetailLoading: "", userDetailVerification: {},
   roleDetails: {}, roleDetailErrors: {}, roleDetailLoading: "", roleDetailVerification: {},
@@ -436,8 +439,11 @@ function applicationsTabs() {
 function packagesWorkspaceView() {
   const isDemo = state.info?.systemMode === "DEMO";
   if (!isDemo) {
-    const inventory = createPackageInventory([], "UNAVAILABLE");
-    return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Installed package inventory</h2></div>${badge(inventory.state, "warning")}</div><p class="source-message">A bounded live IPM inventory provider is not attached. No installed package rows are available, and no registry was queried.</p><div class="evidence-toolbar"><span class="package-source">Source identity <code>unavailable</code></span></div></section>`;
+    const inventory = state.packageInventory;
+    const rows = inventory?.packages.filter(item => state.packageFilter === "all" || item.state === "installed") || [];
+    const stateLabel = state.packageInventoryLoading ? "LOADING" : state.packageInventoryError ? "FAILED" : inventory?.state || "NOT READ";
+    const stateStyle = inventory?.state === "AVAILABLE" ? "accent" : "warning";
+    return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Installed package inventory</h2></div>${badge(stateLabel, stateStyle)}</div><p class="source-message">This read-only view uses the installed IPM registration list in the current namespace. Available repository versions are not queried.</p><div class="evidence-toolbar"><label>Inventory <select id="package-filter"><option value="all" ${state.packageFilter === "all" ? "selected" : ""}>All installed</option><option value="installed" ${state.packageFilter === "installed" ? "selected" : ""}>Installed</option></select></label><span class="package-source">Source identity <code>${esc(inventory?.sourceIdentity || "iris-ipm-installed-v1")}</code>${inventory?.namespace ? ` · Namespace <code>${esc(inventory.namespace)}</code>` : ""}</span><button class="button secondary" data-refresh-packages ${state.packageInventoryLoading ? "disabled" : ""}>Refresh</button></div>${state.packageInventoryError ? `<p class="source-message source-error" role="alert">${esc(state.packageInventoryError)}</p>` : ""}${inventory?.state === "DENIED" ? `<p class="source-message source-error" role="status">The current IRIS identity is not authorized to read installed IPM registrations.</p>` : ""}${inventory?.state === "FAILED" ? `<p class="source-message source-error" role="alert">The installed package provider could not return inventory.</p>` : ""}<div class="package-list">${rows.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>Installed IPM registration</small></div>${badge("INSTALLED", "accent")}</div><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(item.namespace)}</code></dd><dt>Installed</dt><dd>${esc(item.installedVersion)}</dd><dt>Available</dt><dd>Not observed</dd><dt>Source</dt><dd>${esc(item.source)}</dd></dl></article>`).join("") || `<p class="source-message">${inventory?.state === "EMPTY" ? "No installed package registrations were returned." : state.packageInventoryLoading ? "Reading installed package registrations…" : "No package rows are available."}</p>`}</div>${inventory?.truncated ? `<p class="source-message">Showing the first 250 registrations. Inventory is truncated.</p>` : ""}</section>`;
   }
   const inventory = fixturePackageInventory();
   const items = inventory.packages.filter(item => state.packageFilter === "all" || (state.packageFilter === "installed" ? Boolean(item.installedVersion) : !item.installedVersion));
@@ -741,7 +747,8 @@ function render() {
   }));
   app.querySelectorAll("[data-load-alerts]").forEach((button) => button.addEventListener("click", () => loadSource("alerts", true)));
   app.querySelectorAll("[data-run-audit-query]").forEach((button) => button.addEventListener("click", () => runAuditQuery()));
-  app.querySelectorAll("[data-application-tab]").forEach((button) => button.addEventListener("click", () => { state.applicationsTab = button.dataset.applicationTab; render(); }));
+  app.querySelectorAll("[data-application-tab]").forEach((button) => button.addEventListener("click", () => { state.applicationsTab = button.dataset.applicationTab; render(); if (button.dataset.applicationTab === "packages" && !state.packageInventory) loadPackageInventory(); }));
+  app.querySelector("[data-refresh-packages]")?.addEventListener("click", () => loadPackageInventory(true));
   app.querySelector("#package-filter")?.addEventListener("change", (event) => { state.packageFilter = event.target.value; render(); });
   app.querySelectorAll("[data-package-plan]").forEach((button) => button.addEventListener("click", () => {
     state.packagePlan = preparePackagePlan(fixturePackageInventory(), button.dataset.packageName, button.dataset.packagePlan);
@@ -826,6 +833,9 @@ function clearSession() {
   state.applicationsTab = "web-apps";
   state.packageFilter = "all";
   state.packagePlan = null;
+  state.packageInventory = null;
+  state.packageInventoryError = "";
+  state.packageInventoryLoading = false;
   state.evidenceFilter = "";
   state.evidenceStateFilter = "ALL";
   state.route = "overview";
@@ -929,6 +939,7 @@ function nativeApiPath(path) {
     const route = url.pathname.slice("/api/read/".length);
     const source = READ_ONLY_SOURCES[route];
     if (source) return source.path;
+    if (route === "packages") return "/opsdeck-api/packages";
     const details = {
       webAppDetail: ["/api/admin/v2/web-app", "name"],
       userDetail: ["/api/admin/v2/security/user", "name"],
@@ -1027,6 +1038,28 @@ async function loadSource(sourceId, force = false) {
   } finally {
     if (owner !== sessionEpoch) return;
     state.sourceLoading = "";
+    render();
+  }
+}
+
+async function loadPackageInventory(force = false) {
+  if (!state.connected || (state.packageInventoryLoading && !force)) return;
+  const owner = sessionEpoch;
+  state.packageInventoryLoading = true;
+  state.packageInventoryError = "";
+  render();
+  try {
+    const payload = await readJson("/api/read/packages");
+    if (owner !== sessionEpoch) return;
+    state.packageInventory = mapInstalledPackageInventory(payload);
+    state.lastRead = new Date().toISOString();
+  } catch (error) {
+    if (owner !== sessionEpoch) return;
+    state.packageInventoryError = error.message;
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) expireSession(error.message);
+  } finally {
+    if (owner !== sessionEpoch) return;
+    state.packageInventoryLoading = false;
     render();
   }
 }

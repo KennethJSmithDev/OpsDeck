@@ -52,15 +52,53 @@ test("integrated native shell and Evidence view report only qualified lifecycle 
   assert.match(evidenceWithPlan, /UNVERIFIED/u);
 });
 
-test("live Packages never substitutes synthetic fixture rows for an unavailable IPM provider", () => {
+test("live Packages stays empty before an installed IPM read and never substitutes fixtures", () => {
   const { context } = contextFor();
   const live = vm.runInContext('state.connected=true; state.info={username:"OpsDeckTest",serverVersion:"Fixture IRIS"}; state.applicationsTab="packages"; applicationsView()', context);
   assert.match(live, /Installed package inventory/u);
-  assert.match(live, /UNAVAILABLE/u);
-  assert.match(live, /bounded live IPM inventory provider is not attached/u);
-  assert.match(live, /No installed package rows are available/u);
+  assert.match(live, /NOT READ/u);
+  assert.match(live, /iris-ipm-installed-v1/u);
+  assert.match(live, /No package rows are available/u);
   assert.doesNotMatch(live, /SYNTHETIC FIXTURE|sample-observer|sample-reporting-kit|data-package-plan/u);
   assert.doesNotMatch(live, /configured registry|Open Exchange/u);
+});
+
+test("native Packages loads installed IPM rows through its fixed same-origin route", async () => {
+  const payload = {
+    provider: "iris-ipm-installed-v1", namespace: "%SYS", status: "available", truncated: false,
+    packages: [{ name: "opsdeck", installedVersion: "0.3.0" }],
+  };
+  let requestedPath = "";
+  const { context } = contextFor("/opsdeck/index.html", async (path) => {
+    requestedPath = path;
+    return { ok: true, status: 200, json: async () => payload };
+  });
+  vm.runInContext(`state.connected=true; state.info={username:"hello",systemMode:"NATIVE"}; state.applicationsTab="packages"`, context);
+  await vm.runInContext("loadPackageInventory()", context);
+  assert.equal(requestedPath, "/opsdeck-api/packages");
+  assert.equal(vm.runInContext("state.packageInventory.state", context), "AVAILABLE");
+  assert.equal(vm.runInContext("state.packageInventory.packages[0].name", context), "opsdeck");
+  const live = vm.runInContext("applicationsView()", context);
+  assert.match(live, /opsdeck/u);
+  assert.match(live, /0\.3\.0/u);
+  assert.match(live, /Not observed/u);
+  assert.doesNotMatch(live, /sample-observer|sample-reporting-kit|SYNTHETIC FIXTURE/u);
+});
+
+test("live Packages presents IPM authority denial distinctly without fixture substitution", () => {
+  const { context } = contextFor();
+  vm.runInContext(`
+    state.connected = true;
+    state.info = { username: "OpsDeckTest", systemMode: "NATIVE" };
+    state.applicationsTab = "packages";
+    state.packageInventory = mapInstalledPackageInventory({
+      provider: "iris-ipm-installed-v1", namespace: "%SYS", status: "denied", packages: [],
+    });
+  `, context);
+  const live = vm.runInContext("applicationsView()", context);
+  assert.match(live, /DENIED/u);
+  assert.match(live, /not authorized to read installed IPM registrations/u);
+  assert.doesNotMatch(live, /sample-observer|sample-reporting-kit|SYNTHETIC FIXTURE/u);
 });
 
 test("Evidence projects bounded audit outcomes without retaining audit row values", () => {

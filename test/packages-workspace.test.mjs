@@ -41,7 +41,7 @@ test("installed IPM projection preserves namespace and installed provenance with
     provider: "iris-ipm-installed-v1",
     namespace: "%SYS",
     status: "available",
-    packages: [{ name: "opsdeck", installedVersion: "0.2.1", sourcePath: "private-path", repository: "unobserved" }],
+    packages: [{ name: "opsdeck", installedVersion: "0.3.0", sourcePath: "private-path", repository: "unobserved" }],
   }, "2026-10-02T12:00:00Z");
 
   assert.equal(inventory.state, "AVAILABLE");
@@ -53,7 +53,7 @@ test("installed IPM projection preserves namespace and installed provenance with
     domain: "applications", kind: "package", provider: "iris-ipm-installed-v1",
     key: "opsdeck", scope: "%SYS", label: "opsdeck", observedAt: "2026-10-02T12:00:00Z",
   });
-  assert.equal(inventory.packages[0].installedVersion, "0.2.1");
+  assert.equal(inventory.packages[0].installedVersion, "0.3.0");
   assert.equal(inventory.packages[0].availableVersion, null);
   assert.equal(inventory.packages[0].state, "installed");
   assert.doesNotMatch(JSON.stringify(inventory), /private-path|sourcePath|unobserved|Open Exchange/u);

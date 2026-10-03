@@ -5,6 +5,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Routes>
   <Route Url="/messages" Method="GET" Call="MessagesLog" />
   <Route Url="/system-monitor" Method="GET" Call="SystemMonitorLog" />
+  <Route Url="/packages" Method="GET" Call="InstalledPackages" />
 </Routes>
 }
 
@@ -17,6 +18,42 @@ ClassMethod MessagesLog() As %Status
 ClassMethod SystemMonitorLog() As %Status
 {
     do ..WriteSource("systemMonitorLog")
+    quit $$$OK
+}
+
+ClassMethod InstalledPackages() As %Status
+{
+    set %response.ContentType="application/json; charset=utf-8"
+    set result=##class(%DynamicObject).%New()
+    set result.provider="iris-ipm-installed-v1"
+    set result.namespace=$namespace
+    set result.packages=##class(%DynamicArray).%New()
+    set result.truncated=0
+    if '$SYSTEM.SQL.Security.CheckPrivilege($USERNAME,1,"%IPM_Storage.ModuleItem","s",$NAMESPACE) {
+        set result.status="denied"
+        set result.reason="installed-module-read-required"
+        write result.%ToJSON()
+        quit $$$OK
+    }
+    try {
+        do ##class(%IPM.Main).GetListModules($namespace,"*",.modules)
+        set count=modules
+        set result.truncated=(count>250)
+        set limit=$select(count>250:250,1:count)
+        for index=1:1:limit {
+            set item=##class(%DynamicObject).%New()
+            set item.name=$listget(modules(index),1)
+            set item.installedVersion=$listget(modules(index),2)
+            do result.packages.%Push(item)
+        }
+        set result.status=$select(result.truncated:"truncated",count:"available",1:"empty")
+    } catch exception {
+        set result.packages=##class(%DynamicArray).%New()
+        set result.truncated=0
+        set result.status="failed"
+        set result.reason="inventory-unavailable"
+    }
+    write result.%ToJSON()
     quit $$$OK
 }
 

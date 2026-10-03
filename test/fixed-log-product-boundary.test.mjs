@@ -22,12 +22,18 @@ test("REST class exposes only fixed semantic routes and never accepts a path", (
   assert.match(restClass, /XData UrlMap\s*\[\s*XMLNamespace\s*=\s*"http:\/\/www\.intersystems\.com\/urlmap"\s*\]/u);
   assert.match(restClass, /Url="\/messages" Method="GET" Call="MessagesLog"/u);
   assert.match(restClass, /Url="\/system-monitor" Method="GET" Call="SystemMonitorLog"/u);
+  assert.match(restClass, /Url="\/packages" Method="GET" Call="InstalledPackages"/u);
+  assert.match(restClass, /GetListModules\(\$namespace,"\*",\.modules\)/u);
+  assert.match(restClass, /count>250/u);
   assert.match(restClass, /WriteSource\("messagesLog"\)/u);
   assert.match(restClass, /WriteSource\("systemMonitorLog"\)/u);
   assert.doesNotMatch(restClass, /%request\.Data|%request\.URL|path As %String|Execute\(|Shell\(/u);
   assert.equal(READ_ONLY_SOURCES.messagesLog.path, "/opsdeck-api/messages");
   assert.equal(READ_ONLY_SOURCES.systemMonitorLog.path, "/opsdeck-api/system-monitor");
   assert.equal(READ_ONLY_SOURCES.messagesLog.nativeOnly, true);
+  assert.match(app, /route === "packages"\) return "\/opsdeck-api\/packages"/u);
+  assert.match(app, /loadPackageInventory\(\)/u);
+  assert.match(app, /mapInstalledPackageInventory\(payload\)/u);
 });
 
 test("provider mapping preserves source states while omitting resolved paths", () => {
