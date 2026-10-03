@@ -99,7 +99,7 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     const evidenceResponse = await fetch(`${base}/evidence-center.js`);
     assert.equal(evidenceResponse.status, 200);
     assert.match(evidenceResponse.headers.get("content-type"), /javascript/);
-    for (const resource of ["operation-engine.js", "packages-workspace.js"]) {
+    for (const resource of ["operation-engine.js", "packages-workspace.js", "job-center.js"]) {
       const response = await fetch(`${base}/${resource}`);
       assert.equal(response.status, 200);
       assert.match(response.headers.get("content-type"), /javascript/);

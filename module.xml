@@ -16,6 +16,7 @@
       <FileCopy Name="public/evidence-center.js" Target="{$cspdir}opsdeck/evidence-center.js" />
       <FileCopy Name="public/operation-engine.js" Target="{$cspdir}opsdeck/operation-engine.js" />
       <FileCopy Name="public/packages-workspace.js" Target="{$cspdir}opsdeck/packages-workspace.js" />
+      <FileCopy Name="public/job-center.js" Target="{$cspdir}opsdeck/job-center.js" />
 
       <WebApplication
         Name="/opsdeck-api"

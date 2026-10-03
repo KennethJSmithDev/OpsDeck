@@ -33,6 +33,14 @@ The accepted slice projects navigation and contextual priority from observed pro
 
 ## Current development frontier — 2026-10-02
 
+### Contest 0.8 continuation — 2026-10-03
+
+| Milestone | Branch / tip | Evidence classification |
+|---|---|---|
+| Shared session Job Center source slice | `integration/opsdeck-1-20261002` / changes in current checkpoint | **SOURCE IMPLEMENTED / LOCAL TESTED 136/136 / IRIS MUTATING JOB FLOW UNQUALIFIED**. The accepted bounded audit async read is projected into one bounded session Job collection, Tasks Job Center, and session Evidence. Ambiguity is explicit and never retried. |
+
+Docker reconnaissance found the CLI but no reachable configured Linux or default engine socket. No container/image/volume was created. User-authorized Decision A fixes Evidence as session-scoped for 0.8/1.0 and defers Vector Search absent an independently owned derived-index boundary. Existing installed-package observations and fixed-log qualification were not repeated.
+
 All entries below are local source work. They have not been installed into IRISTesting and do not qualify live execution or persistence.
 
 | Milestone | Local branch / commit | Evidence classification |

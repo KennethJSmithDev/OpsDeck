@@ -256,6 +256,12 @@ td { color:var(--muted); font-size:10px; }
 .package-actions { display:flex; flex-wrap:wrap; gap:7px; }
 .package-plan-review { margin-top:16px; padding:14px; border:1px solid var(--warning); border-radius:8px; background:color-mix(in srgb,var(--warning) 4%,var(--surface)); }
 .package-plan-review h3 { margin:8px 0 12px; color:var(--text); font-size:13px; }
+.job-list { display:grid; gap:8px; }
+.job-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.4fr); gap:12px; padding:12px; border:1px solid var(--border); border-radius:8px; }
+.job-row strong,.job-row small { display:block; overflow-wrap:anywhere; }
+.job-row p { margin:6px 0; color:var(--muted); font-size:10px; overflow-wrap:anywhere; }
+.job-row code { overflow-wrap:anywhere; }
+@media (max-width: 600px) { .job-row { grid-template-columns:minmax(0,1fr); } }
 .package-plan-facts p { margin:6px 0; color:var(--muted); font-size:10px; overflow-wrap:anywhere; }
 
 @media (max-width:1120px) {

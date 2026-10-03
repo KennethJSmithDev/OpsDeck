@@ -1,6 +1,7 @@
 import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.2.1";
 import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence } from "./evidence-center.js";
 import { fixturePackageInventory, mapInstalledPackageInventory, preparePackagePlan } from "./packages-workspace.js";
+import { mapAuditJob, upsertJob } from "./job-center.js";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -148,7 +149,7 @@ const state = {
   resourceDetails: {}, resourceDetailErrors: {}, resourceDetailLoading: "", resourceDetailVerification: {},
   taskDetails: {}, taskDetailErrors: {}, taskDetailLoading: "", taskDetailVerification: {},
   restSpecs: {}, restSpecErrors: {}, restSpecLoading: "",
-  auditQuery: null, auditQueryBusy: false,
+  auditQuery: null, auditQueryBusy: false, jobs: [],
   mobileMoreOpen: false,
 };
 
@@ -629,8 +630,16 @@ function providerDomainView(route) {
   };
   const sourceId = state.sourceTabs[route] || domainSources[route]?.[0];
   const logTools = route === "logs" ? auditQueryPanel() : "";
+  const jobs = route === "tasks" ? jobCenterPanel() : "";
   const caveat = route === "logs" ? `<p class="source-caveat">Fixed log routes accept only the two semantic source identities. Returned lines preserve legitimate log text; the resolved filesystem location is never returned. Alerts are a stateful feed and are read only when explicitly requested.</p>` : "";
-  return shell(`${pageHeader(title, descriptions[route] || "Live IRIS provider data.")}${logTools}<section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">LIVE PROVIDER DATA</div><h2>${esc(READ_ONLY_SOURCES[sourceId]?.label || title)}</h2></div>${badge("Read only", "accent")}</div>${sourceSelector(route)}${sourcePanel(sourceId)}${caveat}</section>`);
+  return shell(`${pageHeader(title, descriptions[route] || "Live IRIS provider data.")}${jobs}${logTools}<section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">LIVE PROVIDER DATA</div><h2>${esc(READ_ONLY_SOURCES[sourceId]?.label || title)}</h2></div>${badge("Read only", "accent")}</div>${sourceSelector(route)}${sourcePanel(sourceId)}${caveat}</section>`);
+}
+
+function jobCenterPanel() {
+  const jobs = state.jobs || [];
+  const tone = status => ({ COMPLETED: "success", FAILED: "error", DENIED: "error", CANCELED: "muted", UNAVAILABLE: "warning", AMBIGUOUS: "error" })[status] || "accent";
+  const rows = jobs.slice().reverse().map(job => `<article class="job-row"><div><strong>${esc(job.operation)}</strong><small>${esc(job.provider)} · accepted ${fmtTime(job.acceptedAt)}</small></div><div>${badge(job.status, tone(job.status))}<p>${esc(job.progress || "No progress detail was returned.")}</p>${job.resultIdentity ? `<small>Result <code>${esc(job.resultIdentity.id)}</code></small>` : ""}</div></article>`).join("");
+  return `<section class="panel job-center"><div class="panel-head"><div><div class="panel-kicker">SESSION-SCOPED ASYNC WORK</div><h2>Job Center</h2></div>${badge(`${jobs.length} JOB${jobs.length === 1 ? "" : "S"}`, jobs.length ? "accent" : "muted")}</div><p class="source-message">Jobs appear only when IRIS returns an accepted asynchronous identity. Unknown or incomplete outcomes stay visible as unresolved; OpsDeck does not retry dispatch.</p>${rows ? `<div class="job-list">${rows}</div>` : `<p class="source-message">No asynchronous jobs have been observed in this session.</p>`}</section>`;
 }
 
 function auditQueryPanel() {
@@ -655,7 +664,7 @@ function evidenceView() {
       ? { label: "VERIFIED", tone: "success", detail: `${state.verification.count} web-app identities matched on an independent second read.` }
       : { label: "MISMATCH", tone: "error", detail: "The second web-app read differed from the displayed state." })
     : { label: "PENDING", tone: "muted", detail: "No current read-back comparison is available in this session." };
-  const auditState = { accepted: "UNVERIFIED", queued: "PARTIAL", running: "PARTIAL", finished: "PARTIAL", failed: "FAILED", canceled: "BLOCKED", denied: "DENIED", unavailable: "UNAVAILABLE" }[audit?.state] || "PENDING";
+  const auditState = { accepted: "UNVERIFIED", queued: "PARTIAL", running: "PARTIAL", finished: "PARTIAL", failed: "FAILED", canceled: "BLOCKED", denied: "DENIED", unavailable: "UNAVAILABLE", ambiguous: "UNVERIFIED" }[audit?.state] || "PENDING";
   const auditCount = Number.isInteger(audit?.resultCount) ? `${audit.resultCount} result row${audit.resultCount === 1 ? "" : "s"}` : "an unknown number of result rows";
   const auditDetail = audit?.state === "finished"
     ? `A bounded audit task finished with ${auditCount}. The response remains partial evidence; full result-schema and pagination behavior are not established.`
@@ -710,6 +719,20 @@ function currentEvidenceCollection() {
       resource: { domain: "security", kind: "audit-query", provider: "iris-admin-api", key: "bounded-audit-records", label: "Bounded audit records", observedAt: audit.observedAt },
       summary: count === null ? `Bounded audit query state: ${audit.state}.` : `Bounded audit query state: ${audit.state}; ${count} reviewed row${count === 1 ? "" : "s"} returned.`,
       evidence,
+    });
+  }
+  for (const job of state.jobs || []) {
+    const states = { ACCEPTED: "UNVERIFIED", QUEUED: "PARTIAL", RUNNING: "PARTIAL", COMPLETED: "PARTIAL", FAILED: "FAILED", CANCELED: "BLOCKED", PAUSED: "PARTIAL", DENIED: "DENIED", UNAVAILABLE: "UNAVAILABLE", AMBIGUOUS: "UNVERIFIED" };
+    records.push({
+      id: job.identity,
+      kind: "read-observation",
+      state: states[job.status] || "UNVERIFIED",
+      title: "Asynchronous job observation",
+      observedAt: job.updatedAt || job.acceptedAt,
+      source: { identity: job.provider },
+      resource: { domain: "tasks", kind: "async-job", provider: job.provider, key: job.identity, label: job.operation, observedAt: job.updatedAt || job.acceptedAt },
+      summary: `${job.operation}: ${job.status}. ${job.progress || "No additional progress was returned."}`,
+      evidence: { providerState: job.status, identityBasis: job.resultIdentity ? "validated-location" : "session-correlation" },
     });
   }
   if (state.packagePlan?.plan) {
@@ -813,6 +836,7 @@ function clearSession() {
   nativeAuthorization = null;
   state.connected = false;
   state.auditQuery = null;
+  state.jobs = [];
   state.auditQueryBusy = false;
   state.busy = false;
   state.error = "";
@@ -1072,8 +1096,20 @@ async function runAuditQuery() {
   let httpStatus = null;
   let currentTask = null;
   let locationShape = null;
+  let jobIdentity = null;
+  let resultIdentity = null;
   const observedAt = new Date().toISOString();
-  const publishAuditQuery = (query) => { state.auditQuery = { ...query, observedAt }; };
+  const publishAuditQuery = (query) => {
+    const fullQuery = { ...query, observedAt };
+    if (fullQuery.jobIdentity) jobIdentity = fullQuery.jobIdentity;
+    else if (jobIdentity) fullQuery.jobIdentity = jobIdentity;
+    if (fullQuery.resultIdentity) resultIdentity = fullQuery.resultIdentity;
+    else if (resultIdentity) fullQuery.resultIdentity = resultIdentity;
+    state.auditQuery = fullQuery;
+    if (fullQuery.jobIdentity) {
+      try { state.jobs = upsertJob(state.jobs, mapAuditJob(fullQuery, state.jobs.find(job => job.identity === fullQuery.jobIdentity))); } catch { /* keep the source observation visible if its Job projection is incomplete */ }
+    }
+  };
   state.auditQueryBusy = true;
   publishAuditQuery({ state: "accepted", message: "Submitting one filtered query for the current account, bounded to maxRows=1." });
   render();
@@ -1104,12 +1140,14 @@ async function runAuditQuery() {
     }
     stage = "validate Location";
     locationShape = inspectAuditLocation(response.headers.get("Location"), location.href);
-    publishAuditQuery({ state: "accepted", stage, httpStatus, locationShape, message: "IRIS accepted the query (HTTP 202). Validating the returned Location." });
+    jobIdentity = `session:audit-job:${observedAt}`;
+    publishAuditQuery({ state: "accepted", stage, httpStatus, locationShape, jobIdentity, message: "IRIS accepted the query (HTTP 202). Validating the returned Location." });
     render();
     const handle = validateAuditLocation(response.headers.get("Location"), location.href);
+    resultIdentity = handle;
     currentTask = { idVerified: true };
     stage = "async result read";
-    publishAuditQuery({ state: "queued", stage, httpStatus, locationShape, message: "IRIS accepted the query. Reading the exact same-origin async resource from Location.", task: currentTask });
+    publishAuditQuery({ state: "queued", stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: "IRIS accepted the query. Reading the exact same-origin async resource from Location.", task: currentTask });
     render();
     const deadline = Date.now() + 30000;
     for (let attempt = 0; attempt < 40 && Date.now() < deadline; attempt += 1) {
@@ -1122,7 +1160,7 @@ async function runAuditQuery() {
       const taskState = mapped.task.state.toLowerCase();
       if (taskState === "queued" || taskState === "running") {
         publishAuditQuery({
-          state: taskState, stage, httpStatus, locationShape, message: taskState === "queued" ? "Async task is queued; waiting for a live state update." : "Async task is running; waiting for a terminal state.",
+          state: taskState, stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: taskState === "queued" ? "Async task is queued; waiting for a live state update." : "Async task is running; waiting for a terminal state.",
           task: mapped.task,
         });
         render();
@@ -1131,23 +1169,24 @@ async function runAuditQuery() {
         continue;
       }
       if (taskState === "finished") {
-        publishAuditQuery({ state: "finished", stage, httpStatus, locationShape, message: "Async task finished. Only the bounded Result and reviewed fields are shown.", ...mapped });
+        publishAuditQuery({ state: "finished", stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: "Async task finished. Only the bounded Result and reviewed fields are shown.", ...mapped });
       } else if (taskState === "failed") {
-        publishAuditQuery({ state: "failed", stage, httpStatus, locationShape, message: "Async audit query failed.", task: mapped.task, failure: "IRIS reported a task failure." });
+        publishAuditQuery({ state: "failed", stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: "Async audit query failed.", task: mapped.task, failure: "IRIS reported a task failure." });
       } else if (taskState === "canceled") {
-        publishAuditQuery({ state: "canceled", stage, httpStatus, locationShape, message: "Async audit query was canceled by IRIS.", task: mapped.task });
+        publishAuditQuery({ state: "canceled", stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: "Async audit query was canceled by IRIS.", task: mapped.task });
       } else {
-        publishAuditQuery({ state: "unavailable", stage, httpStatus, locationShape, message: "Async task is paused; no completion is inferred.", task: mapped.task });
+        publishAuditQuery({ state: "unavailable", stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: "Async task is paused; no completion is inferred.", task: mapped.task });
       }
       return;
     }
-    publishAuditQuery({ state: "unavailable", message: "Async task remained nonterminal during the bounded wait. No completion is inferred.", task: state.auditQuery?.task });
+    publishAuditQuery({ state: "unavailable", jobIdentity, resultIdentity, message: "Async task remained nonterminal during the bounded wait. No completion is inferred.", task: state.auditQuery?.task });
   } catch (error) {
     if (owner !== sessionEpoch) return;
     const denied = error.status === 401 || error.status === 403;
+    const ambiguous = httpStatus === 202 && ["validate Location", "async result read", "async task contract"].includes(stage);
     publishAuditQuery({
-      state: denied ? "denied" : "unavailable",
-      message: denied ? `IRIS denied the async audit read (HTTP ${error.status}).` : "Audit query or async result is unavailable.",
+      state: denied ? "denied" : ambiguous ? "ambiguous" : "unavailable",
+      message: denied ? `IRIS denied the async audit read (HTTP ${error.status}).` : ambiguous ? "IRIS accepted the query, but its async identity or result could not be verified. No retry was attempted." : "Audit query or async result is unavailable.",
       stage,
       httpStatus: error.status || httpStatus,
       task: currentTask,

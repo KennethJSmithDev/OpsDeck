@@ -5,10 +5,11 @@ import {readFile} from 'node:fs/promises';
 import * as provider from '../src/iris-provider.js';
 import * as evidence from '../public/evidence-center.js';
 import * as packages from '../public/packages-workspace.js';
+import * as jobs from '../public/job-center.js';
 const source=(await readFile(new URL('../public/app.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/gm,'');
 function fixture(fetch,pathname='/opsdeck/index.html'){
  const rows=[]; const el={innerHTML:'',querySelector:()=>null,querySelectorAll:sel=>sel==='[data-item]'?rows.filter(r=>'item' in r.dataset):sel==='[data-app]'?rows.filter(r=>'app' in r.dataset):[]};
- const c=vm.createContext({...provider,...evidence,...packages,AbortSignal,TextEncoder,URL,URLSearchParams,btoa,setTimeout,fetch,
+ const c=vm.createContext({...provider,...evidence,...packages,...jobs,AbortSignal,TextEncoder,URL,URLSearchParams,btoa,setTimeout,fetch,
  document:{querySelector:()=>el,documentElement:{dataset:{}}},location:{pathname,hash:'',origin:'http://fixture.test',href:'http://fixture.test/opsdeck/index.html'},localStorage:{getItem:()=> 'dark',setItem(){}},history:{replaceState(){}},matchMedia:()=>({matches:false,addEventListener(){}}),addEventListener(){}});
  vm.runInContext(source.replace(/\nrestoreSession\(\);\s*$/, ''),c); vm.runInContext('state.connected=true;state.info={username:"Old"}',c);
  return {c,el,rows,run:s=>vm.runInContext(s,c)};
@@ -24,8 +25,8 @@ test('old source failure cannot alter new session errors or loading',async()=>{
  assert.equal(f.run('Object.keys(state.sourceErrors).length'),0);assert.equal(f.run('state.sourceLoading'),'roles');
 });
 test('401 clears identity caches and audit state',async()=>{
- const f=fixture(async()=>response({},401));f.run('state.userDetails={old:{}};state.sourceVerification={old:{}};state.auditQuery={state:"finished"}');await f.run('loadSource("users",true)');
- assert.equal(f.run('Object.keys(state.userDetails).length'),0);assert.equal(f.run('Object.keys(state.sourceVerification).length'),0);assert.equal(f.run('state.auditQuery'),null);
+ const f=fixture(async()=>response({},401));f.run('state.userDetails={old:{}};state.sourceVerification={old:{}};state.auditQuery={state:"finished"};state.jobs=[{identity:"session:job:old"}]');await f.run('loadSource("users",true)');
+ assert.equal(f.run('Object.keys(state.userDetails).length'),0);assert.equal(f.run('Object.keys(state.sourceVerification).length'),0);assert.equal(f.run('state.auditQuery'),null);assert.equal(f.run('state.jobs.length'),0);
 });
 test('logout clears audit and outstanding submission cannot publish',async()=>{
  const d=deferred(),f=fixture(()=>d.promise);const p=f.run('runAuditQuery()');await f.run('disconnect()');assert.equal(f.run('state.auditQuery'),null);d.resolve({status:403});await p;assert.equal(f.run('state.auditQuery'),null);

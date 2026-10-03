@@ -5,12 +5,13 @@ import { readFile } from "node:fs/promises";
 import * as provider from "../src/iris-provider.js";
 import * as evidence from "../public/evidence-center.js";
 import * as packages from "../public/packages-workspace.js";
+import * as jobs from "../public/job-center.js";
 
 const source = (await readFile(new URL("../public/app.js", import.meta.url), "utf8")).replace(/^import[^\n]+\n/gm, "");
 function contextFor(pathname = "/opsdeck/index.html", fetch = async () => { throw new Error("Unexpected request"); }) {
   const element = { innerHTML: "", querySelector: () => null, querySelectorAll: () => [] };
   const context = vm.createContext({
-    ...provider, ...evidence, ...packages, AbortSignal, TextEncoder, URL, btoa,
+    ...provider, ...evidence, ...packages, ...jobs, AbortSignal, TextEncoder, URL, btoa,
     document: { querySelector: () => element, documentElement: { dataset: {} } },
     location: { pathname, hash: "", origin: "http://fixture.test" },
     localStorage: { getItem: () => "dark", setItem() {} },

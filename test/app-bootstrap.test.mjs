@@ -5,6 +5,7 @@ import vm from "node:vm";
 import { mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "../src/iris-provider.js";
 import * as evidence from "../public/evidence-center.js";
 import * as packages from "../public/packages-workspace.js";
+import * as jobs from "../public/job-center.js";
 
 const appSource = (await readFile(new URL("../public/app.js", import.meta.url), "utf8"))
   .replace(/^import[^\n]+\n/gm, "");
@@ -28,6 +29,7 @@ test("frontend assets resolve from the current application path", async () => {
   assert.match(moduleXml, /Name="public\/evidence-center\.js" Target="\{\$cspdir\}opsdeck\/evidence-center\.js"/u);
   assert.match(moduleXml, /Name="public\/operation-engine\.js" Target="\{\$cspdir\}opsdeck\/operation-engine\.js"/u);
   assert.match(moduleXml, /Name="public\/packages-workspace\.js" Target="\{\$cspdir\}opsdeck\/packages-workspace\.js"/u);
+  assert.match(moduleXml, /Name="public\/job-center\.js" Target="\{\$cspdir\}opsdeck\/job-center\.js"/u);
 });
 const apps = {
   status: { errors: [], summary: "" }, console: [],
@@ -53,6 +55,7 @@ test("restored session renders a bounded loading state then leaves bootstrap", a
   const context = {
     ...evidence,
     ...packages,
+    ...jobs,
     AbortSignal,
     Date,
     Intl,
@@ -127,6 +130,7 @@ test("native IRIS login reads same-origin APIs with in-memory Basic auth and no 
   const context = {
     ...evidence,
     ...packages,
+    ...jobs,
     AbortSignal, Date, Intl, Object, String, TextEncoder, URL, btoa,
     document,
     location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test", href: "http://iris.test/opsdeck/index.html" },
@@ -141,7 +145,7 @@ test("native IRIS login reads same-origin APIs with in-memory Basic auth and no 
       assert.ok(payload, `unexpected native API request: ${path}`);
       return { ok: true, status: 200, json: async () => payload };
     },
-    mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
+    ...evidence, ...jobs, mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
   };
 
   vm.runInNewContext(appSource, context, { filename: "public/app.js" });
@@ -202,6 +206,7 @@ test("native API object errors become useful text instead of [object Object]", a
   const context = {
     ...evidence,
     ...packages,
+    ...jobs,
     AbortSignal, Date, Intl, Object, String, TextEncoder, URL, btoa,
     document: { querySelector(selector) { return selector === "#app" ? app : null; }, documentElement: { dataset: {} } },
     location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test" },
@@ -210,7 +215,7 @@ test("native API object errors become useful text instead of [object Object]", a
     matchMedia: () => ({ matches: false, addEventListener() {} }),
     addEventListener() {},
     fetch: async (path) => responseFor(path),
-    mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
+    ...jobs, mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
   };
   vm.runInNewContext(appSource, context, { filename: "public/app.js" });
   await submit({ preventDefault() {}, currentTarget: form });
@@ -272,7 +277,7 @@ test("audit query is an explicit bounded read and displays only reviewed fields"
       };
       assert.fail(`unexpected request ${path}`);
     },
-    mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
+    ...evidence, ...jobs, mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
     inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS,
   };
   vm.runInNewContext(appSource, context, { filename: "public/app.js" });
@@ -295,6 +300,15 @@ test("audit query is an explicit bounded read and displays only reviewed fields"
   const readCall = calls.find(({ path }) => path === "/api/admin/v1/async-result?id=synthetic-task-id");
   assert.equal(readCall.options.redirect, "error");
   assert.match(rendered.html, /Task state: Finished · identity: validated-location/u);
+  assert.equal(vm.runInNewContext("state.jobs.length", context), 1);
+  assert.equal(vm.runInNewContext("state.jobs[0].status", context), "COMPLETED");
+  assert.equal(vm.runInNewContext('state.jobs[0].resultIdentity.id', context), "/api/admin/v1/async-result?id=synthetic-task-id");
+  const jobEvidence = vm.runInNewContext('currentEvidenceCollection().records.find(record => record.kind === "read-observation" && record.resource?.kind === "async-job")', context);
+  assert.equal(jobEvidence.evidence.providerState, "COMPLETED");
+  assert.equal(jobEvidence.evidence.identityBasis, "validated-location");
+  const tasksView = vm.runInNewContext('state.route="tasks"; providerDomainView("tasks")', context);
+  assert.match(tasksView, /Job Center/u);
+  assert.match(tasksView, /COMPLETED/u);
   assert.match(rendered.html, /Login/u);
   assert.doesNotMatch(rendered.html, /private audit detail must not render|synthetic-task-id|extra row must be truncated/u);
 });
@@ -328,6 +342,7 @@ test("alerts are opt-in stateful reads and unqualified record values stay hidden
   const context = {
     ...evidence,
     ...packages,
+    ...jobs,
     AbortSignal, Date, Intl, Object, String, TextEncoder, URL, btoa,
     document: { querySelector(selector) { return selector === "#app" ? app : null; }, documentElement: { dataset: {} } },
     location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test" },
