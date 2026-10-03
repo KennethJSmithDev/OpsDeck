@@ -80,6 +80,12 @@ OpsDeck is deliberately thin:
 | Node reference runtime | Live identity, web-app discovery/read-back, fixed routes, safe mappings, and session behavior | Development/reference workflow; not required by the native browser path |
 | ObjectScript execution / CallIn | No execution bridge is present | No native arbitrary execution capability is claimed |
 
+## Built with the IRIS Community
+
+Current integration work includes a **partial** implementation of [DPI-I-261](https://ideas.intersystems.com/ideas/DPI-I-261), which asks for package discovery and installation from the administration portal. OpsDeck now projects installed IPM registrations and performs a bounded, exact-name lookup against configured repositories. Source and focused tests cover repository coverage and installed-versus-available version relationships; authenticated browser visibility and package install/remove through the verified executor remain unqualified. DPI-I-261 is not complete, and no Community Ideas bonus claim is made.
+
+The read-only ObjectScript snippet library and contextual IRIS help are community-oriented learning aids, not verified Ideas Portal submissions. Snippets are inert text, load on selection, and are never executed by OpsDeck.
+
 ## 90-second evaluation path
 
 For a credential-free review, open the [live safe demo](https://kennethjsmithdev.github.io/OpsDeck/) and follow the [Evaluator Guide](docs/EVALUATOR_GUIDE.md).
