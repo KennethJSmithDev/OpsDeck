@@ -46,34 +46,69 @@ permission even though its specific SQL SELECT checks passed. Adding only
 attempt to grant `%DB_IPM:READ` was rejected because that resource does not
 exist; the rejected attempt made no change.
 
-## Authenticated results after the two database-read grants
+## Authenticated results after minimum qualified authority
 
-The role's effective resources are:
+The role's effective resources after the catalog qualification grants are:
 
 ```text
 %Admin_Operate:USE
+%Admin_Secure:USE
 %DB_IRISSYS:READ
 %DB_%DEFAULT:READ
 ```
 
 Its existing SQL SELECT access to `%IPM_Storage.ModuleItem` and
-`%IPM_Repo.Definition` remains the provider's table-level guard. The product
-route responses prove both guards passed.
+`%IPM_Repo.Definition` remains the provider's table-level guard. In `%SYS`, it
+also has SQL EXECUTE on the IPM stored function
+`%IPM_Repo.Definition_SortOrder`. The current identity passes those checks.
 
 | Request | HTTP | Authenticated result |
 |---|---:|---|
 | `/api/admin/info` | 200 | `OpsDeckQualify`, `%SYS`, product `iris` |
 | `/opsdeck-api/packages` | 200 | `available`; `zpm@0.10.8`, `opsdeck@0.2.2` |
-| `/opsdeck-api/available-packages?name=opsdeck` | 200 | provider state `failed`, reason `catalog-query-failed`; 1 configured repository, 1 available repository, coverage `complete`, 0 package rows |
+| `/opsdeck-api/available-packages?name=opsdeck` | 200 | `available`; `opsdeck@0.2.0` from `registry`; 1 configured and available repository, coverage `complete` |
 
-The response's complete service coverage proves the configured `registry`
-service availability check passed. The failure is later, during the bounded
-exact-name search. A separate read-only discriminator using the exact product
-criteria (`Name=opsdeck`, `Registry=registry`, `AllVersions=0`) succeeded in
-the console owner context and returned `opsdeck@0.2.0` from `registry`. This
-shows that the search criteria themselves are valid; it does not identify the
-additional caller-context failure or qualify an OpsDeck operator catalog
-result. No further privilege was added speculatively.
+Installed inventory reports `opsdeck@0.2.2`, while the available catalog
+reports `opsdeck@0.2.0`. The product comparison is therefore
+`INSTALLED_NEWER` / local newer, not `UPDATE_AVAILABLE`. Source tests cover
+that comparison; the connected browser rendering is still pending.
+
+## Exact IPM caller-authority failures and resolution
+
+The first direct IPM call as `OpsDeckQualify` returned status 5540 / SQLCODE
+-99. The installed `%IPM.Repo.Remote.PackageService.GetHttpRequest()` calls
+`GetSSLConfiguration(host)`, whose installed implementation calls
+`Security.SSLConfigs.Exists()` and creates a configuration if it does not
+exist. A direct `Exists()` check as the fixture identity returned Access
+Denied (status 822); after the exact security API permission was added, the
+same check returned true. The target's `pm.community.intersystems.com` SSL
+configuration existed before the successful authenticated catalog call, so
+that successful read did not enter the conditional create path.
+
+The catalog still returned the generic failure after the TLS check passed. The
+installed `%IPM.Repo.Manager.SearchRepositoriesForModule()` source showed its
+repository selection query uses `ORDER BY
+%IPM_Repo.Definition_SortOrder(ID)`. Dictionary metadata identifies
+`%IPM.Repo.Definition.SortOrder` as `SqlProc=1`. For `OpsDeckQualify`,
+`CheckPrivilege(..., 9, "%IPM_Repo.Definition_SortOrder", "e", "%SYS")`
+returned 0, while table SELECT checks returned 1. This was the missing
+least-scope SQL authority; it is why the earlier generic 5540 was not fixed by
+the SSL permission alone.
+
+After granting EXECUTE only on `%IPM_Repo.Definition_SortOrder` to
+`OpsDeckQualifyRole` in `%SYS`, the exact-name authenticated product route
+returned one live row. A direct authenticated `ListModules` call also returned
+one row, confirming the HTTP GET path and configured repository service are
+reachable with this identity.
+
+`%Admin_Secure:USE` is a broad security API permission. Official IRIS 2026.2
+documentation requires it (along with `%DB_IRISSYS:READ`) for security APIs
+that access `IRISSECURITY`, and `Security.SSLConfigs` documents the same
+permission for SSL configuration operations. It is retained only on the
+disposable qualification role under the explicit qualification authorization;
+it is not an appropriate default OpsDeck operator grant. The live catalog
+result is qualified only at this privileged fixture identity's authority
+scope.
 
 ## Installed search call chain
 
@@ -96,39 +131,39 @@ snapshot flags, and parses the returned package/version JSON. The
 reason `catalog-query-failed`.
 
 In the installed `ListModules` implementation, a non-200 HTTP response with no
-transport error returns an empty list without parsing the body. Since the
-OpsDeck response is `FAILED` rather than `empty`, a simple non-200 response is
-not sufficient to explain the observed failure. The exact exception/status
-origin—request setup or transport, response parsing, or subsequent manager
-processing—remains **UNVERIFIED**. The method implementation contains no
-explicit IRIS role/resource authorization check; this does not rule out
-underlying class, database, network, TLS, or credential access checks.
+transport error returns an empty list without parsing the body. The two
+observed catalog failures were caller-authority failures outside the HTTP
+response path: first the `Security.SSLConfigs` security API, then EXECUTE on
+the stored sort function used by the repository manager query. After those
+exact grants, the bounded authenticated HTTP search returns its live row. The
+source still contains no explicit OpsDeck route-level privilege check for
+either underlying IPM requirement; OpsDeck's own provider continues to check
+the repository table SELECT before calling IPM.
 
 ## State and acceptance
 
 - **KNOWN:** authenticated identity and namespace are preserved by the product
-  HTTP path; the installed inventory endpoint returns two live rows; the
-  configured repository is reachable from the provider; the exact criteria
-  succeed in console-owner context and return `opsdeck@0.2.0` from `registry`;
-  the installed call chain and response handling described above are runtime
-  metadata/source observations.
-- **INFERRED:** the remaining failure is in request/response or manager
-  processing under the authenticated web request context, after repository
-  availability succeeds. The failure is not explained by criteria or a
-  simple non-200 response.
-- **UNVERIFIED:** the exact failing IPM sub-operation and its minimum caller
-  authority; authenticated catalog data/version relationship; connected Edge
-  rendering; operation authority/qualification; live receipt; package
-  install/remove.
-- The target still has installed `opsdeck@0.2.2`, which is newer than the
-  observed registry `0.2.0`; this comparison is not exposed through the
-  authenticated catalog response and is not qualified in the browser.
+  HTTP path; installed inventory returns two live rows; authenticated catalog
+  returns `opsdeck@0.2.0` from `registry` with complete one-repository
+  coverage; installed `opsdeck@0.2.2` compares as local newer; both exact
+  caller-authority failures and their resolutions are evidenced above.
+- **INFERRED:** an ordinary OpsDeck operator without `%Admin_Secure:USE` will
+  be denied by this IPM implementation's SSL-configuration lookup. The
+  browser can represent this as DENIED; no role was broadened outside the
+  disposable target.
+- **UNVERIFIED:** connected Edge rendering under `OpsDeckQualify`, the
+  operation denial/result boundary, operation authority/qualification, live
+  receipt, and package install/remove.
+- The target still has installed `opsdeck@0.2.2`, newer than the authenticated
+  registry result `0.2.0`; browser display of the `INSTALLED_NEWER`
+  relationship remains unqualified.
 - The Docker qualification identity and DPAPI-protected local credential are
   retained for the campaign. Plaintext was not output or committed.
 - `IRISTesting` is untouched. No Edge session was authenticated. No product
   package, repository, class, web application, or package data was mutated.
-- **v0.5 remains NOT ACCEPTED.** The catalog provider returns `FAILED`, so the
-  connected-browser gate was not started and no v0.6 mutation was attempted.
+- **v0.5 remains NOT ACCEPTED.** Authenticated HTTP catalog behavior now
+  passes at the recorded fixture authority scope, but the connected Edge
+  rendering gate is pending. No v0.6 mutation was attempted.
 
 ## Official contract references
 
