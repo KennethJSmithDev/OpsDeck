@@ -8,19 +8,20 @@ This checkpoint turns the isolated IRIS runtime seams into the product-owned sou
 
 ## Product ownership and REST topology
 
-The smallest supported native contract currently contains two ObjectScript classes:
+The current native contract contains three ObjectScript classes:
 
 | Class | Product responsibility | Package resource |
 |---|---|---|
 | `OpsDeck.Product.FixedLogReader` | Reads only the two fixed, bounded operational log sources and enforces `%Admin_Operate:Use` in the current process. | `OpsDeck.Product.PKG` |
-| `OpsDeck.Product.FixedLogREST` | Exposes the two semantic log routes and the bounded installed-IPM inventory route. | `OpsDeck.Product.PKG` |
+| `OpsDeck.Product.FixedLogREST` | Exposes the two semantic log routes and bounded IPM inventory/catalog routes. | `OpsDeck.Product.PKG` |
+| `OpsDeck.Product.LogInterpreter` | Applies bounded rule-based interpretation only to fixed log observation payloads passed by the REST class. | `OpsDeck.Product.PKG` |
 
-`module.xml` declares `SourcesRoot` as `src` and includes `OpsDeck.Product.PKG`. This follows the IPM manifest pattern: a `.PKG` resource includes the classes in that ObjectScript package. Both class files live under `src/OpsDeck/Product/`. No temporary package is part of the final design. Official manifest documentation describes `SourcesRoot`, `.PKG` resources, and `.CLS` resources; the installed IRIS source/runtime checkpoint has already compiled these exact class sources in isolation. This establishes the declaration shape, while a full product install/uninstall lifecycle is still required to qualify ownership.
+`module.xml` declares `SourcesRoot` as `src` and includes `OpsDeck.Product.PKG`. This follows the IPM manifest pattern: a `.PKG` resource includes the classes in that ObjectScript package. All three class files live under `src/OpsDeck/Product/`. No temporary package is part of the final design. Official manifest documentation describes `SourcesRoot`, `.PKG` resources, and `.CLS` resources; the installed IRIS source/runtime checkpoint has already compiled these exact class sources in isolation. This establishes the declaration shape, while a full product install/uninstall lifecycle is still required to qualify ownership.
 
 The manifest owns two web applications:
 
-- `/opsdeck-api`: authenticated, `DispatchClass="OpsDeck.Product.FixedLogREST"`, no static serving, and no recursive route handling. Its routes are `GET /messages`, `GET /system-monitor`, and `GET /packages`.
-- `/opsdeck`: authenticated static browser application served from the package-owned CSP directory. Browser providers use same-origin `/opsdeck-api/...` routes for the fixed log and installed package observations.
+- `/opsdeck-api`: authenticated, `DispatchClass="OpsDeck.Product.FixedLogREST"`, no static serving, and no recursive route handling. Its routes are `GET /messages`, `GET /system-monitor`, `GET /packages`, and exact-name `GET /available-packages?name=...`.
+- `/opsdeck`: authenticated static browser application served from the package-owned CSP directory. Browser providers use same-origin `/opsdeck-api/...` routes for fixed logs, installed package inventory, and exact-name available package lookup.
 
 The fixed log API accepts semantic route names only. It has no caller-selected file path, generic filesystem route, or generic ObjectScript execution bridge. The two log endpoints keep the previously qualified status distinctions and limits: bounded source observation, at most 250 lines, and no resolved source-path metadata.
 
@@ -38,9 +39,9 @@ The required permission is the actual `SELECT` authority on `%IPM_Storage.Module
 
 Installed inventory is **PARTIAL/PASS within the qualified scope**: the live `%IPM.Main.GetListModules(namespace, repositoryFilter, .modules)` call returned installed package names and versions in `%SYS` for an already-authorized identity. The observed implementation reads `%IPM_Storage.ModuleItem`; its repository argument filters installed registrations and does not query repositories. The live browser renders these rows and preserves denial without fixture substitution.
 
-Available discovery is **runtime observed for one exact query, but not yet integrated as a product provider**. On the disposable 2026.2/IPM 0.10.8 target, `%IPM.Repo.Utils.SearchRepositoriesForModule` with exact `Name="opsdeck"`, `Registry="registry"`, and `AllVersions=1` returned `opsdeck@0.2.0`, `ServerName="registry"`, and empty `Repository`/`Origin` fields under console identity `irisowner`. Existing read-only configuration named `registry` at `https://pm.community.intersystems.com`. The local installed target had `opsdeck@0.2.1`, so the available result is not an update. No repository or package state changed. The installed method owner and query behavior are recorded in [available catalog reconnaissance](OPSDECK_0_9_AVAILABLE_CATALOG_RECONNAISSANCE_20261003.md).
+Available discovery is **implemented in the local 0.2.3 source; the integrated helper was runtime-qualified for one exact query**. The browser's Packages workspace now accepts one exact package identity and calls `GET /opsdeck-api/available-packages?name=...`; the product class checks the current `$USERNAME` for `SELECT` on `%IPM_Repo.Definition`, caps configured repositories at five and response rows at 50, and uses `%IPM.Repo.Utils.SearchRepositoriesForModule` with exact package criteria. It reports coverage, preserves `DENIED`/`UNAVAILABLE`/`FAILED`/`EMPTY`, and does not fill empty source fields. For stable three-part semantic versions only, the browser marks `UPDATE_AVAILABLE` only if the available version compares higher than the installed version; prerelease/build/snapshot comparisons are left unqualified.
 
-The installed API's manager visits enabled repository definitions and calls an available package service with the exact criteria; the remote service issues a package GET. The manager can skip unavailable services, so zero returned rows alone does not establish EMPTY or complete repository coverage. The console call proves authority only for `irisowner`; product UI operator authority and the required read permission on configured repository definitions remain unqualified. The live browser still does not expose available catalog data. No credentials, SQL grants, or repository configuration were changed.
+The installed API's manager visits enabled repository definitions and calls an available package service with the exact criteria; the remote service issues a package GET. The manager can skip unavailable services, so zero returned rows alone does not establish EMPTY or complete repository coverage. Runtime evidence from the integrated helper under console identity `irisowner` returned `opsdeck@0.2.0` from `registry` with complete one-repository coverage. The installed image configuration identified `registry` as `https://pm.community.intersystems.com`; per-row `Repository` and `Origin` fields were empty and remain omitted. The target previously loaded `opsdeck@0.2.2`; current local package manifest/source is `0.2.3` and has not been loaded. This is not an authenticated HTTP/browser qualification: the anonymous flat route returns 401, while the earlier nested URL candidate returned 404. The current HTTP caller's authority and the provider's authenticated REST response remain unverified. No repository configuration or SQL grants were changed. See [catalog reconnaissance](OPSDECK_0_9_AVAILABLE_CATALOG_RECONNAISSANCE_20261003.md) and [EGEHAR route analysis](OPSDECK_0_9_EGEHAR_20261003.md).
 
 ## DPI-I-261 acceptance matrix
 
@@ -49,7 +50,7 @@ The preserved Community Opportunity description asks operators to see available 
 | Idea requirement | Implemented source | Runtime qualified | Publicly demonstrable | Remaining gap |
 |---|---|---|---|---|
 | See installed packages | `OpsDeck.Product.FixedLogREST.InstalledPackages`; live Packages UI | **PARTIAL/PASS** for `%SYS` and identities with existing `%IPM_Storage.ModuleItem` `SELECT`; other tested identities receive DENIED | **Conditionally** demonstrable on an authorized live IRIS instance; the public safe demo remains synthetic | Cross-namespace behavior and integrated product package lifecycle are not qualified; authority is not generally present for OpsDeckTest/OpsDeckAdmin |
-| See available Open Exchange/configured repository packages, versions, and source | Installed IPM repository API discovered; one exact `opsdeck` query returned version `0.2.0` from configured identity `registry`; live UI provider not implemented | **PARTIAL**: one query under `irisowner` in `%SYS`; configured source identity observed, per-row origin/repository fields empty | No; the public demo remains synthetic and the live browser is installed-only | Implement an identity-preserving bounded provider, establish read authority and coverage/state semantics, and wire the Packages UI without inventing missing origin data |
+| See available Open Exchange/configured repository packages, versions, and source | Product REST provider plus exact-name Packages UI lookup; configured repository name is returned; missing `Origin`/`Repository` fields stay absent | **PARTIAL**: integrated provider class compiled and queried under `irisowner`; anonymous route is authenticated, but full authenticated HTTP/UI provider flow and other caller authority are not yet qualified | No; public demo remains synthetic; native UI source is integrated but not yet demonstrated through an authenticated browser | Qualify authenticated route under an existing-authority test identity and verify rendered UI result; assess additional repo coverage without changing config |
 | Install a selected package from the administration experience | Fixture-only plan UI; no live executor | **NO** | No; install remains disabled | Exact IPM operation contract, executor authority, disposable fixture, confirmed operation, read-back, receipt, and cleanup |
 | Preserve package-manager authority and state | Authenticated endpoint checks current identity for required table `SELECT`; installed rows are read from IPM | **PARTIAL** for installed inventory only | The DENIED state can be demonstrated | Catalog authority and safe write authority remain unqualified |
 
@@ -59,11 +60,11 @@ The DPI-I-261 idea is **not implemented as a whole** and no Community Opportunit
 
 ### Live web-app executor
 
-`PUT /api/admin/v2/web-app` remains unqualified. The generic-string OpenAPI body does not establish the installed implementation's request schema or exact write semantics. No payload was guessed and no fixture mutation was issued. Continue by inspecting installed implementation metadata/source. Until exact semantics and existing authority are established, no live executor or retry is permitted.
+`PUT /api/admin/v2/web-app` remains unqualified. Read-only inspection of the installed dispatch and `%Api.Admin.Endpoints.WebApp.App` implementation established a required `name` query parameter, a JSON-object body drawn from the app-property schema, and an upsert through `Security.Applications.Modify` or `.Create`; PUT itself is not an async job. The endpoint checks `%Admin_Secure:U`. Its GET read-back is `GET /api/admin/v2/web-app?name=...`. However, `Security.Applications` is deployed and its implementation could not be exported, so the actual CREATE-specific required fields and acceptance semantics remain unknown. No payload was guessed and no fixture mutation was issued. The `/opsdeck-fixture` operation is not ready for execution.
 
 ### Package operations
 
-IPM documents install, update, and uninstall lifecycle commands, but that does not qualify a product API operation contract or a server-side executor. Package operations stay disabled because the general live operation executor is unqualified. Before any future package operation, the exact call semantics, caller authority, package fixture absence, receipt path, cleanup, and cleanup read-back must all be established without adding a second safety engine.
+IPM exposes `%IPM.Main.Install`, `.Update`, and `.Uninstall` entry points, but exact argument/result semantics and their invocation authority have not been inspected and qualified for an OpsDeck caller. Package operations stay disabled because the general live operation executor is unqualified. Before any future package operation, the exact call semantics, caller authority, package fixture absence, receipt path, cleanup, and cleanup read-back must all be established without adding a second safety engine.
 
 ### Evidence persistence and vector search
 
@@ -84,8 +85,8 @@ The currently preserved runtime installation contains an existing OpsDeck applic
 
 ### KNOWN
 
-- Checkpoint source is at `4b407b23f002adcac9655f3af300e086931af49a` on `integration/opsdeck-1.0-20261002`.
-- Two native classes are under `src/OpsDeck/Product/` and declared together by `OpsDeck.Product.PKG`.
+- Last pushed checkpoint is `611010d2467411bb79bdb724810c07dd54d7e3b5` on `integration/opsdeck-1.0-20261002`; current working source includes uncommitted 0.2.3 catalog/browser integration.
+- Three native classes are under `src/OpsDeck/Product/` and declared together by `OpsDeck.Product.PKG`.
 - The isolated REST and reader source compiled and the fixed semantic routes, authentication, bounded reads, and inventory authority differences were observed; see `opsdeck-1-0-runtime-lanes-2026-10-02.json` in the preserved evidence worktree.
 - Product source maps live package rows into the Packages workspace. Live available versions are not fabricated.
 - Official IRIS 2026.2 documentation identifies `search` as current-registry discovery and `list-installed` as current-namespace installed discovery.

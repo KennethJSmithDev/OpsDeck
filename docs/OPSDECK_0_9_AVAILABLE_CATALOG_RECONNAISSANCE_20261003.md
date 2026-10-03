@@ -38,7 +38,7 @@ The installed method returns a status and a `%Library.ListOfObjects` of qualifie
 
 This was a direct method call in the local IRIS console as `irisowner`. It proves that this identity could obtain this one bounded result through the installed API. It does **not** prove that an arbitrary authenticated OpsDeck operator has the SQL read authority on `%IPM_Repo.Definition` or may access the configured catalog. The API may use the existing repository's configured service credentials to read public catalog metadata; OpsDeck must not return those credentials or replace the user's IRIS identity with broader application credentials.
 
-No browser-facing available-catalog provider is implemented yet. Before doing so, the product must preserve the caller's identity, establish the exact required `SELECT` authority and state behavior for unavailable configured repositories, bound configured repository fan-out and response rows, and represent absent `Origin`/`Repository` honestly. Until then the Packages UI remains installed-only for live data and must not promote this one console observation into a general operator capability.
+The current working source adds `OpsDeck.Product.FixedLogREST.AvailablePackages`, which checks the current user for `%IPM_Repo.Definition:SELECT`, accepts one exact package identity, caps repository fan-out at five and result rows at 50, and returns explicit coverage/provider state. The Packages workspace maps that response, compares observed available versions with installed versions only when stable three-part semantic versions are parseable, and makes an exact-name request through the product route. Runtime evidence proves the helper's one `opsdeck@0.2.0` result under `irisowner`; it does not prove authenticated HTTP/browser rendering or authority for other users. No browser credentials or grants were available/added to qualify that remaining path. Zero-row results are called empty only with complete coverage; partial unobserved repositories remain distinct.
 
 ## Official contract
 
@@ -47,4 +47,4 @@ No browser-facing available-catalog provider is implemented yet. Before doing so
 
 ## DPI-I-261 impact
 
-Available package identity and version are now **runtime observed for one exact query under `irisowner` in `%SYS`**. Product-source integration, authenticated browser visibility, operator authority, broad repository coverage, and installation from the selected available package remain gaps. This does not complete DPI-I-261.
+Available package identity and version are **runtime observed for one exact query under `irisowner` in `%SYS`**, and the provider/UI integration is present in uncommitted local source. Authenticated browser visibility, operator authority across identities, broad repository coverage, and installation from the selected available package remain gaps. This does not complete DPI-I-261.

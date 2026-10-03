@@ -82,7 +82,7 @@ test("native Packages loads installed IPM rows through its fixed same-origin rou
   const live = vm.runInContext("applicationsView()", context);
   assert.match(live, /opsdeck/u);
   assert.match(live, /0\.3\.0/u);
-  assert.match(live, /Not observed/u);
+  assert.match(live, /Not queried for this package/u);
   assert.doesNotMatch(live, /sample-observer|sample-reporting-kit|SYNTHETIC FIXTURE/u);
 });
 

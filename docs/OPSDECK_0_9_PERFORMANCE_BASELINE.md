@@ -34,6 +34,12 @@ The isolated official image `intersystemsdc/iris-community:2026.2-zpm` (digest `
 
 The image was started through `/iris-main` because its vendor after-start wrapper had previously failed under `ISC_DATA_DIRECTORY`. The later 0.9 work must continue to disclose that limitation. The container, target-specific permission adjustment, and volume are disposable runtime state.
 
+## Post IPM catalog-provider source comparison
+
+After adding the exact-name live repository provider, Packages workspace lookup, and current safe-demo projections, the six shipped JavaScript modules total **203,816 bytes**, CSS remains **36,550 bytes**, and HTML remains **448 bytes**, for **240,814 uncompressed bytes** overall. Relative to the saved pre-addition baseline, JavaScript increased by **12,477 bytes** and total shipped source by **12,477 bytes (+5.46%)**; CSS did not change. The source dependency graph remains eight initial requests. The increase covers exact-name catalog lookup, source identity and coverage states, catalog-to-installed comparison, and compact deterministic demo projections for Packages, Jobs, Evidence, and log findings. It adds no frontend framework or global catalog preload.
+
+The updated `/opsdeck/index.html` was loaded in the in-app browser's disconnected view and rendered the OpsDeck shell without entering credentials. The separate safe-demo bundle was also loaded locally: Overview, synthetic log finding, synthetic Job Center, catalog comparison, and Evidence projections rendered without console errors. This verifies static and deterministic demo rendering only. Current cold/warm timing, post-change transfer bytes, idle heap, connected usable-render, and representative navigation latency have not been measured in this turn; the earlier timing values remain historical baseline observations, not post-change performance claims.
+
 ## Measurement notes
 
 - Sizes are filesystem byte counts for the exact browser assets copied by `module.xml`.

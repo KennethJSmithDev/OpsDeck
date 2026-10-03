@@ -23,17 +23,27 @@ test("REST class exposes only fixed semantic routes and never accepts a path", (
   assert.match(restClass, /Url="\/messages" Method="GET" Call="MessagesLog"/u);
   assert.match(restClass, /Url="\/system-monitor" Method="GET" Call="SystemMonitorLog"/u);
   assert.match(restClass, /Url="\/packages" Method="GET" Call="InstalledPackages"/u);
+  assert.match(restClass, /Url="\/available-packages" Method="GET" Call="AvailablePackages"/u);
   assert.match(restClass, /GetListModules\(\$namespace,"\*",\.modules\)/u);
   assert.match(restClass, /count>250/u);
+  assert.match(restClass, /SearchRepositoriesForModule\(criteria,\.matches\)/u);
+  assert.match(restClass, /CheckPrivilege\(\$USERNAME,1,"%IPM_Repo\.Definition","s",\$NAMESPACE\)/u);
+  assert.match(restClass, /repositoryCount>5/u);
+  assert.match(restClass, /result\.packages\.%Size\(\)=50/u);
   assert.match(restClass, /WriteSource\("messagesLog"\)/u);
   assert.match(restClass, /WriteSource\("systemMonitorLog"\)/u);
-  assert.doesNotMatch(restClass, /%request\.Data|%request\.URL|path As %String|Execute\(|Shell\(/u);
+  assert.match(restClass, /%request\.Data\("name",1\)/u);
+  assert.doesNotMatch(restClass, /%request\.URL|path As %String|\bXECUTE\b|Shell\(/iu);
   assert.equal(READ_ONLY_SOURCES.messagesLog.path, "/opsdeck-api/messages");
   assert.equal(READ_ONLY_SOURCES.systemMonitorLog.path, "/opsdeck-api/system-monitor");
   assert.equal(READ_ONLY_SOURCES.messagesLog.nativeOnly, true);
+  assert.equal(READ_ONLY_SOURCES.availablePackages.path, "/opsdeck-api/available-packages");
   assert.match(app, /route === "packages"\) return "\/opsdeck-api\/packages"/u);
   assert.match(app, /loadPackageInventory\(\)/u);
   assert.match(app, /mapInstalledPackageInventory\(payload\)/u);
+  assert.match(app, /route === "availablePackages"/u);
+  assert.match(app, /loadAvailablePackageCatalog\(name\)/u);
+  assert.match(app, /mapAvailablePackageCatalog\(payload\)/u);
 });
 
 test("provider mapping preserves source states while omitting resolved paths", () => {

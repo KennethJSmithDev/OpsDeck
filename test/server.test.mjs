@@ -68,6 +68,7 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     if (request.url === "/api/admin/v2/security/resource?name=fixture-resource") return response.end(JSON.stringify({ status: { errors: [] }, console: [], result: { Name: "fixture-resource", Description: "Fixture resource", PublicPermission: "None" } }));
     if (request.url === "/api/admin/v2/tasks") return response.end(JSON.stringify({ status: { errors: [] }, result: [{ Id: 41, Name: "Fixture task", Namespace: "USER" }] }));
     if (request.url === "/api/admin/v2/task?id=41") return response.end(JSON.stringify({ status: { errors: [] }, console: [], result: { Id: 41, Name: "Fixture task", Namespace: "USER", Type: "System", Suspended: false, Description: "Safe description", Command: "must-not-escape", Password: "must-not-escape" } }));
+    if (request.url === "/opsdeck-api/available-packages?name=opsdeck") return response.end(JSON.stringify({ provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status: "available", packages: [{ name: "opsdeck", availableVersion: "0.2.0", repository: "registry" }], truncated: 0, repositoryCount: 1, availableRepositoryCount: 1, coverage: "complete" }));
     response.writeHead(404).end();
   });
   const irisPort = await listen(iris);
@@ -120,6 +121,9 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     assert.equal((await fetch(`${base}/api/read/taskDetail?id=41`)).status, 401);
     assert.equal((await fetch(`${base}/api/read/taskDetail?id=invalid`)).status, 400);
     assert.equal((await fetch(`${base}/api/read/taskDetail?id=41&id=42`)).status, 400);
+    assert.equal((await fetch(`${base}/api/read/availablePackages?name=opsdeck`)).status, 401);
+    assert.equal((await fetch(`${base}/api/read/availablePackages?name=opsdeck&other=ignored`)).status, 400);
+    assert.equal((await fetch(`${base}/api/read/availablePackages?name=bad%2Fpath`)).status, 400);
 
     const rejectedOrigin = await fetch(`${base}/api/connect`, {
       method: "POST",
@@ -150,6 +154,10 @@ test("local server gates the observed IRIS GET routes behind a memory session", 
     const detail = await fetch(`${base}/api/read/webAppDetail?name=%2Fapi%2Fadmin`, { headers: { Cookie: sessionCookie } });
     assert.equal(detail.status, 200);
     assert.equal((await detail.json()).result.NameSpace, "%SYS");
+    assert.equal(authorizationSeen.at(-1), `Basic ${Buffer.from("_SYSTEM:test-only").toString("base64")}`);
+    const availablePackages = await fetch(`${base}/api/read/availablePackages?name=opsdeck`, { headers: { Cookie: sessionCookie } });
+    assert.equal(availablePackages.status, 200);
+    assert.equal((await availablePackages.json()).packages[0].availableVersion, "0.2.0");
     assert.equal(authorizationSeen.at(-1), `Basic ${Buffer.from("_SYSTEM:test-only").toString("base64")}`);
     const notFoundDetail = await fetch(`${base}/api/read/webAppDetail?name=%2Fmissing`, { headers: { Cookie: sessionCookie } });
     assert.equal(notFoundDetail.status, 404);

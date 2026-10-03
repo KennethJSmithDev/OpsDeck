@@ -403,6 +403,22 @@ async function handleApi(request, response, url) {
     return sendJson(response, status, spec.value, contentType);
   }
 
+  if (request.method === "GET" && url.pathname === "/api/read/availablePackages") {
+    const names = url.searchParams.getAll("name");
+    if (names.length !== 1 || [...url.searchParams.keys()].some((key) => key !== "name") ||
+      !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(names[0])) {
+      return sendJson(response, 400, { error: "A single exact package identity is required." });
+    }
+    const session = requestSession(request);
+    if (!session) return sendJson(response, 401, { error: "Connect to IRIS to load live data." });
+    const source = READ_ONLY_SOURCES.availablePackages;
+    const result = await readIrisJson(source.path, session.authorization, "untracked", { name: names[0] });
+    const status = result.status >= 200 && result.status < 300 ? result.status :
+      [400, 401, 403].includes(result.status) ? result.status : 502;
+    const contentType = result.contentType ? { "X-OpsDeck-Upstream-Content-Type": result.contentType } : {};
+    return sendJson(response, status, result.value, contentType);
+  }
+
   const sourceMatch = url.pathname.match(/^\/api\/read\/([A-Za-z][A-Za-z0-9]*)$/);
   if (request.method === "GET" && sourceMatch) {
     const source = Object.hasOwn(READ_ONLY_SOURCES, sourceMatch[1]) ? READ_ONLY_SOURCES[sourceMatch[1]] : null;

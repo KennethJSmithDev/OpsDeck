@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createPackageInventory, fixturePackageInventory, mapInstalledPackageInventory, PACKAGE_FIXTURE_SOURCE, packageResourceRef, preparePackagePlan } from "../public/packages-workspace.js";
+import { comparePackageCatalogToInstalled, createPackageInventory, fixturePackageInventory, mapAvailablePackageCatalog, mapInstalledPackageInventory, PACKAGE_FIXTURE_SOURCE, packageResourceRef, preparePackagePlan } from "../public/packages-workspace.js";
 
 test("fixture inventory has stable scoped Package ResourceRefs and remains visibly synthetic", () => {
   const inventory = fixturePackageInventory();
@@ -89,5 +89,71 @@ test("installed IPM projection accepts exactly 250 rows only with truncated stat
   assert.equal(inventory.packages.length, 250);
   assert.equal(inventory.truncated, true);
   assert.ok(inventory.packages.every(item => item.state === "installed" && item.availableVersion === null));
+});
+
+test("available IPM catalog maps exact package identity, configured source, and observed version", () => {
+  const catalog = mapAvailablePackageCatalog({
+    provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck",
+    status: "available", packages: [{ name: "opsdeck", availableVersion: "0.2.0", repository: "registry" }],
+    truncated: 0, repositoryCount: 1, availableRepositoryCount: 1, coverage: "complete",
+  }, "2026-10-03T12:00:00Z");
+  assert.equal(catalog.state, "AVAILABLE");
+  assert.equal(catalog.sourceIdentity, "iris-ipm-available-v1");
+  assert.equal(catalog.packages[0].availableVersion, "0.2.0");
+  assert.equal(catalog.packages[0].repository, "registry");
+  assert.equal(catalog.packages[0].origin, null);
+  assert.equal(catalog.packages[0].synthetic, false);
+});
+
+test("catalog comparison marks only strict stable SemVer increases as updates", () => {
+  const installed = mapInstalledPackageInventory({
+    provider: "iris-ipm-installed-v1", namespace: "%SYS", status: "available",
+    packages: [{ name: "opsdeck", installedVersion: "0.2.0" }],
+  });
+  const newer = mapAvailablePackageCatalog({
+    provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status: "available",
+    packages: [{ name: "opsdeck", availableVersion: "0.2.1", repository: "registry" }],
+    truncated: false, repositoryCount: 1, availableRepositoryCount: 1, coverage: "complete",
+  });
+  const update = comparePackageCatalogToInstalled(newer, installed)[0];
+  assert.equal(update.state, "update-available");
+  assert.equal(update.installedVersion, "0.2.0");
+
+  const unstable = mapAvailablePackageCatalog({
+    provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status: "available",
+    packages: [{ name: "opsdeck", availableVersion: "0.2.1-rc.1", repository: "registry" }],
+    truncated: false, repositoryCount: 1, availableRepositoryCount: 1, coverage: "complete",
+  });
+  assert.equal(comparePackageCatalogToInstalled(unstable, installed)[0].state, "installed");
+
+  const deniedInventory = mapInstalledPackageInventory({ provider: "iris-ipm-installed-v1", namespace: "%SYS", status: "denied", packages: [] });
+  const unknownInstallation = comparePackageCatalogToInstalled(newer, deniedInventory)[0];
+  assert.equal(unknownInstallation.state, "available");
+  assert.equal(unknownInstallation.installedStateKnown, false);
+});
+
+test("available IPM catalog keeps denied, unavailable, failed, and empty distinct", () => {
+  for (const status of ["empty", "unavailable", "denied", "failed"]) {
+    const coverage = status === "empty" ? "complete" : "unknown";
+    const repositoryCount = status === "empty" ? 1 : 0;
+    const availableRepositoryCount = status === "empty" ? 1 : 0;
+    const catalog = mapAvailablePackageCatalog({
+      provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status,
+      packages: [], truncated: false, repositoryCount, availableRepositoryCount, coverage,
+    });
+    assert.equal(catalog.state, status.toUpperCase());
+    assert.deepEqual(catalog.packages, []);
+  }
+});
+
+test("available catalog rejects mismatched identity, false empty coverage, and over-bound rows", () => {
+  const base = {
+    provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status: "empty",
+    packages: [], truncated: false, repositoryCount: 1, availableRepositoryCount: 1, coverage: "complete",
+  };
+  assert.throws(() => mapAvailablePackageCatalog({ ...base, status: "available" }), /do not match/u);
+  assert.throws(() => mapAvailablePackageCatalog({ ...base, coverage: "partial" }), /coverage is inconsistent/u);
+  assert.throws(() => mapAvailablePackageCatalog({ ...base, packages: Array.from({ length: 51 }, () => ({ name: "opsdeck", availableVersion: "1.0.0", repository: "registry" })) }), /bounded contract/u);
+  assert.throws(() => mapAvailablePackageCatalog({ ...base, packages: [{ name: "other", availableVersion: "1.0.0", repository: "registry" }] }), /do not match/u);
 });
 

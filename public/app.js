@@ -1,7 +1,7 @@
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.2.1";
-import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence } from "./evidence-center.js";
-import { fixturePackageInventory, mapInstalledPackageInventory, preparePackagePlan } from "./packages-workspace.js";
-import { mapAuditJob, upsertJob } from "./job-center.js";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.2.3";
+import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence } from "./evidence-center.js?v=opsdeck-0.2.3";
+import { comparePackageCatalogToInstalled, fixturePackageInventory, mapAvailablePackageCatalog, mapInstalledPackageInventory, preparePackagePlan } from "./packages-workspace.js?v=opsdeck-0.2.3";
+import { mapAuditJob, upsertJob } from "./job-center.js?v=opsdeck-0.2.3";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -142,6 +142,10 @@ const state = {
   packageInventory: null,
   packageInventoryError: "",
   packageInventoryLoading: false,
+  availablePackageName: "",
+  availablePackageCatalog: null,
+  availablePackageError: "",
+  availablePackageLoading: false,
   webAppDetails: {}, webAppDetailErrors: {}, webAppDetailLoading: "",
   userDetails: {}, userDetailErrors: {}, userDetailLoading: "", userDetailVerification: {},
   roleDetails: {}, roleDetailErrors: {}, roleDetailLoading: "", roleDetailVerification: {},
@@ -444,13 +448,24 @@ function packagesWorkspaceView() {
     const rows = inventory?.packages.filter(item => state.packageFilter === "all" || item.state === "installed") || [];
     const stateLabel = state.packageInventoryLoading ? "LOADING" : state.packageInventoryError ? "FAILED" : inventory?.state || "NOT READ";
     const stateStyle = inventory?.state === "AVAILABLE" ? "accent" : "warning";
-    return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Installed package inventory</h2></div>${badge(stateLabel, stateStyle)}</div><p class="source-message">This read-only view uses the installed IPM registration list in the current namespace. Available repository versions are not queried.</p><div class="evidence-toolbar"><label>Inventory <select id="package-filter"><option value="all" ${state.packageFilter === "all" ? "selected" : ""}>All installed</option><option value="installed" ${state.packageFilter === "installed" ? "selected" : ""}>Installed</option></select></label><span class="package-source">Source identity <code>${esc(inventory?.sourceIdentity || "iris-ipm-installed-v1")}</code>${inventory?.namespace ? ` · Namespace <code>${esc(inventory.namespace)}</code>` : ""}</span><button class="button secondary" data-refresh-packages ${state.packageInventoryLoading ? "disabled" : ""}>Refresh</button></div>${state.packageInventoryError ? `<p class="source-message source-error" role="alert">${esc(state.packageInventoryError)}</p>` : ""}${inventory?.state === "DENIED" ? `<p class="source-message source-error" role="status">The current IRIS identity is not authorized to read installed IPM registrations.</p>` : ""}${inventory?.state === "FAILED" ? `<p class="source-message source-error" role="alert">The installed package provider could not return inventory.</p>` : ""}<div class="package-list">${rows.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>Installed IPM registration</small></div>${badge("INSTALLED", "accent")}</div><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(item.namespace)}</code></dd><dt>Installed</dt><dd>${esc(item.installedVersion)}</dd><dt>Available</dt><dd>Not observed</dd><dt>Source</dt><dd>${esc(item.source)}</dd></dl></article>`).join("") || `<p class="source-message">${inventory?.state === "EMPTY" ? "No installed package registrations were returned." : state.packageInventoryLoading ? "Reading installed package registrations…" : "No package rows are available."}</p>`}</div>${inventory?.truncated ? `<p class="source-message">Showing the first 250 registrations. Inventory is truncated.</p>` : ""}</section>`;
+    const catalog = state.availablePackageCatalog;
+    const catalogRows = catalog ? comparePackageCatalogToInstalled(catalog, inventory) : [];
+    const catalogBadge = state.availablePackageLoading ? "LOADING" : state.availablePackageError ? "FAILED" : catalog?.state || "NOT QUERIED";
+    const catalogBody = state.availablePackageError
+      ? `<p class="source-message source-error" role="alert">${esc(state.availablePackageError)}</p>`
+      : catalog?.state === "DENIED" ? `<p class="source-message source-error" role="status">The current IRIS identity is not authorized to read configured IPM repository definitions.</p>`
+        : catalog?.state === "FAILED" ? `<p class="source-message source-error" role="alert">The IPM catalog query failed. No available version is inferred.</p>`
+          : catalog?.state === "UNAVAILABLE" ? `<p class="source-message" role="status">Configured catalog coverage is unavailable${catalog.reason ? ` (${esc(catalog.reason)}).` : "."}</p>`
+            : catalog?.state === "EMPTY" ? `<p class="source-message" role="status">No matching package was returned by all observed enabled repositories.</p>`
+              : catalogRows.length ? `<div class="package-list">${catalogRows.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>${esc(item.description)}</small></div>${badge(item.state.replaceAll("-", " ").toUpperCase(), item.state === "update-available" ? "warning" : "accent")}</div><dl class="detail-grid"><dt>Available</dt><dd>${esc(item.availableVersion)}</dd><dt>Installed</dt><dd>${esc(item.installedVersion || (item.installedStateKnown ? "Not installed in this namespace" : "Not observed"))}</dd><dt>Repository</dt><dd><code>${esc(item.repository)}</code></dd>${item.origin ? `<dt>Origin</dt><dd>${esc(item.origin)}</dd>` : ""}</dl><p class="source-message">Read-only catalog observation. Package install/update is not enabled.</p></article>`).join("")}</div>`
+                : `<p class="source-message">Enter one exact package identity to query configured repositories.</p>`;
+    return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Installed package inventory</h2></div>${badge(stateLabel, stateStyle)}</div><p class="source-message">Installed rows come from IPM registrations in the current namespace. Catalog lookup is a separate bounded exact-name query through configured repositories.</p><div class="evidence-toolbar"><label>Inventory <select id="package-filter"><option value="all" ${state.packageFilter === "all" ? "selected" : ""}>All installed</option><option value="installed" ${state.packageFilter === "installed" ? "selected" : ""}>Installed</option></select></label><span class="package-source">Source identity <code>${esc(inventory?.sourceIdentity || "iris-ipm-installed-v1")}</code>${inventory?.namespace ? ` · Namespace <code>${esc(inventory.namespace)}</code>` : ""}</span><button class="button secondary" data-refresh-packages ${state.packageInventoryLoading ? "disabled" : ""}>Refresh</button></div>${state.packageInventoryError ? `<p class="source-message source-error" role="alert">${esc(state.packageInventoryError)}</p>` : ""}${inventory?.state === "DENIED" ? `<p class="source-message source-error" role="status">The current IRIS identity is not authorized to read installed IPM registrations.</p>` : ""}${inventory?.state === "FAILED" ? `<p class="source-message source-error" role="alert">The installed package provider could not return inventory.</p>` : ""}<div class="package-list">${rows.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>Installed IPM registration</small></div>${badge("INSTALLED", "accent")}</div><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(item.namespace)}</code></dd><dt>Installed</dt><dd>${esc(item.installedVersion)}</dd><dt>Available</dt><dd>Not queried for this package</dd><dt>Source</dt><dd>${esc(item.source)}</dd></dl></article>`).join("") || `<p class="source-message">${inventory?.state === "EMPTY" ? "No installed package registrations were returned." : state.packageInventoryLoading ? "Reading installed package registrations…" : "No package rows are available."}</p>`}</div>${inventory?.truncated ? `<p class="source-message">Showing the first 250 registrations. Inventory is truncated.</p>` : ""}</section><section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">CONFIGURED REPOSITORIES</div><h2>Available package lookup</h2></div>${badge(catalogBadge, catalog?.state === "AVAILABLE" || catalog?.state === "TRUNCATED" ? "accent" : "warning")}</div><form class="evidence-toolbar" data-available-package-form><label>Exact package name <input id="available-package-name" name="name" maxlength="128" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,127}" value="${esc(state.availablePackageName)}" autocomplete="off" required></label><button class="button secondary" type="submit" ${state.availablePackageLoading ? "disabled" : ""}>${state.availablePackageLoading ? "Searching…" : "Search configured repositories"}</button><span class="package-source">Provider <code>iris-ipm-available-v1</code>${catalog ? ` · ${catalog.availableRepositoryCount}/${catalog.repositoryCount} repositories reachable` : ""}</span></form>${catalogBody}${catalog?.coverage === "partial" && !["UNAVAILABLE", "DENIED", "FAILED"].includes(catalog.state) ? `<p class="source-message">Only ${catalog.availableRepositoryCount} of ${catalog.repositoryCount} configured repositories responded. Results are partial; absence is not established.</p>` : ""}${catalog?.truncated ? `<p class="source-message">Catalog rows reached the 50-row cap.</p>` : ""}</section>`;
   }
   const inventory = fixturePackageInventory();
   const items = inventory.packages.filter(item => state.packageFilter === "all" || (state.packageFilter === "installed" ? Boolean(item.installedVersion) : !item.installedVersion));
   const review = state.packagePlan;
   const plan = review?.plan;
-  return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Package inventory preview</h2></div>${badge("SYNTHETIC FIXTURE", "warning")}</div><p class="source-message">These package rows are synthetic development fixtures. No configured registry, installed IPM inventory, or Open Exchange availability was queried.</p><div class="evidence-toolbar"><label>Inventory <select id="package-filter"><option value="all" ${state.packageFilter === "all" ? "selected" : ""}>Installed and available</option><option value="installed" ${state.packageFilter === "installed" ? "selected" : ""}>Installed</option><option value="available" ${state.packageFilter === "available" ? "selected" : ""}>Available</option></select></label><span class="package-source">Source identity <code>${esc(inventory.sourceIdentity)}</code></span></div><div class="package-list">${items.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>${esc(item.description)}</small></div>${badge(item.state.toUpperCase(), item.state === "update-available" ? "warning" : "accent")}</div><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(item.namespace)}</code></dd><dt>Installed</dt><dd>${esc(item.installedVersion || "Not installed")}</dd><dt>Available</dt><dd>${esc(item.availableVersion || "Not observed")}</dd><dt>Source</dt><dd>${esc(item.source)}</dd></dl><div class="package-actions">${item.installedVersion ? `<button class="button secondary" data-package-plan="update" data-package-name="${esc(item.name)}" ${item.availableVersion ? "" : "disabled"}>Prepare update plan</button><button class="button quiet" data-package-plan="remove" data-package-name="${esc(item.name)}">Prepare removal plan</button>` : `<button class="button secondary" data-package-plan="install" data-package-name="${esc(item.name)}">Prepare installation plan</button>`}</div></article>`).join("") || `<p class="source-message">No synthetic package rows match this filter.</p>`}</div>${plan ? `<section class="package-plan-review"><div class="panel-kicker">OPERATION PLAN · REVIEW ONLY</div><h3>${esc(plan.intent)}</h3><div class="package-plan-facts"><p><strong>Risk</strong> ${esc(plan.risk)} · explicit confirmation required</p><p><strong>Target</strong> ${esc(plan.target.key)} · namespace <code>${esc(plan.target.scope)}</code></p><p><strong>Operation</strong> ${esc(plan.capability.providerOperation)}</p><p><strong>Source</strong> ${esc(plan.parameters.sourceIdentity)} · requested version ${esc(plan.parameters.requestedVersion || "current")}</p><p><strong>Current version</strong> ${esc(plan.parameters.installedVersion || "not installed")}</p><p><strong>Pre-state</strong> ${esc(plan.preStateEvidence)} · plan expires ${esc(plan.expiresAt)}</p><p><strong>Authority</strong> ${esc(plan.authorityValidation.state)} · ${esc(plan.authorityValidation.evidence)}</p><p><strong>Expected read-back</strong> ${esc(plan.expectedReadback)}</p></div><div class="notice warning"><strong>Executor unavailable.</strong> The plan is synthetic and review-only. Real IPM execution requires a qualified 0.6 executor and disposable package fixture.</div><button class="button secondary" disabled aria-disabled="true">Confirm package operation · unavailable</button></section>` : ""}</section>`;
+  return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Package inventory preview</h2></div>${badge("SYNTHETIC FIXTURE", "warning")}</div><p class="source-message">These package rows are synthetic development fixtures. No configured registry, installed IPM inventory, or Open Exchange availability was queried.</p><div class="evidence-toolbar"><label>Inventory <select id="package-filter"><option value="all" ${state.packageFilter === "all" ? "selected" : ""}>Installed and available</option><option value="installed" ${state.packageFilter === "installed" ? "selected" : ""}>Installed</option><option value="available" ${state.packageFilter === "available" ? "selected" : ""}>Available</option></select></label><span class="package-source">Source identity <code>${esc(inventory.sourceIdentity)}</code></span></div><div class="package-list">${items.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>${esc(item.description)}</small></div>${badge(item.state.toUpperCase(), item.state === "update-available" ? "warning" : "accent")}</div><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(item.namespace)}</code></dd><dt>Installed</dt><dd>${esc(item.installedVersion || "Not installed")}</dd><dt>Available</dt><dd>${esc(item.availableVersion || "Not observed")}</dd><dt>Source</dt><dd>${esc(item.source)}</dd></dl><div class="package-actions">${item.installedVersion ? `<button class="button secondary" data-package-plan="update" data-package-name="${esc(item.name)}" ${item.availableVersion ? "" : "disabled"}>Prepare update plan</button><button class="button quiet" data-package-plan="remove" data-package-name="${esc(item.name)}">Prepare removal plan</button>` : `<button class="button secondary" data-package-plan="install" data-package-name="${esc(item.name)}">Prepare installation plan</button>`}</div></article>`).join("") || `<p class="source-message">No synthetic package rows match this filter.</p>`}</div><section class="panel package-catalog-example"><div class="panel-head"><div><div class="panel-kicker">CATALOG COMPARISON · SYNTHETIC</div><h3>opsdeck</h3></div>${badge("INSTALLED NEWER", "warning")}</div><p class="source-message">Demo scenario only: installed 0.2.1 is newer than the synthetic configured-catalog version 0.2.0. This is not a live registry observation or update recommendation.</p><dl class="detail-grid"><dt>Installed</dt><dd>0.2.1</dd><dt>Available example</dt><dd>0.2.0</dd><dt>Source</dt><dd>synthetic safe-demo fixture</dd></dl></section>${plan ? `<section class="package-plan-review"><div class="panel-kicker">OPERATION PLAN · REVIEW ONLY</div><h3>${esc(plan.intent)}</h3><div class="package-plan-facts"><p><strong>Risk</strong> ${esc(plan.risk)} · explicit confirmation required</p><p><strong>Target</strong> ${esc(plan.target.key)} · namespace <code>${esc(plan.target.scope)}</code></p><p><strong>Operation</strong> ${esc(plan.capability.providerOperation)}</p><p><strong>Source</strong> ${esc(plan.parameters.sourceIdentity)} · requested version ${esc(plan.parameters.requestedVersion || "current")}</p><p><strong>Current version</strong> ${esc(plan.parameters.installedVersion || "not installed")}</p><p><strong>Pre-state</strong> ${esc(plan.preStateEvidence)} · plan expires ${esc(plan.expiresAt)}</p><p><strong>Authority</strong> ${esc(plan.authorityValidation.state)} · ${esc(plan.authorityValidation.evidence)}</p><p><strong>Expected read-back</strong> ${esc(plan.expectedReadback)}</p></div><div class="notice warning"><strong>Executor unavailable.</strong> The plan is synthetic and review-only. Real IPM execution requires a qualified 0.6 executor and disposable package fixture.</div><button class="button secondary" disabled aria-disabled="true">Confirm package operation · unavailable</button></section>` : ""}</section>`;
 }
 
 function restServiceMatches(webApp) {
@@ -641,10 +656,21 @@ function providerDomainView(route) {
 }
 
 function jobCenterPanel() {
-  const jobs = state.jobs || [];
+  const jobs = visibleJobs();
   const tone = status => ({ COMPLETED: "success", FAILED: "error", DENIED: "error", CANCELED: "muted", UNAVAILABLE: "warning", AMBIGUOUS: "error" })[status] || "accent";
   const rows = jobs.slice().reverse().map(job => `<article class="job-row"><div><strong>${esc(job.operation)}</strong><small>${esc(job.provider)} · accepted ${fmtTime(job.acceptedAt)}</small></div><div>${badge(job.status, tone(job.status))}<p>${esc(job.progress || "No progress detail was returned.")}</p>${job.resultIdentity ? `<small>Result <code>${esc(job.resultIdentity.id)}</code></small>` : ""}</div></article>`).join("");
   return `<section class="panel job-center"><div class="panel-head"><div><div class="panel-kicker">SESSION-SCOPED ASYNC WORK</div><h2>Job Center</h2></div>${badge(`${jobs.length} JOB${jobs.length === 1 ? "" : "S"}`, jobs.length ? "accent" : "muted")}</div><p class="source-message">Jobs appear only when IRIS returns an accepted asynchronous identity. Unknown or incomplete outcomes stay visible as unresolved; OpsDeck does not retry dispatch.</p>${rows ? `<div class="job-list">${rows}</div>` : `<p class="source-message">No asynchronous jobs have been observed in this session.</p>`}</section>`;
+}
+
+function visibleJobs() {
+  if (state.info?.systemMode === "DEMO" && !(state.jobs || []).length) return [{
+    identity: "fixture:job:maintenance-01", operation: "Synthetic maintenance task",
+    provider: "opsdeck-demo-v1", acceptedAt: "2026-10-02T12:00:00Z",
+    updatedAt: "2026-10-02T12:00:08Z", status: "COMPLETED",
+    progress: "Synthetic completed job shown to demonstrate Job Center projection; no IRIS task was run.",
+    resultIdentity: null,
+  }];
+  return state.jobs || [];
 }
 
 function auditQueryPanel() {
@@ -726,7 +752,7 @@ function currentEvidenceCollection() {
       evidence,
     });
   }
-  for (const job of state.jobs || []) {
+  for (const job of visibleJobs()) {
     const states = { ACCEPTED: "UNVERIFIED", QUEUED: "PARTIAL", RUNNING: "PARTIAL", COMPLETED: "PARTIAL", FAILED: "FAILED", CANCELED: "BLOCKED", PAUSED: "PARTIAL", DENIED: "DENIED", UNAVAILABLE: "UNAVAILABLE", AMBIGUOUS: "UNVERIFIED" };
     records.push({
       id: job.identity,
@@ -794,6 +820,12 @@ function render() {
   app.querySelectorAll("[data-run-audit-query]").forEach((button) => button.addEventListener("click", () => runAuditQuery()));
   app.querySelectorAll("[data-application-tab]").forEach((button) => button.addEventListener("click", () => { state.applicationsTab = button.dataset.applicationTab; render(); if (button.dataset.applicationTab === "packages" && !state.packageInventory) loadPackageInventory(); }));
   app.querySelector("[data-refresh-packages]")?.addEventListener("click", () => loadPackageInventory(true));
+  app.querySelector("[data-available-package-form]")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const name = app.querySelector("#available-package-name")?.value?.trim() || "";
+    state.availablePackageName = name;
+    loadAvailablePackageCatalog(name);
+  });
   app.querySelector("#package-filter")?.addEventListener("change", (event) => { state.packageFilter = event.target.value; render(); });
   app.querySelectorAll("[data-package-plan]").forEach((button) => button.addEventListener("click", () => {
     state.packagePlan = preparePackagePlan(fixturePackageInventory(), button.dataset.packageName, button.dataset.packagePlan);
@@ -882,6 +914,10 @@ function clearSession() {
   state.packageInventory = null;
   state.packageInventoryError = "";
   state.packageInventoryLoading = false;
+  state.availablePackageName = "";
+  state.availablePackageCatalog = null;
+  state.availablePackageError = "";
+  state.availablePackageLoading = false;
   state.evidenceFilter = "";
   state.evidenceStateFilter = "ALL";
   state.route = "overview";
@@ -984,7 +1020,14 @@ function nativeApiPath(path) {
     const url = new URL(path, location.origin || "http://localhost");
     const route = url.pathname.slice("/api/read/".length);
     const source = READ_ONLY_SOURCES[route];
-    if (source) return source.path;
+    if (source && route !== "availablePackages") return source.path;
+    if (route === "availablePackages") {
+      const names = url.searchParams.getAll("name");
+      if (names.length !== 1 || [...url.searchParams.keys()].some((key) => key !== "name") || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(names[0])) {
+        throw new Error("Enter one exact package identity for catalog lookup.");
+      }
+      return `${source.path}?name=${encodeURIComponent(names[0])}`;
+    }
     if (route === "packages") return "/opsdeck-api/packages";
     const details = {
       webAppDetail: ["/api/admin/v2/web-app", "name"],
@@ -1106,6 +1149,30 @@ async function loadPackageInventory(force = false) {
   } finally {
     if (owner !== sessionEpoch) return;
     state.packageInventoryLoading = false;
+    render();
+  }
+}
+
+async function loadAvailablePackageCatalog(name) {
+  if (!state.connected || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(name) || state.availablePackageLoading) return;
+  const owner = sessionEpoch;
+  state.availablePackageLoading = true;
+  state.availablePackageError = "";
+  state.availablePackageCatalog = null;
+  render();
+  try {
+    const query = new URLSearchParams({ name });
+    const payload = await readJson(`/api/read/availablePackages?${query}`);
+    if (owner !== sessionEpoch) return;
+    state.availablePackageCatalog = mapAvailablePackageCatalog(payload);
+    state.lastRead = new Date().toISOString();
+  } catch (error) {
+    if (owner !== sessionEpoch) return;
+    state.availablePackageError = error.message;
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) expireSession(error.message);
+  } finally {
+    if (owner !== sessionEpoch) return;
+    state.availablePackageLoading = false;
     render();
   }
 }

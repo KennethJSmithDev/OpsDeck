@@ -51,6 +51,10 @@ jobs:
           cp demo/demo-provider.js _site/demo-provider.js
           cp public/app.js _site/app.js
           cp public/styles.css _site/styles.css
+          cp public/evidence-center.js _site/evidence-center.js
+          cp public/operation-engine.js _site/operation-engine.js
+          cp public/packages-workspace.js _site/packages-workspace.js
+          cp public/job-center.js _site/job-center.js
           cp src/iris-provider.js _site/iris-provider.js
           sed -i 's|from "/iris-provider.js"|from "./iris-provider.js"|' _site/app.js
           if grep -R -nE '(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|Authorization:[[:space:]]*Basic|password[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"']+)' _site; then

@@ -84,6 +84,24 @@
     journalFiles: [
       { Name: "20260924.001", Size: 8388608, CreationTime: "2026-09-24 12:00:00", Reason: "Normal", DataSize: 4132812 },
     ],
+    messagesLog: {
+      status: "available", truncated: false,
+      lines: ["2026-09-24 16:40:00 INFO synthetic safe-demo event", "2026-09-24 16:41:00 ERROR synthetic sample failure marker"],
+      analysis: {
+        provider: "opsdeck-embedded-python-log-analysis-v1", sourceId: "messagesLog", status: "available",
+        lineCount: 2, findingCount: 1, truncated: false, findingsTruncated: false,
+        findings: [{ id: "log:messagesLog:line-2:explicit-error-marker", lineNumber: 2, ruleId: "explicit-error-marker", marker: "ERROR" }],
+      },
+    },
+    systemMonitorLog: {
+      status: "available", truncated: false,
+      lines: ["2026-09-24 16:42:00 WARNING synthetic sample monitor marker"],
+      analysis: {
+        provider: "opsdeck-embedded-python-log-analysis-v1", sourceId: "systemMonitorLog", status: "available",
+        lineCount: 1, findingCount: 1, truncated: false, findingsTruncated: false,
+        findings: [{ id: "log:systemMonitorLog:line-1:warning-marker", lineNumber: 1, ruleId: "warning-marker", marker: "WARNING" }],
+      },
+    },
     restServices: [
       { name: "Demo.Management", dispatchClass: "Demo.Management.REST", namespace: "%SYS", enabled: true, swaggerSpec: "" },
     ],
@@ -168,11 +186,13 @@
         walletCollections: "security", x509Credentials: "security", oauthResourceServers: "security", oauthServerDefinitions: "security", oauthServer: "security",
         tasks: "tasks", systemUsage: "system", processes: "system", databases: "system", devices: "system",
         auditEnabled: "logs", auditEvents: "logs", taskHistory: "logs", journalFiles: "logs",
+        messagesLog: "logs", systemMonitorLog: "logs",
       };
       if (sourceGroups[id] && !allowed(sourceGroups[id])) return denied();
       if (id === "x509Credentials") return ok({ error: "Demo provider intentionally unavailable: no credential inventory is exposed." }, 503);
       if (!Object.prototype.hasOwnProperty.call(sourceRows, id)) return ok({ error: "Unknown safe-demo source." }, 404);
       const raw = sourceRows[id];
+      if (id === "messagesLog" || id === "systemMonitorLog") return ok(raw);
       return ok(id === "restServices" || id === "restServicesV2" ? raw : wrapped(raw));
     }
 

@@ -80,7 +80,9 @@ test("the native package interprets only fixed log observations and keeps them i
   assert.match(rest, /WriteSource\("systemMonitorLog"\)/u);
   assert.match(rest, /LogInterpreter\)\.Analyze\(sourceId,result\.%ToJSON\(\)\)/u);
   assert.match(rest, /result\.analysis=/u);
-  assert.doesNotMatch(rest, /messages-analysis|system-monitor-analysis|%request\.Data|%request\.URL|path As %String|Execute\(|Shell\(/u);
+  assert.doesNotMatch(rest, /messages-analysis|system-monitor-analysis|%request\.URL|path As %String|\bXECUTE\b|Shell\(/u);
+  assert.match(rest, /%request\.Data\("name",1\)/u);
+  assert.match(rest, /queryKey'="name"/u);
   assert.match(reader, /lineUnits>2048/u);
   assert.match(reader, /projectionUnits\+lineUnits>6500/u);
   assert.match(app, /EMBEDDED PYTHON · RULE-BASED/u);

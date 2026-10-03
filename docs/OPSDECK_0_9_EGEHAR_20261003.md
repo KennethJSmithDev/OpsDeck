@@ -39,3 +39,31 @@ On this one isolated disposable target, root created only `/usr/irissys/csp/opsd
 - [InterSystems IRIS installation manifest documentation](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=GIEMISC_manifest) documents manifest-managed installation resources including CSP applications.
 
 This record documents a blocker and an isolated resolution class. It is not a general Docker image defect report, a claim that the target adjustment is the supported production installation procedure, or authorization to change host permissions.
+
+## Exact-name REST route shape
+
+| Field | Observation |
+|---|---|
+| Symptom | Anonymous `GET /opsdeck-api/packages/available?name=opsdeck` returned HTTP 404, while the exact flat candidate `/opsdeck-api/available-packages?name=opsdeck` reached the same web application’s HTTP authentication boundary and returned 401. Existing single-segment `/opsdeck-api/packages` also returned 401. |
+| Boundary | The nested request failed before the class method or its IPM search could run. Calling the integrated class helper directly as `irisowner` returned the catalog row. |
+| Owning layer | Web-application path/REST dispatch boundary for this installed package topology; exact internal gateway branch is not inferred beyond the observed 404. |
+| IRIS version | IRIS 2026.2 Build 221U; IPM 0.10.8. |
+| Current authority | No authenticated HTTP identity was used for these route probes. The direct class call ran as the disposable target console identity `irisowner`. |
+| Reproduction | With the integrated module loaded, compare the two GET paths above; preserve the 404/401 status pair. |
+| Earliest failure | Web request returned a plain 404 page for the nested path before reaching the route method. |
+
+Official IRIS 2026.2 REST documentation describes `<Route>` entries as URL/method-to-class-method mappings and notes that URL-map order matters. That establishes the product’s route contract but does not explain this observed app-path discrepancy. No competitor implementation material was used.
+
+The OpsDeck-native minimum is the single semantic flat route `GET /available-packages?name=<exact-name>` with strict identity validation. The method remains parameterized by a package name only; it accepts no arbitrary path. On the target, the flat URL crossed the app authentication boundary (401), while the nested candidate did not (404), and direct invocation of the compiled provider returned `opsdeck@0.2.0`. The authenticated HTTP handler response remains unverified because no disposable HTTP identity was established.
+
+| EGEHAR field | Decision |
+|---|---|
+| Problem | The two-segment candidate URL did not reach the app’s authentication/dispatch boundary in the tested native application. |
+| Transferable idea | Match the public route shape to the installed URL-map/application boundary and validate the exact query identity. |
+| OpsDeck-native design | One flat semantic `available-packages` route with one required package `name` query, no generic routing. |
+| Why minimum | One fixed route, a single exact identity, no caller-selected path or new class. |
+| Test | Compare nested 404 and flat 401 anonymously; compile/load source; invoke the helper under the existing console identity and observe the real row. |
+| Representation cost | One fixed route and one query input; no extra frontend route or endpoint class. |
+| Tradeoff | The anonymous status proves only that the flat path reaches the app security boundary; authenticated HTTP dispatch and operator authority still need qualification. |
+
+Official corroboration: [InterSystems IRIS 2026.2 manual REST services](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls/framework-api/scbi/documatic/DocBook.UI.Page.cls?KEY=GREST_csprest).

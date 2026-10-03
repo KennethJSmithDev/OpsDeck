@@ -27,6 +27,7 @@ export const READ_ONLY_SOURCES = Object.freeze({
   auditEvents: { path: "/api/admin/v2/security/audit/events", domain: "logs", label: "Audit event definitions", requiredPrivilege: "%Admin_Secure:U" },
   messagesLog: { path: "/opsdeck-api/messages", domain: "logs", label: "messages.log", requiredPrivilege: "%Admin_Operate:Use", nativeOnly: true },
   systemMonitorLog: { path: "/opsdeck-api/system-monitor", domain: "logs", label: "SystemMonitor.log", requiredPrivilege: "%Admin_Operate:Use", nativeOnly: true },
+  availablePackages: { path: "/opsdeck-api/available-packages", domain: "applications", label: "Available IPM packages", requiredPrivilege: "%IPM_Repo.Definition:SELECT", nativeOnly: true },
   journalFiles: { path: "/api/admin/v2/journal/files", domain: "logs", label: "Journal files", requiredPrivilege: "%Admin_Operate:U" },
   alerts: { path: "/api/monitor/alerts", domain: "logs", label: "Alerts (stateful feed)", requiredPrivilege: "provider-defined" },
 });
