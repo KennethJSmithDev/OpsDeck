@@ -40,6 +40,12 @@ After adding the exact-name live repository provider, Packages workspace lookup,
 
 The updated `/opsdeck/index.html` was loaded in the in-app browser's disconnected view and rendered the OpsDeck shell without entering credentials. The separate safe-demo bundle was also loaded locally: Overview, synthetic log finding, synthetic Job Center, catalog comparison, and Evidence projections rendered without console errors. This verifies static and deterministic demo rendering only. Current cold/warm timing, post-change transfer bytes, idle heap, connected usable-render, and representative navigation latency have not been measured in this turn; the earlier timing values remain historical baseline observations, not post-change performance claims.
 
+## Catalog relationship and denial-state follow-up
+
+At source checkpoint `404fa9a4223f4a105df2e72ca0ef48c538b565e0`, the exact six browser JavaScript modules named by the package graph total **204,735 bytes**; CSS remains **36,550 bytes** and HTML **448 bytes**, for **241,733 uncompressed bytes** overall. Relative to the saved post-catalog measurement above, this is **+919 bytes** in JavaScript and total source (**+0.38% total**). Relative to the preserved pre-intelligence baseline, the source graph is **+13,396 bytes (+5.87%)**. No module was added, so the initial source request graph remains eight requests.
+
+The small increase represents explicit installed/current/older/newer/unknown package-version relationships and preservation of an upstream catalog HTTP 403 as DENIED. Both states change what the operator can safely conclude; neither preloads additional catalog or inventory data. These are filesystem source-byte counts and a dependency-graph request count, not new network-transfer measurements. Browser cold/warm timing, transferred bytes, heap, authenticated usable-render, and navigation latency remain unmeasured after this change.
+
 ## Measurement notes
 
 - Sizes are filesystem byte counts for the exact browser assets copied by `module.xml`.
