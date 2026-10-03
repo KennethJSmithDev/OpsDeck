@@ -31,6 +31,21 @@ This record distinguishes Community Ideas Portal requests from adjacent product 
 | Public demo path | Any page with a supported concept displays the collapsed “IRIS concepts in this view” disclosure. |
 | Bonus claim | None. |
 
+## DPI-I-966 — Show older messages.log rotations
+
+| Field | Status |
+|---|---|
+| Idea ID | DPI-I-966 |
+| Community status | Not implemented; investigation only. |
+| Problem requested | Observe older rotated `messages.log` files from the administration UI. |
+| OpsDeck implementation | None yet. The fixed reader currently accepts only current `messages.log` and `SystemMonitor.log`. |
+| Semantic equivalence | No equivalence claimed. The intended extension remains the fixed `messages.old_*` family only, read by the existing bounded reader and interpreter. |
+| Authority boundary | Existing `%Admin_Operate:Use` check must apply to listing and reads. Planned enumeration uses the canonical console-log directory and `%File.FileSet` regular-file type; no caller path or recursive browsing. |
+| Test | IRIS 2026.2 disposable runtime query found zero matching rotated files; it did not read log contents or change IRIS state. Product implementation/runtime qualification remains outstanding. |
+| Representation cost | Not measured; no source/assets added for this idea. |
+| Public demo path | None; deferred until implementation and qualification. |
+| Bonus claim | Not claimed. |
+
 ## Code Snippets Library — read-only learning capability
 
 | Field | Status |
