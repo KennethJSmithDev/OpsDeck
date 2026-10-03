@@ -30,6 +30,16 @@ The installed `ExecutePhases` implementation also showed that `OnBeforePhase`
 is called for in-scope processors before either standard or custom phase work.
 The custom-phase branch does not invoke the lifecycle `%Clean` method.
 
+The installed `%IPM.Storage.ResourceReference` metadata also exposes
+`ProcessorClass` as an XML-projected attribute. Its processor resolution uses
+that class (or a processor default) to instantiate a resource handler. In the
+installed `%IPM.Lifecycle.Base.%Clean` implementation, uninstall calls
+`OnPhase("Clean", .pParams, .handled)` for each in-scope resource processor
+when `Clean.Level > 0`. A processor that sets `handled` bypasses IPM's default
+resource-child cleanup for that resource. This is a possible ownership hook;
+the cleanup behavior of an OpsDeck-specific implementation has not been
+qualified.
+
 ## Matching official IPM source evidence
 
 The installed version is IPM 0.10.8. The matching official tag is
@@ -41,6 +51,12 @@ Its source matches the observed dispatch structure:
   defines `OnCustomPhase` as a successful no-op by default.
 - [`%IPM.Storage.Module.ExecutePhases` and `.Uninstall`](https://github.com/intersystems/ipm/blob/v0.10.8/src/cls/IPM/Storage/Module.cls)
   dispatch custom phases separately and route uninstall through `Clean`.
+- [`%IPM.Storage.ResourceReference`](https://github.com/intersystems/ipm/blob/v0.10.8/src/cls/IPM/Storage/ResourceReference.cls)
+  exposes the manifest `ProcessorClass` attribute and instantiates the
+  declared processor.
+- [`%IPM.Lifecycle.Base.%Clean`](https://github.com/intersystems/ipm/blob/v0.10.8/src/cls/IPM/Lifecycle/Base.cls)
+  calls each in-scope processor's `OnPhase("Clean", ...)` and honors its
+  handled result before default resource cleanup.
 - The official [`CustomPhase` integration test](https://github.com/intersystems/ipm/blob/v0.10.8/tests/integration_tests/Test/PM/Integration/CustomPhase.cls)
   asserts that a custom phase runs as a module action, but does not run during
   uninstall.
@@ -64,10 +80,22 @@ data, and must verify absence after cleanup. A custom phase may be useful for
 an explicit administrative action, but it cannot stand in for uninstall
 ownership.
 
-No database or namespace lifecycle implementation was added. Exact manifest
-support for an OpsDeck-owned create-and-clean resource processor, and its
-uninstall/reinstall behavior, remain unqualified. Continue investigating the
-official and installed lifecycle hooks before creating product storage.
+The minimum candidate to investigate is one manifest-declared resource with
+an OpsDeck-owned `ProcessorClass`: create or validate the dedicated derived
+store during an established install phase; during standard `Clean`, validate
+an OpsDeck ownership marker, remove only that disposable derived store, and
+mark the resource handled only after successful cleanup. Missing/mismatched
+ownership must fail closed and preserve the namespace/database. This is a
+design candidate, not an implementation instruction or a qualified contract:
+the exact install phase, update/reinstall behavior, failure rollback, and safe
+database deletion path still require an isolated lifecycle fixture.
+
+No database or namespace lifecycle implementation was added. Manifest support
+for a processor-owned resource and its standard `Clean` hook is established;
+an OpsDeck-specific create-and-clean processor, its collision/ownership
+checks, update/reinstall behavior, and uninstall/reinstall behavior remain
+unqualified. Continue with a disposable isolated fixture before creating
+product storage.
 
 ## State change
 
