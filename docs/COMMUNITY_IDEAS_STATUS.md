@@ -46,6 +46,21 @@ This record distinguishes Community Ideas Portal requests from adjacent product 
 | Public demo path | None; deferred until implementation and qualification. |
 | Bonus claim | Not claimed. |
 
+## Environment identity — shell mode badge
+
+| Field | Status |
+|---|---|
+| Idea ID | None; product polish only, not a Community Opportunity claim. |
+| Community status | Implemented at source/test scope. |
+| Problem requested | Help operators distinguish an explicitly labeled IRIS instance mode. |
+| OpsDeck implementation | The shell displays only recognized `DEVELOPMENT`, `TEST`, `LIVE`, or `FAILOVER` values supplied in observed server identity; `LIVE` is labeled “LIVE / PRODUCTION”. Synthetic `DEMO` remains clearly marked. |
+| Semantic equivalence | Uses IRIS `SystemMode` as the explicitly configured identity label and projects it in the existing shell. [IRIS 2026.1 Configuration Parameter documentation](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RACS_SystemMode) defines `LIVE`, `TEST`, and `DEVELOPMENT` presentation semantics; [the `%SYSTEM.Version` reference](https://docs.intersystems.com/irisforhealthlatest/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25SYSTEM.Version&LIBRARY=%25SYS) documents the getter and supported modes. |
+| Authority boundary | No host, port, namespace, or naming inference; absent/unrecognized modes render no badge. Read-only identity projection only. |
+| Test | Mapper accepts only the five supported product/demo values and rejects arbitrary labels; render tests verify observed and missing-mode behavior. Runtime presence in `/api/admin/info` remains unverified. |
+| Representation cost | Measured in `OPSDECK_0_9_PERFORMANCE_BASELINE.md`; no endpoint, asset, or new request. |
+| Public demo path | Existing safe demo shell shows its synthetic `DEMO` identity. |
+| Bonus claim | None. |
+
 ## Code Snippets Library — read-only learning capability
 
 | Field | Status |

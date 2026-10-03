@@ -254,6 +254,17 @@ function badge(label, tone = "neutral") {
   return `<span class="badge ${esc(tone)}">${esc(label)}</span>`;
 }
 
+function environmentBadge(systemMode) {
+  const presentation = {
+    DEMO: ["DEMO", "warning"],
+    DEVELOPMENT: ["DEVELOPMENT", "accent"],
+    TEST: ["TEST", "warning"],
+    LIVE: ["LIVE / PRODUCTION", "error"],
+    FAILOVER: ["FAILOVER", "error"],
+  }[systemMode];
+  return presentation ? `<span class="environment-identity" aria-label="Observed IRIS system mode">${badge(presentation[0], presentation[1])}</span>` : "";
+}
+
 function shell(content) {
   const user = state.info ? esc(state.info.username) : "Not connected";
   const version = state.info ? esc(state.info.serverVersion) : "Local instance not verified";
@@ -263,7 +274,7 @@ function shell(content) {
     <div class="shell">
       <header class="topbar">
         <a class="brand" href="#overview" aria-label="OpsDeck overview"><span class="brand-mark">OD</span><span>OpsDeck</span></a>
-        <div class="instance-line"><span class="instance-label">${demoMode ? "Demo dataset" : "IRIS instance"}</span><span class="instance-value">${version}</span></div>
+        <div class="instance-line"><span class="instance-label">${demoMode ? "Demo dataset" : "IRIS instance"}</span><span class="instance-value">${version}</span>${connected ? environmentBadge(state.info?.systemMode) : ""}</div>
         <div class="top-actions">
           <span class="connection-state">${badge(connected ? (demoMode ? "Safe demo" : "Live session") : "Disconnected", connected ? (demoMode ? "warning" : "success") : "muted")}</span>
           ${connected ? `<span class="user-chip">${user}</span>` : ""}

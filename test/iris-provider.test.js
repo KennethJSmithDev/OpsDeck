@@ -40,6 +40,11 @@ test("maps observed server identity and privilege flags to the compact view mode
   assert.equal(info.serverVersion, "IRIS 2026.2 (Build 221U)");
   assert.deepEqual(info.namespaces, [{ name: "%SYS" }, { name: "USER" }]);
   assert.equal(info.privileges.Secure, true);
+  assert.equal(info.systemMode, null);
+  for (const systemMode of ["DEMO", "DEVELOPMENT", "TEST", "LIVE", "FAILOVER"]) {
+    assert.equal(mapServerInfo(envelope({ ...infoPayload.result, systemMode })).systemMode, systemMode);
+  }
+  assert.equal(mapServerInfo(envelope({ ...infoPayload.result, systemMode: "production-east" })).systemMode, null);
 });
 
 test("maps observed web-app identity, scope, and state without changing provider names", () => {

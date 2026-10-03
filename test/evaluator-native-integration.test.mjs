@@ -27,7 +27,11 @@ test("integrated native shell and Evidence view report only qualified lifecycle 
   const native = vm.runInContext('state.connected=true; state.info={username:"Fixture",serverVersion:"Fixture IRIS"}; shell("")', context);
   assert.match(native, /Sign out/);
   assert.match(native, /Same-origin session/);
+  assert.doesNotMatch(native, /Observed IRIS system mode/u, "missing system mode stays neutral");
+  const observedMode = vm.runInContext('state.info.systemMode="TEST"; shell("")', context);
+  assert.match(observedMode, /Observed IRIS system mode[\s\S]*?>TEST</u);
   const demo = vm.runInContext('state.info.systemMode="DEMO"; shell("")', context);
+  assert.match(demo, /Observed IRIS system mode[\s\S]*?>DEMO</u);
   assert.match(demo, /Safe demo provider active/);
   assert.doesNotMatch(demo, /Sign out|Live session|IRIS connection active/);
 

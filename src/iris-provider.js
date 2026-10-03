@@ -377,7 +377,7 @@ export function mapServerInfo(payload, observedAt = new Date().toISOString()) {
     username: result.username,
     serverVersion: result.serverVersion,
     product: typeof result.product === "string" ? result.product : "unknown",
-    systemMode: typeof result.systemMode === "string" ? result.systemMode : null,
+    systemMode: ["DEMO", "DEVELOPMENT", "TEST", "LIVE", "FAILOVER"].includes(result.systemMode) ? result.systemMode : null,
     namespaces,
     privileges,
     observedAt,
