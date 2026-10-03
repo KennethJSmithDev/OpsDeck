@@ -20,14 +20,14 @@ The official `%Library.File` `FileSet` query accepts a directory and filename wi
 
 The disposable runtime query found zero `messages.old_*` matches. This does not qualify actual rotation naming, ordering, or file reads. No repository/IPM configuration, privileges, files, or IRIS state were changed.
 
-## OpsDeck-native design candidate
+## OpsDeck-native implementation and qualification boundary
 
 - Resolve the current console-log file internally; inspect only its sibling `messages.old_*` family.
 - Use `%File.FileSet` and admit only `Type="F"`; reject directories and symbolic links, and never recurse.
-- Cap enumeration and preserve a coverage/truncation state if the cap is exceeded.
+- Cap enumeration at 250 entries and projected identities at 20; preserve partial coverage if either cap is exceeded. `%File.FileSet` documents sort-field selection but not a sort direction. The provider sorts the bounded observed subset newest-first; when the enumeration cap is hit, it does not claim that the subset contains the newest family members.
 - Assign a stable opaque `sourceIdentity`; keep basenames and resolved paths out of response metadata.
 - Resolve a requested identity by re-enumerating the same fixed family and matching its server-generated identity. Never accept a raw path or filename from the caller.
 - Feed the selected member through the existing bounded reader and `LogInterpreter`. Preserve current `messages.log` as the canonical source and retain distinct source identity and observed file metadata for each rotation.
-- Add rotation rows lazily in the Logs workspace; do not read every rotation's content when listing identities.
+- Rotation identities are listed lazily in the Logs workspace; content reads resolve one selected identity and use the existing bounded reader.
 
-This is a design candidate only. Before implementation, qualify the bounded ordering behavior and a disposable synthetic regular-file/symlink fixture without modifying configuration or accepted host IRIS state. DPI-I-966 remains incomplete.
+The source implementation has compiled on the disposable target; the real runtime inventory returned the explicit empty state (0 scanned, 0 identities). The 154-test JavaScript suite passes, including the source contract checks. There were no real rotation files in the runtime, so nonempty identity ordering, file detail reads, and symlink/directory rejection remain unqualified. DPI-I-966 remains incomplete pending a safe disposable file fixture and authenticated product-route smoke.

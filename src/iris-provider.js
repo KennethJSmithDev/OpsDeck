@@ -26,6 +26,7 @@ export const READ_ONLY_SOURCES = Object.freeze({
   auditEnabled: { path: "/api/admin/v2/security/audit/enabled", domain: "logs", label: "Audit status", requiredPrivilege: "%Admin_Secure:U" },
   auditEvents: { path: "/api/admin/v2/security/audit/events", domain: "logs", label: "Audit event definitions", requiredPrivilege: "%Admin_Secure:U" },
   messagesLog: { path: "/opsdeck-api/messages", domain: "logs", label: "messages.log", requiredPrivilege: "%Admin_Operate:Use", nativeOnly: true },
+  messageRotations: { path: "/opsdeck-api/message-rotations", domain: "logs", label: "messages.log rotations", requiredPrivilege: "%Admin_Operate:Use", nativeOnly: true },
   systemMonitorLog: { path: "/opsdeck-api/system-monitor", domain: "logs", label: "SystemMonitor.log", requiredPrivilege: "%Admin_Operate:Use", nativeOnly: true },
   availablePackages: { path: "/opsdeck-api/available-packages", domain: "applications", label: "Available IPM packages", requiredPrivilege: "%IPM_Repo.Definition:SELECT", nativeOnly: true },
   journalFiles: { path: "/api/admin/v2/journal/files", domain: "logs", label: "Journal files", requiredPrivilege: "%Admin_Operate:U" },
@@ -188,13 +189,15 @@ const FIXED_LOGS = Object.freeze({
 });
 
 export function mapFixedLogResult(sourceId, payload) {
-  const source = FIXED_LOGS[sourceId];
+  const isRotation = /^messagesRotation:[0-9A-F]{64}$/u.test(sourceId);
+  const source = FIXED_LOGS[sourceId] || (isRotation ? { name: "messages.log rotation", ...FIXED_LOGS.messagesLog } : null);
   if (!source) throw new Error("IRIS log source is not enabled.");
   requireRecord(payload, "IRIS fixed log result");
   const statuses = ["available", "empty", "unavailable", "denied", "read-failure", "truncated"];
   if (!statuses.includes(payload.status)) throw new Error("IRIS fixed log result has an invalid status.");
   if (!["available", "empty", "truncated"].includes(payload.status)) {
-    return { source: source.name, status: payload.status, lines: [], truncated: false, bytesReturned: 0 };
+    return { source: source.name, status: payload.status, lines: [], truncated: false, bytesReturned: 0,
+      ...(isRotation ? { sourceIdentity: payload.sourceIdentity, sourceTimestamp: payload.sourceTimestamp } : {}) };
   }
   if (!Array.isArray(payload.lines) || payload.lines.some((line) => typeof line !== "string")) {
     throw new Error("IRIS fixed log lines must be an array of strings.");
@@ -218,7 +221,8 @@ export function mapFixedLogResult(sourceId, payload) {
   }
   if (newestFirst.length < payload.lines.length) truncated = true;
   const lines = newestFirst.reverse();
-  return { source: source.name, status: truncated ? "truncated" : lines.length ? "available" : "empty", lines, truncated, bytesReturned };
+  return { source: source.name, status: truncated ? "truncated" : lines.length ? "available" : "empty", lines, truncated, bytesReturned,
+    ...(isRotation ? { sourceIdentity: payload.sourceIdentity, sourceTimestamp: payload.sourceTimestamp } : {}) };
 }
 
 const LOG_ANALYSIS_RULES = Object.freeze({
@@ -255,7 +259,7 @@ const LOG_ANALYSIS_RULES = Object.freeze({
 });
 
 export function mapLogAnalysisResult(sourceId, payload, observedAt = new Date().toISOString()) {
-  if (!Object.hasOwn(READ_ONLY_SOURCES, sourceId) || !["messagesLog", "systemMonitorLog"].includes(sourceId)) {
+  if (!["messagesLog", "systemMonitorLog"].includes(sourceId) && !/^messagesRotation:[0-9A-F]{64}$/u.test(sourceId)) {
     throw new Error("IRIS log analysis source is not enabled.");
   }
   requireRecord(payload, "IRIS log analysis result");
@@ -295,7 +299,7 @@ export function mapLogAnalysisResult(sourceId, payload, observedAt = new Date().
     });
   });
   return Object.freeze({
-    sourceId, source: FIXED_LOGS[sourceId].name, provider: payload.provider, observedAt,
+    sourceId, source: FIXED_LOGS[sourceId]?.name || "messages.log rotation", provider: payload.provider, observedAt,
     status: payload.status, lineCount, findingCount, truncated, findingsTruncated,
     reason: typeof payload.reason === "string" ? payload.reason.slice(0, 80) : null,
     findings: Object.freeze(mappedFindings),
@@ -665,10 +669,31 @@ function displayValue(value) {
 }
 
 export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toISOString()) {
-  if (!Object.hasOwn(READ_ONLY_SOURCES, sourceId)) throw new Error("Unknown IRIS read source.");
-  const source = READ_ONLY_SOURCES[sourceId];
-  if (sourceId === "messagesLog" || sourceId === "systemMonitorLog") {
+  const isRotation = /^messagesRotation:[0-9A-F]{64}$/u.test(sourceId);
+  if (!Object.hasOwn(READ_ONLY_SOURCES, sourceId) && !isRotation) throw new Error("Unknown IRIS read source.");
+  const source = READ_ONLY_SOURCES[sourceId] || { label: "messages.log rotation", path: "/opsdeck-api/message-rotation" };
+  if (sourceId === "messageRotations") {
+    requireRecord(payload, "IRIS rotated messages log inventory");
+    const states = ["available", "empty", "truncated", "denied", "unavailable", "failed"];
+    if (payload.provider !== "opsdeck-rotated-messages-log-v1" || !states.includes(payload.status) ||
+      !Array.isArray(payload.rotations) || payload.rotations.length > 20 || !Number.isInteger(payload.scannedCount) || payload.scannedCount < 0 || payload.scannedCount > 251 || typeof payload.truncated !== "boolean") {
+      throw new Error("IRIS rotated messages log inventory exceeds its contract.");
+    }
+    const rotations = payload.rotations.map((row) => {
+      requireRecord(row, "IRIS log rotation identity");
+      if (typeof row.sourceIdentity !== "string" || !/^messagesRotation:[0-9A-F]{64}$/u.test(row.sourceIdentity) ||
+        typeof row.sourceTimestamp !== "string" || row.sourceTimestamp.length > 64 || !Number.isFinite(Date.parse(row.sourceTimestamp)) ||
+        !Number.isInteger(row.size) || row.size < 0) throw new Error("IRIS log rotation identity is invalid.");
+      return Object.freeze({ sourceIdentity: row.sourceIdentity, sourceTimestamp: row.sourceTimestamp, size: row.size });
+    });
+    return { sourceId, provider: payload.provider, observedAt, status: payload.status, coverage: payload.coverage === "complete" || payload.coverage === "partial" ? payload.coverage : "unknown", truncated: payload.truncated, scannedCount: payload.scannedCount, count: rotations.length, rotations: Object.freeze(rotations) };
+  }
+  if (sourceId === "messagesLog" || sourceId === "systemMonitorLog" || isRotation) {
     const mapped = mapFixedLogResult(sourceId, payload);
+    if (isRotation && ["available", "empty", "truncated"].includes(mapped.status) &&
+      (payload.sourceIdentity !== sourceId || typeof payload.sourceTimestamp !== "string" || payload.sourceTimestamp.length > 64 || !Number.isFinite(Date.parse(payload.sourceTimestamp)))) {
+      throw new Error("IRIS log rotation identity or timestamp did not match the request contract.");
+    }
     let analysis = null;
     if (Object.hasOwn(payload, "analysis")) {
       try {
@@ -678,7 +703,7 @@ export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toI
         }
       } catch {
         analysis = Object.freeze({
-          sourceId, source: FIXED_LOGS[sourceId].name, provider: "opsdeck-embedded-python-log-analysis-v1",
+          sourceId, source: mapped.source, provider: "opsdeck-embedded-python-log-analysis-v1",
           observedAt, status: "failed", lineCount: mapped.lines.length, findingCount: 0,
           truncated: mapped.truncated, findingsTruncated: false, reason: "invalid-analysis-projection", findings: Object.freeze([]),
         });
@@ -688,6 +713,7 @@ export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toI
       sourceId, provider: "opsdeck-native-fixed-log-v1", observedAt,
       resultType: "log-lines", count: mapped.lines.length, status: mapped.status,
       truncated: mapped.truncated, bytesReturned: mapped.bytesReturned, analysis,
+      ...(isRotation ? { sourceIdentity: mapped.sourceIdentity, sourceTimestamp: mapped.sourceTimestamp } : {}),
       items: mapped.lines.map((line, index) => ({
         ref: { domain: "logs", kind: sourceId, provider: "opsdeck-native-fixed-log-v1", key: `line:${index + 1}`, scope: null, label: `Line ${index + 1}`, observedAt },
         values: { line },

@@ -14,7 +14,7 @@ const domainSources = {
   security: ["walletCollections", "x509Credentials", "oauthResourceServers", "oauthServerDefinitions", "oauthServer"],
   tasks: ["tasks"],
   system: ["systemUsage", "processes", "databases", "devices"],
-  logs: ["auditEnabled", "auditEvents", "messagesLog", "systemMonitorLog", "taskHistory", "journalFiles", "alerts"],
+  logs: ["auditEnabled", "auditEvents", "messagesLog", "messageRotations", "systemMonitorLog", "taskHistory", "journalFiles", "alerts"],
 };
 
 // Product qualification maturity is separate from observed IRIS authority/provider results.
@@ -131,7 +131,7 @@ const state = {
   selected: "",
   lastRead: null,
   verification: null,
-  sourceData: {}, sourceErrors: {}, sourceLoading: "", sourceVerification: {},
+  sourceData: {}, sourceErrors: {}, sourceLoading: "", sourceVerification: {}, selectedRotation: "", rotationLoading: "",
   sourceTabs: { applications: "restServices", access: "users", security: "walletCollections", tasks: "tasks", system: "systemUsage", logs: "auditEnabled" },
   selectedItems: {},
   evidenceFilter: "",
@@ -550,7 +550,8 @@ function cellValue(value) {
 }
 
 function sourcePanel(sourceId) {
-  const source = READ_ONLY_SOURCES[sourceId];
+  const isRotation = /^messagesRotation:[0-9A-F]{64}$/u.test(sourceId);
+  const source = READ_ONLY_SOURCES[sourceId] || (isRotation ? { label: "messages.log rotation", path: "/opsdeck-api/message-rotation" } : null);
   const data = state.sourceData[sourceId];
   const error = state.sourceErrors[sourceId];
   if (state.sourceLoading === sourceId) return `<div class="source-message">Loading the selected live source…</div>`;
@@ -563,7 +564,14 @@ function sourcePanel(sourceId) {
     const fieldShapes = data.items.map((item) => `<li><strong>${esc(item.ref.label)}</strong><span>${item.values.observedFields.length ? item.values.observedFields.map((field) => `<code>${esc(field)}</code>`).join(" ") : "No fields returned"}</span></li>`).join("");
     return `<div class="source-toolbar"><div><strong>${data.count}</strong><span> alerts returned in this batch</span></div><button class="button quiet" data-load-alerts>Read next batch</button></div>${data.count ? `<p class="source-caveat">Alert values are withheld until the live record schema and safe display fields are qualified. These field names describe shape only.</p><ul class="relationship-list">${fieldShapes}</ul>` : `<div class="source-message" role="status">IRIS returned no alerts in this batch.</div>`}<div class="panel-foot">GET <code>${esc(source.path)}</code> · stateful feed · ${fmtTime(data.observedAt)}</div>`;
   }
-  if (sourceId === "messagesLog" || sourceId === "systemMonitorLog") {
+  if (sourceId === "messageRotations") {
+    if (!data) return `<div class="source-message">Select the fixed rotation family to list bounded identities.</div>`;
+    const labels = { available: "Observed", empty: "No rotations", truncated: "Partial coverage", denied: "Denied", unavailable: "Unavailable", failed: "Failed" };
+    const items = data.rotations.map((item) => `<li class="owner-row"><span><strong>${esc(item.sourceTimestamp)}</strong><span class="app-sub">${item.size} bytes · <code>${esc(item.sourceIdentity)}</code></span></span><button class="button quiet" data-read-rotation="${esc(item.sourceIdentity)}" ${state.rotationLoading ? "disabled" : ""}>Read bounded observation</button></li>`).join("");
+    const selected = state.selectedRotation ? sourcePanel(state.selectedRotation) : "";
+    return `<div class="source-toolbar"><div>${badge(labels[data.status] || "Unresolved", data.status === "available" ? "success" : data.status === "denied" || data.status === "failed" ? "error" : "warning")} <strong>${data.count}</strong><span> fixed-family files · ${data.scannedCount} entries scanned</span></div><button class="button quiet" data-refresh-source="messageRotations">Rescan fixed family</button></div>${data.coverage === "partial" || data.truncated ? `<p class="source-caveat">Coverage is partial. The bounded scan may omit family members.</p>` : ""}${items ? `<ul class="relationship-list">${items}</ul>` : `<div class="source-message" role="status">${data.status === "empty" ? "No approved messages.log rotations were observed." : data.status === "denied" ? "IRIS denied fixed-family enumeration for this identity." : "The fixed-family inventory is unavailable; it is not treated as an empty catalog."}</div>`}${selected}<div class="panel-foot">GET <code>${esc(source.path)}</code> · nonrecursive · max 250 entries / 20 identities · no paths returned · ${fmtTime(data.observedAt)}</div>`;
+  }
+  if (sourceId === "messagesLog" || sourceId === "systemMonitorLog" || isRotation) {
     if (!data) return `<div class="source-message">Select the fixed source to read its bounded recent observation.</div>`;
     const labels = { available: "Available", empty: "Valid empty", truncated: "Truncated", unavailable: "Unavailable", denied: "Denied", "read-failure": "Read failure" };
     const tone = data.status === "available" ? "success" : data.status === "empty" ? "accent" : ["denied", "read-failure"].includes(data.status) ? "error" : "warning";
@@ -579,7 +587,8 @@ function sourcePanel(sourceId) {
       denied: "The current IRIS process lacks the required log-inspection authority.",
       "read-failure": "IRIS failed while reading this fixed source.",
     }[data.status] || "";
-    return `<div class="source-toolbar"><div>${badge(labels[data.status] || "Unresolved", tone)} <strong>${data.count}</strong><span> complete lines returned${data.truncated ? " · recent observation is truncated" : ""}</span></div><button class="button quiet" data-refresh-source="${sourceId}">Read again</button></div>${stateMessage ? `<div class="source-message" role="status">${esc(stateMessage)}</div>` : ""}${rows ? `<ol class="fixed-log-lines" aria-label="${esc(source.label)} recent lines">${rows}</ol>` : ""}${analysisPanel}<div class="panel-foot">GET <code>${esc(source.path)}</code> · ${esc(data.provider)} · at most 64 KiB / 250 complete lines · ${fmtTime(data.observedAt)}</div>`;
+    const refresh = isRotation ? `<button class="button quiet" data-read-rotation="${esc(sourceId)}">Read again</button>` : `<button class="button quiet" data-refresh-source="${sourceId}">Read again</button>`;
+    return `<div class="source-toolbar"><div>${badge(labels[data.status] || "Unresolved", tone)} <strong>${data.count}</strong><span> complete lines returned${data.truncated ? " · recent observation is truncated" : ""}</span></div>${refresh}</div>${stateMessage ? `<div class="source-message" role="status">${esc(stateMessage)}</div>` : ""}${rows ? `<ol class="fixed-log-lines" aria-label="${esc(source.label)} recent lines">${rows}</ol>` : ""}${analysisPanel}<div class="panel-foot">GET <code>${esc(source.path)}${isRotation ? "?id=…" : ""}</code> · ${esc(data.provider)} · at most 64 KiB / 250 complete lines · ${fmtTime(data.observedAt)}${isRotation ? ` · source ${esc(data.sourceIdentity || sourceId)} · ${esc(data.sourceTimestamp || "timestamp unavailable")}` : ""}</div>`;
   }
   if (!data) return `<div class="source-message">Select a source to load authoritative IRIS data.</div>`;
   const items = data.items;
@@ -815,8 +824,9 @@ function currentEvidenceCollection() {
       evidence: { providerState: job.status, identityBasis: job.resultIdentity ? "validated-location" : "session-correlation" },
     });
   }
-  for (const sourceId of ["messagesLog", "systemMonitorLog"]) {
-    const observation = state.sourceData[sourceId];
+  const logObservations = Object.entries(state.sourceData).filter(([sourceId]) =>
+    ["messagesLog", "systemMonitorLog"].includes(sourceId) || /^messagesRotation:[0-9A-F]{64}$/u.test(sourceId));
+  for (const [sourceId, observation] of logObservations) {
     const analysis = observation?.analysis;
     for (const finding of analysis?.findings || []) {
       records.push({
@@ -902,6 +912,7 @@ function render() {
     if (button.dataset.source !== "alerts") loadSource(button.dataset.source);
   }));
   app.querySelectorAll("[data-load-alerts]").forEach((button) => button.addEventListener("click", () => loadSource("alerts", true)));
+  app.querySelectorAll("[data-read-rotation]").forEach((button) => button.addEventListener("click", () => loadMessageRotation(button.dataset.readRotation)));
   app.querySelectorAll("[data-run-audit-query]").forEach((button) => button.addEventListener("click", () => runAuditQuery()));
   app.querySelectorAll("[data-application-tab]").forEach((button) => button.addEventListener("click", () => { state.applicationsTab = button.dataset.applicationTab; render(); if (button.dataset.applicationTab === "packages" && !state.packageInventory) loadPackageInventory(); }));
   app.querySelector("[data-refresh-packages]")?.addEventListener("click", () => loadPackageInventory(true));
@@ -1213,6 +1224,28 @@ async function loadSource(sourceId, force = false) {
   } finally {
     if (owner !== sessionEpoch) return;
     state.sourceLoading = "";
+    render();
+  }
+}
+
+async function loadMessageRotation(identity) {
+  if (!state.connected || !/^messagesRotation:[0-9A-F]{64}$/u.test(identity) || state.rotationLoading) return;
+  const owner = sessionEpoch;
+  state.rotationLoading = identity;
+  render();
+  try {
+    const payload = await readJson(`/api/read/messageRotation?id=${encodeURIComponent(identity)}`);
+    if (owner !== sessionEpoch) return;
+    state.sourceData[identity] = mapReadOnlySource(identity, payload);
+    state.selectedRotation = identity;
+    state.lastRead = state.sourceData[identity].observedAt;
+  } catch (error) {
+    if (owner !== sessionEpoch) return;
+    state.sourceErrors[identity] = error.message;
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) expireSession(error.message);
+  } finally {
+    if (owner !== sessionEpoch) return;
+    state.rotationLoading = "";
     render();
   }
 }

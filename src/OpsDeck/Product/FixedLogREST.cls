@@ -5,6 +5,8 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Routes>
   <Route Url="/messages" Method="GET" Call="MessagesLog" />
   <Route Url="/system-monitor" Method="GET" Call="SystemMonitorLog" />
+  <Route Url="/message-rotations" Method="GET" Call="MessageRotations" />
+  <Route Url="/message-rotation" Method="GET" Call="MessageRotation" />
   <Route Url="/packages" Method="GET" Call="InstalledPackages" />
   <Route Url="/available-packages" Method="GET" Call="AvailablePackages" />
 </Routes>
@@ -19,6 +21,49 @@ ClassMethod MessagesLog() As %Status
 ClassMethod SystemMonitorLog() As %Status
 {
     do ..WriteSource("systemMonitorLog")
+    quit $$$OK
+}
+
+ClassMethod MessageRotations() As %Status
+{
+    set %response.ContentType="application/json; charset=utf-8"
+    set sc=##class(OpsDeck.Product.FixedLogReader).ListMessageRotations(.result)
+    if $$$ISERR(sc) {
+        set result=##class(%DynamicObject).%New()
+        set result.status="failed",result.reason="rotation-enumeration-failed"
+    }
+    write result.%ToJSON()
+    quit $$$OK
+}
+
+ClassMethod MessageRotation() As %Status
+{
+    set %response.ContentType="application/json; charset=utf-8"
+    set sourceIdentity=$get(%request.Data("id",1)),invalidQuery=$data(%request.Data("id",2))
+    for {
+        set queryKey=$order(%request.Data(queryKey))
+        quit:queryKey=""
+        if queryKey'="id" set invalidQuery=1
+    }
+    set result=##class(%DynamicObject).%New()
+    if invalidQuery {
+        set result.status="unavailable",result.reason="invalid-source-identity"
+        set %response.Status=400
+    } else {
+        set sc=##class(OpsDeck.Product.FixedLogReader).ReadMessageRotation(sourceIdentity,.result)
+        if $$$ISERR(sc) {
+            set result.status="read-failure",result.reason="provider-failed"
+        }
+        if (result.status="available")||(result.status="empty")||(result.status="truncated") {
+            try {
+                set analysisJSON=##class(OpsDeck.Product.LogInterpreter).Analyze(sourceIdentity,result.%ToJSON())
+                set result.analysis=##class(%DynamicObject).%FromJSON(analysisJSON)
+            } catch exception {
+                set result.analysis=..AnalysisState(sourceIdentity,"failed","analysis-failed")
+            }
+        }
+    }
+    write result.%ToJSON()
     quit $$$OK
 }
 

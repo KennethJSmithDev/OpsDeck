@@ -5,7 +5,7 @@ import { mapFixedLogResult } from "../src/iris-provider.js";
 
 const source = await readFile(new URL("../src/OpsDeck/Product/FixedLogReader.cls", import.meta.url), "utf8");
 
-test("IRIS reader exposes exactly two fixed semantic identities and no path parameter", () => {
+test("IRIS reader exposes fixed current logs and server-resolved rotation identities", () => {
   assert.match(source, /Class OpsDeck\.Product\.FixedLogReader Extends/u);
   assert.match(source, /ClassMethod Read\(sourceId As %String, ByRef result/u);
   assert.match(source, /sourceId'="messagesLog"/u);
@@ -29,7 +29,12 @@ test("IRIS reader exposes exactly two fixed semantic identities and no path para
   assert.match(source, /result\.status="denied", result\.reason="admin-operate-required"/u);
   assert.doesNotMatch(source, /quit \$\$OK/u);
   assert.match(source, /quit \$\$\$OK/u);
-  assert.doesNotMatch(source, /directory listing|glob|Execute\(|Shell\(|userPath|filePath As %String/u);
+  assert.match(source, /statement\.%PrepareClassQuery\("%File","FileSet"\)/u);
+  assert.match(source, /statement\.%Execute\(directory,"messages\.old_\*","DateModified"\)/u);
+  assert.match(source, /scanned>250/u);
+  assert.match(source, /files\.%Get\("Type"\)="F"/u);
+  const withoutFixedFamilyEnumeration = source.replace(/statement\.%Execute\(directory,"messages\.old_\*","DateModified"\)/u, "");
+  assert.doesNotMatch(withoutFixedFamilyEnumeration, /directory listing|glob|Execute\(|Shell\(|userPath|filePath As %String/u);
 });
 
 test("reader source observes a bounded tail window, keeps newest lines, and omits raw paths", () => {

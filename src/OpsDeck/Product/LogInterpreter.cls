@@ -9,7 +9,7 @@ ClassMethod Analyze(sourceId As %String, logPayload As %String) As %String [ Lan
     import re
 
     sourceNames = {"messagesLog": "messages.log", "systemMonitorLog": "SystemMonitor.log"}
-    source = sourceNames.get(sourceId, "unknown")
+    source = sourceNames.get(sourceId, "messages.log rotation" if re.fullmatch(r"messagesRotation:[0-9A-F]{64}", sourceId or "") else "unknown")
     result = {
         "provider": "opsdeck-embedded-python-log-analysis-v1",
         "sourceId": sourceId if source != "unknown" else "unknown",
