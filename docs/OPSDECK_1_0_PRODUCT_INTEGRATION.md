@@ -4,6 +4,13 @@
 **Checkpoint:** `4b407b23f002adcac9655f3af300e086931af49a`  
 **Status:** integration design and evidence record; not a release candidate.
 
+> **Supersession note (2026-10-03):** This is a historical 1.0 integration
+> checkpoint. Its Vector Search deferral pending durable authoritative Evidence
+> is superseded by the active 0.9 objective: authoritative Evidence remains
+> session-scoped, while a package-owned database/namespace is required only
+> for rebuildable derived Vector Search state. See
+> [the current storage lifecycle record](OPSDECK_0_9_IPM_STORAGE_LIFECYCLE_20261003.md).
+
 This checkpoint turns the isolated IRIS runtime seams into the product-owned source topology. It does not claim that the integrated package lifecycle has passed.
 
 ## Product ownership and REST topology

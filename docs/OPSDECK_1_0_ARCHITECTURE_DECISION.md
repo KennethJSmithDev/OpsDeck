@@ -4,6 +4,15 @@
 **Starting tip:** `d42438c0a8bff3949bd0c7fe69b74abf02d99820`  
 **Status:** read-only architecture decision record; not a release candidate.
 
+> **Supersession note (2026-10-03):** This is a historical 1.0/0.8
+> architecture checkpoint. The active 0.9 objective now requires a
+> package-owned namespace/database for rebuildable derived Vector Search
+> state, while authoritative Evidence remains session-scoped. The prior
+> recommendation to defer Vector Search is superseded only for that derived
+> index; the Evidence decision remains in force. The authorized lifecycle
+> seam is documented in
+> [the 0.9 IPM storage lifecycle record](OPSDECK_0_9_IPM_STORAGE_LIFECYCLE_20261003.md).
+
 **Superseding decision:** the contest 0.8 build request now explicitly fixes authoritative Evidence as session-scoped for 0.8/1.0. That human decision replaces the provisional persistence choice below; it does not authorize a database, namespace, mapping, persistent class, or Vector Search index. The request also authorizes one isolated Docker target only when a usable Docker engine is available; the current host engine is not running, so no target has been created.
 
 This record extends the product integration checkpoint with available-package discovery, operation contracts, storage options, and artifact ownership. It records facts separately from source-level inferences. No IRIS state, package, repository, privilege, database, namespace, or mapping was changed during this investigation.
