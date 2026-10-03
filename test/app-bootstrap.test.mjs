@@ -6,6 +6,7 @@ import { mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONL
 import * as evidence from "../public/evidence-center.js";
 import * as packages from "../public/packages-workspace.js";
 import * as jobs from "../public/job-center.js";
+import { ProductIdentity } from "../public/product-identity.js";
 
 const appSource = (await readFile(new URL("../public/app.js", import.meta.url), "utf8"))
   .replace(/^import[^\n]+\n/gm, "");
@@ -20,8 +21,8 @@ const info = {
 test("frontend assets resolve from the current application path", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
-  assert.match(html, /href="\.\/styles\.css\?v=opsdeck-0.5.0"/u);
-  assert.match(html, /src="\.\/app\.js\?v=opsdeck-0.5.0"/u);
+  assert.match(html, /href="\.\/styles\.css\?v=opsdeck-0.5.0-about"/u);
+  assert.match(html, /src="\.\/app\.js\?v=opsdeck-0.5.0-about"/u);
   assert.match(app, /from "\.\/iris-provider\.js\?v=opsdeck-0.5.0"/u);
   assert.match(app, /from "\.\/evidence-center\.js\?v=opsdeck-0.5.0"/u);
   assert.match(app, /from "\.\/packages-workspace\.js\?v=opsdeck-0.5.0"/u);
@@ -66,6 +67,7 @@ test("restored session renders a bounded loading state then leaves bootstrap", a
     ...evidence,
     ...packages,
     ...jobs,
+    ProductIdentity,
     AbortSignal,
     Date,
     Intl,
@@ -141,6 +143,7 @@ test("native IRIS login reads same-origin APIs with in-memory Basic auth and no 
     ...evidence,
     ...packages,
     ...jobs,
+    ProductIdentity,
     AbortSignal, Date, Intl, Object, String, TextEncoder, URL, btoa,
     document,
     location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test", href: "http://iris.test/opsdeck/index.html" },
@@ -155,7 +158,7 @@ test("native IRIS login reads same-origin APIs with in-memory Basic auth and no 
       assert.ok(payload, `unexpected native API request: ${path}`);
       return { ok: true, status: 200, json: async () => payload };
     },
-    ...evidence, ...jobs, mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
+    ...evidence, ...jobs, ProductIdentity, mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
   };
 
   vm.runInNewContext(appSource, context, { filename: "public/app.js" });
@@ -217,6 +220,7 @@ test("native API object errors become useful text instead of [object Object]", a
     ...evidence,
     ...packages,
     ...jobs,
+    ProductIdentity,
     AbortSignal, Date, Intl, Object, String, TextEncoder, URL, btoa,
     document: { querySelector(selector) { return selector === "#app" ? app : null; }, documentElement: { dataset: {} } },
     location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test" },
@@ -261,6 +265,7 @@ test("audit query is an explicit bounded read and displays only reviewed fields"
   };
   const userInfo = { ...info, result: { ...info.result, username: "SyntheticUser" } };
   const context = {
+    ProductIdentity,
     AbortSignal, Date, Intl, Object, String, TextEncoder, URL, URLSearchParams, btoa,
     document: { querySelector(selector) { return selector === "#app" ? app : null; }, documentElement: { dataset: {} } },
     location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test", href: "http://iris.test/opsdeck/index.html" },
@@ -353,6 +358,7 @@ test("alerts are opt-in stateful reads and unqualified record values stay hidden
     ...evidence,
     ...packages,
     ...jobs,
+    ProductIdentity,
     AbortSignal, Date, Intl, Object, String, TextEncoder, URL, btoa,
     document: { querySelector(selector) { return selector === "#app" ? app : null; }, documentElement: { dataset: {} } },
     location: { hash: "", pathname: "/opsdeck/index.html", origin: "http://iris.test" },

@@ -2,6 +2,7 @@ import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, same
 import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence } from "./evidence-center.js?v=opsdeck-0.5.0";
 import { comparePackageCatalogToInstalled, fixturePackageInventory, mapAvailablePackageCatalog, mapInstalledPackageInventory, preparePackagePlan } from "./packages-workspace.js?v=opsdeck-0.5.0";
 import { mapAuditJob, upsertJob } from "./job-center.js?v=opsdeck-0.5.0";
+import { ProductIdentity } from "./product-identity.js?v=opsdeck-0.5.0-about";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -133,6 +134,7 @@ const state = {
   verification: null,
   sourceData: {}, sourceErrors: {}, sourceLoading: "", sourceVerification: {}, selectedRotation: "", rotationLoading: "",
   sourceTabs: { applications: "restServices", access: "users", security: "walletCollections", tasks: "tasks", system: "systemUsage", logs: "auditEnabled" },
+  systemSection: "providers",
   selectedItems: {},
   evidenceFilter: "",
   evidenceStateFilter: "ALL",
@@ -707,10 +709,18 @@ function providerDomainView(route) {
     logs: "Audit configuration, bounded fixed log observations, task history, and journal inventory. Each reader remains qualified only within its recorded scope.",
   };
   const sourceId = state.sourceTabs[route] || domainSources[route]?.[0];
+  const systemNavigation = route === "system" ? `<div class="system-sections" role="tablist" aria-label="System sections"><button class="source-tab ${state.systemSection === "providers" ? "active" : ""}" role="tab" aria-selected="${state.systemSection === "providers"}" data-system-section="providers">System providers</button><button class="source-tab ${state.systemSection === "about" ? "active" : ""}" role="tab" aria-selected="${state.systemSection === "about"}" data-system-section="about">About</button></div>` : "";
+  if (route === "system" && state.systemSection === "about") {
+    const identity = ProductIdentity.resolve({
+      irisVersion: state.info?.serverVersion,
+      deployment: state.info?.systemMode === "DEMO" ? "demo" : nativeMode ? "native" : "reference",
+    });
+    return shell(`${pageHeader("About", "OpsDeck product identity and runtime context.")}${systemNavigation}<section class="panel about-panel"><div class="panel-kicker">${esc(identity.releaseLabel)}</div><h2>${esc(identity.name)}</h2><p class="about-version">Version ${esc(identity.publicVersion)}</p><p class="source-message">OpsDeck presents observed IRIS context separately from its public product identity. Runtime fields are shown only when supplied by the active product context.</p><details class="about-details"><summary>Technical details</summary><dl class="detail-grid"><dt>Internal version</dt><dd>${esc(identity.internalVersion)}</dd><dt>Package version</dt><dd>${esc(identity.packageVersion)}</dd><dt>Git commit</dt><dd><code>${esc(identity.gitCommit || "Not embedded in source package")}</code></dd><dt>Build timestamp</dt><dd>${esc(identity.buildTimestamp || "Not embedded in source package")}</dd><dt>IRIS version</dt><dd>${esc(identity.irisVersion)}</dd><dt>Namespace</dt><dd><code>${esc(identity.namespace)}</code></dd><dt>Deployment target</dt><dd>${esc(identity.deploymentTarget)}</dd></dl></details></section>`);
+  }
   const logTools = route === "logs" ? auditQueryPanel() : "";
   const jobs = route === "tasks" ? jobCenterPanel() : "";
   const caveat = route === "logs" ? `<p class="source-caveat">Fixed log routes accept only the two semantic source identities. Returned lines preserve legitimate log text; the resolved filesystem location is never returned. Alerts are a stateful feed and are read only when explicitly requested.</p>` : "";
-  return shell(`${pageHeader(title, descriptions[route] || "Live IRIS provider data.")}${jobs}${logTools}<section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">LIVE PROVIDER DATA</div><h2>${esc(READ_ONLY_SOURCES[sourceId]?.label || title)}</h2></div>${badge("Read only", "accent")}</div>${sourceSelector(route)}${sourcePanel(sourceId)}${caveat}</section>`);
+  return shell(`${pageHeader(title, descriptions[route] || "Live IRIS provider data.")}${systemNavigation}${jobs}${logTools}<section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">LIVE PROVIDER DATA</div><h2>${esc(READ_ONLY_SOURCES[sourceId]?.label || title)}</h2></div>${badge("Read only", "accent")}</div>${sourceSelector(route)}${sourcePanel(sourceId)}${caveat}</section>`);
 }
 
 function jobCenterPanel() {
@@ -747,6 +757,10 @@ function auditQueryPanel() {
 
 function evidenceView() {
   const isDemo = state.info?.systemMode === "DEMO";
+  const productIdentity = ProductIdentity.resolve({
+    irisVersion: state.info?.serverVersion,
+    deployment: isDemo ? "demo" : nativeMode ? "native" : "reference",
+  });
   const audit = isDemo ? null : state.auditQuery;
   const readback = state.verification
     ? (state.verification.matched
@@ -772,6 +786,7 @@ function evidenceView() {
   const cardHtml = cards.map((item) => `<article class="evidence-card"><div class="evidence-card-head"><strong>${esc(item.title)}</strong>${badge(item.state, item.tone)}</div><p>${esc(item.detail)}</p><small>${esc(item.note)}</small></article>`).join("");
   return shell(`
     ${pageHeader("Evidence", "What OpsDeck can prove, what it cannot, and where qualification deliberately stops.")}
+    <p class="source-message evidence-product-identity">${esc(productIdentity.name)} · ${esc(productIdentity.releaseLabel)} ${esc(productIdentity.publicVersion)}</p>
     ${isDemo ? `<div class="evidence-demo-notice"><strong>SAFE DEMO</strong><span>Sanitized deterministic data. This page demonstrates evidence semantics, not a live IRIS claim.</span></div>` : ""}
     <section class="panel evidence-flow-panel"><div class="panel-head"><div><div class="panel-kicker">EVIDENCE-GATED OPERATION</div><h2>Observed state stays tied to authority</h2></div>${badge("No shadow state", "accent")}</div>
       <div class="evidence-flow" aria-label="OpsDeck evidence flow"><div><span>01</span><strong>Request</strong><small>Known operation</small></div><b>→</b><div><span>02</span><strong>Bounded provider</strong><small>Allowlisted route</small></div><b>→</b><div><span>03</span><strong>IRIS authority</strong><small>Source of truth</small></div><b>→</b><div><span>04</span><strong>Rendered state</strong><small>Safe projection</small></div><b>→</b><div><span>05</span><strong>Read-back</strong><small>Where qualified</small></div></div>
@@ -910,6 +925,10 @@ function render() {
     state.sourceTabs[route] = button.dataset.source;
     render();
     if (button.dataset.source !== "alerts") loadSource(button.dataset.source);
+  }));
+  app.querySelectorAll("[data-system-section]").forEach((button) => button.addEventListener("click", () => {
+    state.systemSection = button.dataset.systemSection;
+    render();
   }));
   app.querySelectorAll("[data-load-alerts]").forEach((button) => button.addEventListener("click", () => loadSource("alerts", true)));
   app.querySelectorAll("[data-read-rotation]").forEach((button) => button.addEventListener("click", () => loadMessageRotation(button.dataset.readRotation)));

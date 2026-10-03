@@ -6,12 +6,13 @@ import * as provider from "../src/iris-provider.js";
 import * as evidence from "../public/evidence-center.js";
 import * as packages from "../public/packages-workspace.js";
 import * as jobs from "../public/job-center.js";
+import { ProductIdentity } from "../public/product-identity.js";
 
 const source = (await readFile(new URL("../public/app.js", import.meta.url), "utf8")).replace(/^import[^\n]+\n/gm, "");
 function contextFor(pathname = "/opsdeck/index.html", fetch = async () => { throw new Error("Unexpected request"); }) {
   const element = { innerHTML: "", querySelector: () => null, querySelectorAll: () => [] };
   const context = vm.createContext({
-    ...provider, ...evidence, ...packages, ...jobs, AbortSignal, TextEncoder, URL, URLSearchParams, btoa,
+    ...provider, ...evidence, ...packages, ...jobs, ProductIdentity, AbortSignal, TextEncoder, URL, URLSearchParams, btoa,
     document: { querySelector: () => element, documentElement: { dataset: {} } },
     location: { pathname, hash: "", origin: "http://fixture.test" },
     localStorage: { getItem: () => "dark", setItem() {} },
@@ -36,6 +37,7 @@ test("integrated native shell and Evidence view report only qualified lifecycle 
   assert.doesNotMatch(demo, /Sign out|Live session|IRIS connection active/);
 
   const evidence = vm.runInContext('evidenceView()', context);
+  assert.match(evidence, /OpsDeck · Beta Release 0\.2/u);
   assert.match(evidence, /IPM \/ ZPM lifecycle[\s\S]*?QUALIFIED/u);
   assert.match(evidence, /Local-source load, uninstall, and clean same-source reload were reproduced for OpsDeck 0\.2\.0/u);
   assert.match(evidence, /Scope: tested local-source lifecycle only[\s\S]*?Exact core IPM version and public-registry installation remain unverified/u);
@@ -55,6 +57,30 @@ test("integrated native shell and Evidence view report only qualified lifecycle 
   const evidenceWithPlan = vm.runInContext('evidenceView()', context);
   assert.match(evidenceWithPlan, /Synthetic package plan preview/u);
   assert.match(evidenceWithPlan, /UNVERIFIED/u);
+});
+
+test("System About uses canonical product identity and leaves provider view intact", () => {
+  const { context } = contextFor();
+  const identity = vm.runInContext(`
+    state.connected = true;
+    state.info = { serverVersion: "IRIS Fixture 2026.2" };
+    state.route = "system";
+    state.systemSection = "about";
+    providerDomainView("system")
+  `, context);
+  assert.match(identity, /Beta Release[\s\S]*OpsDeck[\s\S]*Version 0\.2/u);
+  assert.match(identity, /Internal version[\s\S]*0\.5\.0/u);
+  assert.match(identity, /Package version[\s\S]*0\.5\.0/u);
+  assert.match(identity, /IRIS Fixture 2026\.2/u);
+  assert.match(identity, /Namespace[\s\S]*%SYS/u);
+  assert.match(identity, /Native IRIS CSP application/u);
+  assert.match(identity, /<details class="about-details">/u);
+  const providers = vm.runInContext('state.systemSection="providers"; providerDomainView("system")', context);
+  assert.match(providers, /LIVE PROVIDER DATA/u);
+  assert.match(providers, /System usage/u);
+  vm.runInContext("ProductIdentity = undefined", context);
+  const withoutAboutIdentity = vm.runInContext('providerDomainView("system")', context);
+  assert.match(withoutAboutIdentity, /LIVE PROVIDER DATA/u, "removing the optional About identity dependency leaves System providers operational");
 });
 
 test("contextual IRIS help is collapsed, route-scoped, and read-only learning content", () => {

@@ -408,3 +408,11 @@ td { color:var(--muted); font-size:10px; }
   .source-tabs { gap:8px; }
   .source-tab { flex:1 1 150px; max-width:100%; min-height:44px; }
 }
+.system-sections { display: flex; gap: 8px; margin-bottom: 16px; }
+.about-panel { max-width: 760px; }
+.about-panel h2 { margin: 8px 0 0; font-size: 1.8rem; }
+.about-version { margin: 4px 0 16px; color: var(--text-muted); font-size: 1.1rem; }
+.about-details { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 14px; }
+.about-details summary { cursor: pointer; color: var(--text); font-weight: 600; }
+.about-details .detail-grid { margin-top: 16px; }
+.evidence-product-identity { margin: 0 0 12px; }
