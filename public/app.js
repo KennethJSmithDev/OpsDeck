@@ -145,6 +145,7 @@ const state = {
   availablePackageName: "",
   availablePackageCatalog: null,
   availablePackageError: "",
+  availablePackageErrorStatus: 0,
   availablePackageLoading: false,
   webAppDetails: {}, webAppDetailErrors: {}, webAppDetailLoading: "",
   userDetails: {}, userDetailErrors: {}, userDetailLoading: "", userDetailVerification: {},
@@ -450,9 +451,12 @@ function packagesWorkspaceView() {
     const stateStyle = inventory?.state === "AVAILABLE" ? "accent" : "warning";
     const catalog = state.availablePackageCatalog;
     const catalogRows = catalog ? comparePackageCatalogToInstalled(catalog, inventory) : [];
-    const catalogBadge = state.availablePackageLoading ? "LOADING" : state.availablePackageError ? "FAILED" : catalog?.state || "NOT QUERIED";
+    const catalogErrorState = state.availablePackageErrorStatus === 403 ? "DENIED" : "FAILED";
+    const catalogBadge = state.availablePackageLoading ? "LOADING" : state.availablePackageError ? catalogErrorState : catalog?.state || "NOT QUERIED";
     const catalogBody = state.availablePackageError
-      ? `<p class="source-message source-error" role="alert">${esc(state.availablePackageError)}</p>`
+      ? state.availablePackageErrorStatus === 403
+        ? `<p class="source-message source-error" role="status">The current IRIS identity is not authorized to query the configured package catalog.</p>`
+        : `<p class="source-message source-error" role="alert">${esc(state.availablePackageError)}</p>`
       : catalog?.state === "DENIED" ? `<p class="source-message source-error" role="status">The current IRIS identity is not authorized to read configured IPM repository definitions.</p>`
         : catalog?.state === "FAILED" ? `<p class="source-message source-error" role="alert">The IPM catalog query failed. No available version is inferred.</p>`
           : catalog?.state === "UNAVAILABLE" ? `<p class="source-message" role="status">Configured catalog coverage is unavailable${catalog.reason ? ` (${esc(catalog.reason)}).` : "."}</p>`
@@ -917,6 +921,7 @@ function clearSession() {
   state.availablePackageName = "";
   state.availablePackageCatalog = null;
   state.availablePackageError = "";
+  state.availablePackageErrorStatus = 0;
   state.availablePackageLoading = false;
   state.evidenceFilter = "";
   state.evidenceStateFilter = "ALL";
@@ -1158,6 +1163,7 @@ async function loadAvailablePackageCatalog(name) {
   const owner = sessionEpoch;
   state.availablePackageLoading = true;
   state.availablePackageError = "";
+  state.availablePackageErrorStatus = 0;
   state.availablePackageCatalog = null;
   render();
   try {
@@ -1169,6 +1175,7 @@ async function loadAvailablePackageCatalog(name) {
   } catch (error) {
     if (owner !== sessionEpoch) return;
     state.availablePackageError = error.message;
+    state.availablePackageErrorStatus = Number(error.status) || 0;
     if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) expireSession(error.message);
   } finally {
     if (owner !== sessionEpoch) return;

@@ -11,7 +11,7 @@ const source = (await readFile(new URL("../public/app.js", import.meta.url), "ut
 function contextFor(pathname = "/opsdeck/index.html", fetch = async () => { throw new Error("Unexpected request"); }) {
   const element = { innerHTML: "", querySelector: () => null, querySelectorAll: () => [] };
   const context = vm.createContext({
-    ...provider, ...evidence, ...packages, ...jobs, AbortSignal, TextEncoder, URL, btoa,
+    ...provider, ...evidence, ...packages, ...jobs, AbortSignal, TextEncoder, URL, URLSearchParams, btoa,
     document: { querySelector: () => element, documentElement: { dataset: {} } },
     location: { pathname, hash: "", origin: "http://fixture.test" },
     localStorage: { getItem: () => "dark", setItem() {} },
@@ -139,6 +139,29 @@ test("live Packages renders catalog version relationships without recommending a
   live = vm.runInContext("applicationsView()", context);
   assert.match(live, /INSTALLED OLDER/u);
   assert.match(live, /Available<\/dt><dd>0\.2\.2<\/dd><dt>Installed<\/dt><dd>0\.2\.1/u);
+});
+
+test("live Packages preserves an upstream catalog HTTP 403 as DENIED", async () => {
+  let requestedPath = "";
+  const { context } = contextFor("/opsdeck/index.html", async path => {
+    requestedPath = path;
+    return { ok: false, status: 403, json: async () => ({ error: "Forbidden" }) };
+  });
+  vm.runInContext(`
+    state.connected = true;
+    state.info = { username: "OpsDeckTest", systemMode: "NATIVE" };
+    state.applicationsTab = "packages";
+    state.packageInventory = mapInstalledPackageInventory({
+      provider: "iris-ipm-installed-v1", namespace: "%SYS", status: "empty", packages: [],
+    });
+  `, context);
+  assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify([nativeMode, state.connected, state.availablePackageLoading])", context)), [true, true, false]);
+  await vm.runInContext('loadAvailablePackageCatalog("opsdeck")', context);
+  assert.equal(requestedPath, "/opsdeck-api/available-packages?name=opsdeck");
+  const live = vm.runInContext("applicationsView()", context);
+  assert.match(live, /badge warning">DENIED/u);
+  assert.match(live, /not authorized to query the configured package catalog/u);
+  assert.doesNotMatch(live, /badge warning">FAILED/u);
 });
 
 test("Evidence projects bounded audit outcomes without retaining audit row values", () => {
