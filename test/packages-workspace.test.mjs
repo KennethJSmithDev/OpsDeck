@@ -105,7 +105,7 @@ test("available IPM catalog maps exact package identity, configured source, and 
   assert.equal(catalog.packages[0].synthetic, false);
 });
 
-test("catalog comparison marks only strict stable SemVer increases as updates", () => {
+test("catalog comparison states installed current, older, newer, and unknown relationships", () => {
   const installed = mapInstalledPackageInventory({
     provider: "iris-ipm-installed-v1", namespace: "%SYS", status: "available",
     packages: [{ name: "opsdeck", installedVersion: "0.2.0" }],
@@ -117,7 +117,28 @@ test("catalog comparison marks only strict stable SemVer increases as updates", 
   });
   const update = comparePackageCatalogToInstalled(newer, installed)[0];
   assert.equal(update.state, "update-available");
+  assert.equal(update.relationship, "INSTALLED_OLDER");
   assert.equal(update.installedVersion, "0.2.0");
+
+  const sameVersion = mapAvailablePackageCatalog({
+    provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status: "available",
+    packages: [{ name: "opsdeck", availableVersion: "0.2.0", repository: "registry" }],
+    truncated: false, repositoryCount: 1, availableRepositoryCount: 1, coverage: "complete",
+  });
+  assert.equal(comparePackageCatalogToInstalled(sameVersion, installed)[0].relationship, "INSTALLED_CURRENT");
+
+  const olderCatalog = mapAvailablePackageCatalog({
+    provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status: "available",
+    packages: [{ name: "opsdeck", availableVersion: "0.1.9", repository: "registry" }],
+    truncated: false, repositoryCount: 1, availableRepositoryCount: 1, coverage: "complete",
+  });
+  const installedNewer = mapInstalledPackageInventory({
+    provider: "iris-ipm-installed-v1", namespace: "%SYS", status: "available",
+    packages: [{ name: "opsdeck", installedVersion: "0.2.1" }],
+  });
+  const localNewer = comparePackageCatalogToInstalled(olderCatalog, installedNewer)[0];
+  assert.equal(localNewer.state, "installed");
+  assert.equal(localNewer.relationship, "INSTALLED_NEWER");
 
   const unstable = mapAvailablePackageCatalog({
     provider: "iris-ipm-available-v1", namespace: "%SYS", name: "opsdeck", status: "available",
@@ -125,11 +146,16 @@ test("catalog comparison marks only strict stable SemVer increases as updates", 
     truncated: false, repositoryCount: 1, availableRepositoryCount: 1, coverage: "complete",
   });
   assert.equal(comparePackageCatalogToInstalled(unstable, installed)[0].state, "installed");
+  assert.equal(comparePackageCatalogToInstalled(unstable, installed)[0].relationship, "INSTALLED_VERSION_UNCOMPARABLE");
 
   const deniedInventory = mapInstalledPackageInventory({ provider: "iris-ipm-installed-v1", namespace: "%SYS", status: "denied", packages: [] });
   const unknownInstallation = comparePackageCatalogToInstalled(newer, deniedInventory)[0];
   assert.equal(unknownInstallation.state, "available");
   assert.equal(unknownInstallation.installedStateKnown, false);
+  assert.equal(unknownInstallation.relationship, "INSTALLED_STATE_UNKNOWN");
+
+  const emptyInventory = mapInstalledPackageInventory({ provider: "iris-ipm-installed-v1", namespace: "%SYS", status: "empty", packages: [] });
+  assert.equal(comparePackageCatalogToInstalled(newer, emptyInventory)[0].relationship, "AVAILABLE_ONLY");
 });
 
 test("available IPM catalog keeps denied, unavailable, failed, and empty distinct", () => {

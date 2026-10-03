@@ -116,11 +116,18 @@ export function comparePackageCatalogToInstalled(catalog, installedInventory) {
   const installed = installedInventory?.packages?.find((item) => item.name === catalog.name && item.namespace === catalog.namespace) || null;
   const inventoryComplete = ["AVAILABLE", "EMPTY"].includes(installedInventory?.state);
   return Object.freeze(catalog.packages.map((item) => {
-    if (!installed) return Object.freeze({ ...item, state: "available", installedStateKnown: inventoryComplete });
+    if (!installed) return Object.freeze({ ...item, state: "available", relationship: inventoryComplete ? "AVAILABLE_ONLY" : "INSTALLED_STATE_UNKNOWN", installedStateKnown: inventoryComplete });
     const comparison = compareStableVersions(item.availableVersion, installed.installedVersion);
-    const state = item.availableVersion === installed.installedVersion || comparison === null || comparison <= 0
-      ? "installed" : "update-available";
-    return Object.freeze({ ...item, installedVersion: installed.installedVersion, installedStateKnown: true, state });
+    const relationship = comparison === null ? "INSTALLED_VERSION_UNCOMPARABLE"
+      : comparison === 0 ? "INSTALLED_CURRENT"
+        : comparison > 0 ? "INSTALLED_OLDER" : "INSTALLED_NEWER";
+    return Object.freeze({
+      ...item,
+      installedVersion: installed.installedVersion,
+      installedStateKnown: true,
+      relationship,
+      state: relationship === "INSTALLED_OLDER" ? "update-available" : "installed",
+    });
   }));
 }
 
