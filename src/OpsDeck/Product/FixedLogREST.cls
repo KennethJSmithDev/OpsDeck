@@ -9,7 +9,19 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/message-rotation" Method="GET" Call="MessageRotation" />
   <Route Url="/packages" Method="GET" Call="InstalledPackages" />
   <Route Url="/available-packages" Method="GET" Call="AvailablePackages" />
+  <Route Url="/package-authority" Method="GET" Call="PackageAuthority" />
+  <Route Url="/package-operation" Method="POST" Call="PackageOperation" />
 </Routes>
+}
+
+ClassMethod PackageAuthority() As %Status
+{
+    quit ##class(OpsDeck.Product.PackageOperations).Authority()
+}
+
+ClassMethod PackageOperation() As %Status
+{
+    quit ##class(OpsDeck.Product.PackageOperations).Dispatch()
 }
 
 ClassMethod MessagesLog() As %Status
@@ -185,6 +197,12 @@ ClassMethod SearchAvailablePackages(pName As %String) As %DynamicObject
                 set availableCount=0
                 for index=1:1:repositoryCount {
                     set service=manager.CheckServiceCache(repositoryNames(index),.serviceAvailable)
+                    if $isobject(service),$classname(service)="%IPM.Repo.Filesystem.PackageService" {
+                        if '$SYSTEM.SQL.Security.CheckPrivilege($username,9,"%IPM_Repo_Filesystem.Cache_OrderedMatches","e",$namespace) {
+                            set result.status="denied",result.reason="repository-cache-query-execute-required"
+                            return result
+                        }
+                    }
                     if serviceAvailable set availableCount=availableCount+1
                 }
                 set result.availableRepositoryCount=availableCount

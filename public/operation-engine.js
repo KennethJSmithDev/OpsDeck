@@ -7,6 +7,13 @@ const validatedOperationPlans = new WeakSet();
 const operationAttempts = new WeakMap();
 const OPERATION_PLAN_SCHEMA = "opsdeck-operation-plan-v1";
 export const OPERATION_POLICIES = Object.freeze({
+  ...Object.fromEntries(["install", "remove"].map(action => [`ipm.live.${action}`, Object.freeze({
+    semanticAction: `package-${action}`, risk: "HIGH", providerOperation: "POST /opsdeck-api/package-operation",
+    requiredPrivileges: Object.freeze(["%Admin_Secure:U", "%DB_IRISSYS:W", "IPM inventory/catalog SELECT"]),
+    targetDomain: "applications", targetKind: "package", targetProvider: "iris-ipm-installed-v1",
+    parameterKeys: Object.freeze(["installedVersion", "namespace", "packageName", "requestedVersion", "sourceIdentity"]),
+    preStateKeys: Object.freeze(["availableVersion", "installedVersion", "namespace", "sourceIdentity"]),
+  })])),
   "webapp.enable": Object.freeze({
     semanticAction: "enable",
     risk: "MEDIUM",
@@ -140,6 +147,7 @@ function exactParameterKeys(parameters, expected) {
 }
 
 function validateOperationParameters(capabilityId, parameters, policy) {
+  capabilityId = capabilityId.replace("ipm.live.", "ipm.package.");
   if (!exactParameterKeys(parameters, policy.parameterKeys)) {
     throw new Error("Operation parameters do not match the deterministic policy schema.");
   }
@@ -175,6 +183,7 @@ function validateOperationParameters(capabilityId, parameters, policy) {
 }
 
 function validateOperationPreState(capabilityId, preState, parameters, policy) {
+  capabilityId = capabilityId.replace("ipm.live.", "ipm.package.");
   if (!exactParameterKeys(preState, policy.preStateKeys)) {
     throw new Error("Operation pre-state does not match the deterministic policy schema.");
   }
@@ -221,6 +230,12 @@ function validateOperationPreState(capabilityId, preState, parameters, policy) {
 
 function verifyPolicyReadback(plan, readback) {
   const safeReadback = safeProjection(readback);
+  if (plan.capability.id.startsWith("ipm.live.")) {
+    const matched = exactParameterKeys(safeReadback, ["installedVersion", "namespace", "packageName"]) &&
+      safeReadback.packageName === plan.parameters.packageName && safeReadback.namespace === plan.target.scope &&
+      safeReadback.installedVersion === (plan.capability.id === "ipm.live.remove" ? null : plan.parameters.requestedVersion);
+    return { supported: true, matched, safeReadback };
+  }
   if (plan.capability.id === "webapp.enable" || plan.capability.id === "webapp.disable") {
     if (!exactParameterKeys(safeReadback, ["enabled"]) || typeof safeReadback.enabled !== "boolean") {
       return { supported: true, matched: false, safeReadback };
@@ -269,6 +284,12 @@ export function createOperationPlan(input, now = Date.now()) {
   }
   const parameters = safeProjection(input.parameters || {});
   validateOperationParameters(capability.id, parameters, policy);
+  if (capability.id.startsWith("ipm.live.") && (scope !== "%SYS" || parameters.namespace !== scope ||
+      target.key !== parameters.packageName || !/^[a-z0-9][a-z0-9_.-]{0,127}$/u.test(parameters.packageName) ||
+      ["opsdeck", "zpm"].includes(parameters.packageName) || !/^\d+\.\d+\.\d+$/u.test(parameters.requestedVersion) ||
+      !/^[A-Za-z0-9_.-]{1,128}$/u.test(parameters.sourceIdentity))) {
+    throw new Error("Live package identity/version/source must match the supported namespace and policy.");
+  }
   const preState = safeProjection(input.preState);
   validateOperationPreState(capability.id, preState, parameters, policy);
   const id = boundedText(input.id, "plan.id", 128);
@@ -518,6 +539,60 @@ export function createWebAppOperationProvider({ requestJson, username }) {
       }
       return current;
     },
+    verifyReadback: async (plan, readback) => verifyPolicyReadback(plan, readback),
+  });
+}
+
+export function createIPMPackageOperationProvider({ requestJson, username }) {
+  const observedUsername = boundedText(username, "observed IRIS username", 128);
+  if (typeof requestJson !== "function") throw new Error("A same-identity IRIS request function is required.");
+  const installed = async plan => {
+    const payload = await requestJson("/opsdeck-api/packages");
+    if (!plain(payload) || payload.provider !== "iris-ipm-installed-v1" || payload.namespace !== plan.target.scope ||
+        !["available", "empty"].includes(payload.status) || !Array.isArray(payload.packages) || payload.packages.length > 250) {
+      throw new Error("Complete authoritative installed inventory is required.");
+    }
+    const matches = payload.packages.filter(item => item.name === plan.parameters.packageName);
+    if (matches.length > 1) throw new Error("Package identity is ambiguous.");
+    return matches.length ? boundedText(matches[0].installedVersion, "installed version", 64) : null;
+  };
+  return Object.freeze({
+    identity: "iris-ipm-operations-v1", targetProvider: "iris-ipm-installed-v1",
+    readPreState: async plan => {
+      const installedVersion = await installed(plan);
+      let availableVersion = null;
+      if (plan.capability.id === "ipm.live.install") {
+        const catalog = await requestJson(`/opsdeck-api/available-packages?${new URLSearchParams({ name: plan.parameters.packageName })}`);
+        if (!plain(catalog) || catalog.provider !== "iris-ipm-available-v1" || catalog.namespace !== plan.target.scope ||
+            catalog.name !== plan.parameters.packageName || catalog.status !== "available" || !Array.isArray(catalog.packages) || catalog.packages.length > 50) throw new Error("An observed catalog version/source is required.");
+        const matches = catalog.packages.filter(item => item.name === plan.parameters.packageName && item.repository === plan.parameters.sourceIdentity && item.availableVersion === plan.parameters.requestedVersion);
+        if (matches.length !== 1) throw new Error("Selected package source/version is unavailable or ambiguous.");
+        availableVersion = matches[0].availableVersion;
+      }
+      return { availableVersion, installedVersion, namespace: plan.target.scope, sourceIdentity: plan.parameters.sourceIdentity };
+    },
+    checkAuthority: async () => {
+      const result = await requestJson("/opsdeck-api/package-authority");
+      if (!plain(result) || result.provider !== "iris-ipm-operations-v1" || result.username !== observedUsername || result.namespace !== "%SYS") return { state: "DENIED" };
+      return result.state === "SUPPORTED" ? { state: "SUPPORTED", evidence: "iris-ipm:current-caller-authority" } : { state: "DENIED" };
+    },
+    dispatch: async plan => {
+      if (!["ipm.live.install", "ipm.live.remove"].includes(plan.capability.id)) return { state: "UNAVAILABLE" };
+      try {
+        const result = await requestJson("/opsdeck-api/package-operation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+          action: plan.capability.id === "ipm.live.install" ? "install" : "remove", name: plan.parameters.packageName,
+          version: plan.parameters.requestedVersion, repository: plan.parameters.sourceIdentity, namespace: plan.target.scope,
+          expectedInstalledVersion: plan.parameters.installedVersion || "",
+        }) });
+        if (result.provider !== "iris-ipm-operations-v1" || result.username !== observedUsername || result.namespace !== plan.target.scope || result.state !== "ACCEPTED") return { state: "AMBIGUOUS" };
+        return { state: "ACCEPTED", status: "ipm-call-returned" };
+      } catch (error) {
+        if (error.status === 401 || error.status === 403) return { state: "DENIED" };
+        if (Number.isInteger(error.status) && error.status >= 400 && error.status < 500) return { state: "FAILED" };
+        return { state: "AMBIGUOUS" };
+      }
+    },
+    readBack: async plan => ({ installedVersion: await installed(plan), packageName: plan.parameters.packageName, namespace: plan.target.scope }),
     verifyReadback: async (plan, readback) => verifyPolicyReadback(plan, readback),
   });
 }

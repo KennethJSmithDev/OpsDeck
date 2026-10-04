@@ -59,3 +59,12 @@ V0_7_ACCEPTED
 | Main observation domains remain healthy | Existing accepted read scope preserved. | Relevant regression gates only. |
 
 Vector/AI work remains gated on the operational core. Do not advance version before these criteria pass.
+### v0.8 preflight checkpoint — NOT ACCEPTED
+
+The shared engine now has an independently tested live IPM provider and closed install/remove policies. Product-owned `OpsDeck.Product.PackageOperations` compiled on the disposable target, preserving `$USERNAME`, checking `%SYS` database and catalog/inventory authority, rejecting arbitrary command/modifier/path inputs and self-modification of OpsDeck/IPM. It reports ACCEPTED separately from authoritative success; exceptions after dispatch are AMBIGUOUS. The native route delegates to this provider. No package-specific execution engine was added.
+
+The first live attempt stopped before dispatch because the filesystem catalog uses `%IPM_Repo_Filesystem.Cache_OrderedMatches`. Preparation as the protected Docker identity returned SQLCODE -99; EXECUTE is absent. The catalog now explicitly reports DENIED with `repository-cache-query-execute-required`. A separate approval for only that temporary EXECUTE permission is pending. No package install/remove was attempted and no v0.8 receipt or browser claim is made.
+
+The human-authorized temporary `%DB_IRISSYS:WRITE` and local filesystem repository were provisioned after collision checks, then removed at this boundary. Independent read-back confirms WRITE=0, repository count=0, fixture package count=0, and fixture cache count=0. Only the fixture-owned copied files were removed; Docker copy had made them root-owned, so deletion used the Docker root identity after ownership inspection. Existing account/credential, other grants, registry and host IRISTesting are preserved. Compiled experimental product classes/routes remain on the disposable target; package ownership/lifecycle of those changed bytes is UNVERIFIED.
+
+Full JS suite 167/167 PASS, including three new shared-engine package-provider tests for receipts, denial without dispatch, and terminal ambiguity without retry. ObjectScript compilation, JS syntax, module parsing and diff checks PASS. Internal/package version remains 0.7.0: this source is a v0.8 experiment and does not advance the accepted milestone. Browser package mutation UI and DPI-I-261 completion remain gaps. v0.9 remains gated.

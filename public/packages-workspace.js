@@ -99,6 +99,7 @@ export function mapAvailablePackageCatalog(payload, observedAt = new Date().toIS
     });
   });
   const knownReasons = new Set([
+    "repository-cache-query-execute-required",
     "repository-definition-read-required", "invalid-package-query", "configured-repository-limit-exceeded",
     "no-enabled-repositories", "configured-repositories-unavailable", "partial-repository-availability", "catalog-query-failed",
   ]);
