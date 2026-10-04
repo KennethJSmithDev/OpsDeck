@@ -102,6 +102,15 @@
         findings: [{ id: "log:systemMonitorLog:line-1:warning-marker", lineNumber: 1, ruleId: "warning-marker", marker: "WARNING" }],
       },
     },
+    messageRotations: {
+      provider: "opsdeck-rotated-messages-log-v1",
+      status: "empty",
+      coverage: "complete",
+      truncated: false,
+      scannedCount: 0,
+      rotations: [],
+    },
+    alerts: [],
     restServices: [
       { name: "Demo.Management", dispatchClass: "Demo.Management.REST", namespace: "%SYS", enabled: true, swaggerSpec: "" },
     ],
@@ -186,7 +195,7 @@
         walletCollections: "security", x509Credentials: "security", oauthResourceServers: "security", oauthServerDefinitions: "security", oauthServer: "security",
         tasks: "tasks", systemUsage: "system", processes: "system", databases: "system", devices: "system",
         auditEnabled: "logs", auditEvents: "logs", taskHistory: "logs", journalFiles: "logs",
-        messagesLog: "logs", systemMonitorLog: "logs",
+        messagesLog: "logs", messageRotations: "logs", systemMonitorLog: "logs", alerts: "logs",
       };
       if (sourceGroups[id] && !allowed(sourceGroups[id])) return denied();
       if (id === "x509Credentials") return ok({ error: "Demo provider intentionally unavailable: no credential inventory is exposed." }, 503);
