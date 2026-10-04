@@ -4,8 +4,13 @@
 
 - Main includes the accepted v0.5 operational-visibility snapshot and the optional System > About identity surface at [`1aaee4ecca5055a5b64ceaf85cfbb1d493c5b435`](https://github.com/KennethJSmithDev/OpsDeck/commit/1aaee4ecca5055a5b64ceaf85cfbb1d493c5b435). GitHub's committer timestamp is **2026-10-04 00:16:22 UTC**.
 - The public product release remains `v0.2.0`; package/internal source version is `0.5.0`. No `0.5.0` tag or package publication was made.
-- The preregistered ambiguous-dispatch canary test is present unchanged. Main inclusion and exact file/test-block hashes are recorded in the private qualification evidence.
 - Main regression suite after the merge: **160/160 PASS**. JavaScript syntax checks and `module.xml` parsing pass. The merge range contains intentional Markdown hard-break spaces and blank lines at EOF, so commit-range `git diff --check` reports those documentation-format patterns; the clean working-tree check passes.
+
+### Public release decision — 2026-10-03
+
+**v0.5 milestone: PASS. Exact Main v0.5.0 package release: NOT YET QUALIFIED.** The accepted milestone remains valid at its recorded scope. The disposable lifecycle proof covers local-source `opsdeck@0.2.1`; the connected Edge proof covers installed `opsdeck@0.2.2`. Neither proves the exact current Main package's installation, complete native/static resource ownership, uninstall, and reinstall. The current package includes additional inputs such as ProductIdentity/About, which have source/test evidence but no exact installed-package qualification.
+
+The release boundary therefore remains the published `v0.2.0` tag. Judges should review current Main for the accepted v0.5 source checkpoint and use the explicitly synthetic safe demo for a credential-free walkthrough. No `v0.5.0` tag, GitHub release, or Open Exchange version update is authorized by this release decision. The outstanding qualification is the exact Main package lifecycle plus connected browser smoke of that installed package; it does not require any unfinished v0.6 functionality.
 
 ## Current integration snapshot — 2026-10-03
 

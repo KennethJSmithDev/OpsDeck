@@ -4,6 +4,12 @@
 
 The Main checkpoint also contains the small System > About surface. Its canonical product identity displays `OpsDeck`, `Beta Release`, and public version `0.2`; package/internal version `0.5.0` and runtime details are secondary. Git commit and build timestamp remain explicitly unembedded in the package. The source suite verifies that About is optional and shares ProductIdentity with Evidence.
 
+## Release decision — 2026-10-03
+
+**Do not publish v0.5.0 yet.** Operational-visibility acceptance is PASS at its qualified scope. Exact Main package release qualification remains outstanding: the lifecycle receipt covers `opsdeck@0.2.1`, while connected Edge exercised installed `opsdeck@0.2.2`. Current Main's package inputs, including the optional About identity asset, have not passed the complete exact-source install/uninstall/reinstall and connected installed-browser qualification. The public release remains `v0.2.0`; Main is the accepted v0.5 source checkpoint for judge review.
+
+This decision preserves the existing milestone acceptance and requires no v0.6 feature. No new contest bonus award or completed Community Idea is asserted by the checkpoint. DPI-I-261 package installation remains incomplete.
+
 ## What v0.5 means
 
 OpsDeck presents bounded live operational observations through its browser workspaces, including Applications, Tasks and Job Center, Logs with Embedded Python findings, Packages, and session Evidence. The safe demo presents corresponding deterministic synthetic examples and labels them as demo data.

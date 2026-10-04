@@ -3,6 +3,8 @@
 <p align="center">
   <a href="https://kennethjsmithdev.github.io/OpsDeck/"><strong>🚀 LIVE SAFE DEMO</strong></a>
   &nbsp;·&nbsp;
+  <a href="docs/RELEASE_0_5_0.md"><strong>🧭 CURRENT MAIN · v0.5 CHECKPOINT</strong></a>
+  &nbsp;·&nbsp;
   <a href="https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v0.2.0"><strong>📦 v0.2.0 RELEASE</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/NATIVE_INSTALL.md"><strong>🛠️ NATIVE INSTALL</strong></a>
@@ -23,6 +25,8 @@
 **OpsDeck** is an open-source operations console for InterSystems IRIS. It brings application discovery, access and security metadata, tasks, system information, logs, and evidence-backed read verification into one focused interface.
 
 OpsDeck is being developed for the **InterSystems Programming Contest: Build Your Own Management Portal (2026)**.
+
+**Judges: review current Main for the accepted v0.5 operational-visibility checkpoint.** It includes live package inventory/catalog discovery, bounded fixed logs and Embedded Python findings, shared Job Center, session Evidence, and System > About. Use the [safe demo](https://kennethjsmithdev.github.io/OpsDeck/) for synthetic examples and the [v0.5 scope and release decision](docs/RELEASE_0_5_0.md) for qualified live behavior. The published `v0.2.0` tag is historical release scope; `v0.5.0` has not been tagged or published because exact current-package lifecycle and installed-browser qualification remain outstanding. Verified mutations, package install/remove, Vector Search, and AI are outside this accepted milestone.
 
 ## Current release
 
@@ -74,8 +78,8 @@ OpsDeck is deliberately thin:
 
 | Path | Current evidence | Boundary |
 |---|---|---|
-| Native IRIS browser app | Sign-in, identity, web-app list/read-back, selected Applications, Access, Security, Tasks, System, Logs, sign-out, and responsive behavior reproduced on IRIS 2026.2 | M1 remains partial; audit async result retrieval, Messages, and System Monitor readers remain unqualified/deferred |
-| Local-source IPM lifecycle | Load, registration, deployed hashes, HTTP checks, uninstall/removal, unrelated-state preservation, and clean reload reproduced | Exact core IPM version, fresh public-checkout byte parity, and public-registry installation remain unverified |
+| Native IRIS browser app | Connected Edge rendered live Overview, Applications, Logs/findings, Tasks/Job Center, installed package inventory/catalog, and Evidence at the qualified Docker fixture identity's scope | Installed package was `0.2.2`; exact current Main installed-browser behavior and ordinary operator catalog authority remain unqualified |
+| Local-source IPM lifecycle | Disposable Docker load, uninstall/removal, unrelated sentinel preservation, and reinstall reproduced for local-source `0.2.1` on IPM 0.10.8 | Exact current `0.5.0` package lifecycle and public-registry installation remain unqualified |
 | Safe demo | Deterministic sanitized evaluator data, authority personas, responsive UI, and Evidence semantics | Demo data is not live IRIS evidence |
 | Node reference runtime | Live identity, web-app discovery/read-back, fixed routes, safe mappings, and session behavior | Development/reference workflow; not required by the native browser path |
 | ObjectScript execution / CallIn | No execution bridge is present | No native arbitrary execution capability is claimed |
