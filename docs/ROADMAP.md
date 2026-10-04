@@ -1,5 +1,9 @@
 # OpsDeck roadmap to 1.0
 
+Current authority (2026-10-04): **Main — OpsDeck 1.0 Pre-RC**, with all-nine-phase bounded acceptance and mutation accounting **117 / 56 / 37 / 34 / 7 / 12**. Package/internal identity remains 0.8.0; no new tag or release. [Current Main state](MAIN_PRE_RC_STATE_20261004.md) supersedes the historical snapshots below for current product status. Task Description HTTP 500 is known debt, excluded from dispatch/counts.
+
+## Historical qualification and roadmap snapshots
+
 **Status:** living product roadmap. Sequence is evidence-gated, not calendar-gated.
 
 **Current frontier (2026-10-02):** 0.2.1 distribution fidelity is accepted locally; the first bounded 0.3 slice is accepted. 0.4 is deferred/environment blocked. Independent 0.5–0.8 source branches are being developed with live installation, mutation, and persistence boundaries clearly unqualified. See [Qualification Status](QUALIFICATION_STATUS.md).

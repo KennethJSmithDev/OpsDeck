@@ -1,7 +1,7 @@
 const PRODUCT = Object.freeze({
   name: "OpsDeck",
-  releaseLabel: "Beta Release",
-  publicVersion: "0.2",
+  releaseLabel: "Pre-RC",
+  publicVersion: "1.0",
   internalVersion: "0.8.0",
   packageVersion: "0.8.0",
   gitCommit: null,

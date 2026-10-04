@@ -98,8 +98,8 @@
     },
     {
       "path": "public/product-identity.js",
-      "bytes": 1477,
-      "sha256": "e1ee192ae43d4b475a2ba128a51241237fd8a6f0ae090d0d057d5ed8935d7c44"
+      "bytes": 1471,
+      "sha256": "bb5c91753f71bf95ecd7083c7f0d4f89ebef123ee0f18157ba89608aafdc5692"
     },
     {
       "path": "public/semantic-search.js",
@@ -122,11 +122,11 @@
       "sha256": "c3f3cc1631e5a3f8c0f0d6290d4c9ffc605381e55a5cd652db308e044c6ccd8b"
     }
   ],
-  "browserBytes": 434551,
+  "browserBytes": 434545,
   "lazyMetadataBytes": 234136,
-  "allManifestFileBytes": 669425,
+  "allManifestFileBytes": 669419,
   "preservedBaselineBytes": 228337,
-  "deltaBytes": 206214,
+  "deltaBytes": 206208,
   "deltaPercent": 90.31,
   "boundary": "Uncompressed source including lazy modules; not transfer size. Browser timing/heap not inferred."
 }

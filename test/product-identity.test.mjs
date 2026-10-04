@@ -9,8 +9,8 @@ test("ProductIdentity is the canonical bounded public and runtime identity", () 
     deployment: "native",
   });
   assert.equal(identity.name, "OpsDeck");
-  assert.equal(identity.releaseLabel, "Beta Release");
-  assert.equal(identity.publicVersion, "0.2");
+  assert.equal(identity.releaseLabel, "Pre-RC");
+  assert.equal(identity.publicVersion, "1.0");
   assert.equal(identity.internalVersion, "0.8.0");
   assert.equal(identity.packageVersion, "0.8.0");
   assert.equal(identity.gitCommit, "Not embedded in source package");

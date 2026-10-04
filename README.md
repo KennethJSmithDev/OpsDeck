@@ -1,9 +1,9 @@
 # OpsDeck
 
 <p align="center">
-  <a href="https://kennethjsmithdev.github.io/OpsDeck/"><strong>🚀 LIVE SAFE DEMO</strong></a>
+  <a href="https://kennethjsmithdev.github.io/OpsDeck/"><strong>🚀 HISTORICAL SAFE DEMO</strong></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v0.2.0"><strong>📦 v0.2.0 RELEASE</strong></a>
+  <a href="https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v0.2.0"><strong>📦 HISTORICAL v0.2.0</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/NATIVE_INSTALL.md"><strong>🛠️ NATIVE INSTALL</strong></a>
   &nbsp;·&nbsp;
@@ -24,29 +24,15 @@
 
 OpsDeck is being developed for the **InterSystems Programming Contest: Build Your Own Management Portal (2026)**.
 
-## Current release
+## Current Main state — OpsDeck 1.0 Pre-RC
 
-**v0.2.0 is published.**
+Main is the authoritative pre-RC product source. The accepted mutation checkpoint `e6328c704d021052629f40b6d41c2759596e2c1e` was promoted by merge `3b7a5307183addec6e32418b7858161a8aa666f3`; remote Main and integration had exactly the same tree `793e621a335a80befff4b92ac1400bc6b2578e17`.
 
-- Release commit: `23215459096cb47d255c45b1e6e86687f3d8e93a`
-- Tested package source: `1663869af14673f027efb63a986ac5c1e50a8ac1`
-- Package: `opsdeck 0.2.0`
-- Tested runtime: native Windows IRIS 2026.2 Build 221U, `%SYS`
-- Product regression suite: **82/82 PASS**
+All nine roadmap phases retain bounded acceptance. Source-generated accounting is **117 exposed / 56 observed / 37 reproduced / 34 independently verified / 7 exposed mutation endpoints / 12 qualified mutation workflows**, over 276 declared operations and 161 mutation-shaped contracts. Supported fields and authority/read-back scopes are explicit in the generic explorer. The task Description HTTP 500 is known debt and contributes no exposed capability.
 
-The controlled local-source lifecycle reproduced load, registration, native operational checks, uninstall/removal, unrelated-state preservation, and clean same-source reload. The installed native app was exercised as `OpsDeckTest`; eight routes were checked at 320, 390, 600, 820, 1024, and 1440 CSS px with zero measured document horizontal overflow, plus a no-reload wide → narrow → wide resize.
+Product identity is **OpsDeck · Pre-RC 1.0**. Internal and IPM package version remains **0.8.0**, the accepted package milestone; no 1.0 release, RC tag or public-registry distribution is implied. The existing published v0.2.0 release and demo are historical artifacts and do not represent current Main. GitHub Pages publication requires explicit manual dispatch.
 
-### Distribution boundary
-
-A post-release fresh Windows clone of tag `v0.2.0` with `core.autocrlf=true` materialized `public/app.js` and `public/styles.css` with CRLF line endings. Those working-tree hashes differ from the lifecycle receipt even though the Git object blobs match the tested source commit.
-
-That finding demonstrates **checkout representation variance, not a runtime failure**.
-
-Exact fresh-checkout byte parity and public-registry installation therefore remain **UNVERIFIED**. The published `v0.2.0` tag will not be moved. Current development is closing that distribution-fidelity boundary for the next patch release.
-
-See [Qualification Status](docs/QUALIFICATION_STATUS.md) for the current evidence ledger.
-
-The current native package ownership design, package authority model, DPI-I-261 acceptance matrix, and remaining runtime gates are recorded in the [OpsDeck 1.0 product integration checkpoint](docs/OPSDECK_1_0_PRODUCT_INTEGRATION.md).
+Current acceptance, solidification and optimization results are in [Main state](docs/MAIN_PRE_RC_STATE_20261004.md), [mutation milestone](docs/MUTATION_BREADTH_MILESTONE_20261004.md), and [generated capability inventory](docs/CAPABILITY_INVENTORY.md). The [nine-phase roadmap](docs/OPSDECK_DREAM_1_0_EXECUTION_PLAN.md) remains the durable product contract. Historical release evidence is retained in the dated version and qualification ledgers.
 
 ## Why OpsDeck
 
@@ -82,7 +68,7 @@ OpsDeck is deliberately thin:
 
 ## Built with the IRIS Community
 
-The integration branch has accepted **v0.8 operational core**: live observations, verified reversible web-application operations, session Evidence, and reviewed package install/remove through the same executor. Connected Edge rendered actual package plans and VERIFIED receipts on the disposable Docker target. DPI-I-261's requested discovery and installation behavior is complete at that fixture's qualified authority scope. Temporary qualification grants were revoked afterward; ordinary operator authority and arbitrary third-party packages are not qualified. This is an integration milestone, not a public release. Public identity remains **OpsDeck · Beta Release 0.2**; no bonus award or stacking claim is made. See [the exact acceptance ledger](docs/VERSION_GATE_LEDGER.md).
+Main includes the accepted operational core: live observations, verified reversible operations, reviewed package workflows, derived retrieval, multi-target observations, workflows and an AI trust seam. Authority and read-back remain bounded to their recorded target and caller scopes. No bonus-award or arbitrary third-party package claim follows. See [Main state](docs/MAIN_PRE_RC_STATE_20261004.md) and the historical [version gate ledger](docs/VERSION_GATE_LEDGER.md).
 
 The read-only ObjectScript snippet library and contextual IRIS help are community-oriented learning aids, not verified Ideas Portal submissions. Snippets are inert text, load on selection, and are never executed by OpsDeck.
 

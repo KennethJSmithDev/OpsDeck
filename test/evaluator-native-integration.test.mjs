@@ -187,7 +187,7 @@ test("integrated native shell and Evidence view report only qualified lifecycle 
   assert.doesNotMatch(demo, /Sign out|Live session|IRIS connection active/);
 
   const evidence = vm.runInContext('evidenceView()', context);
-  assert.match(evidence, /OpsDeck · Beta Release 0\.2/u);
+  assert.match(evidence, /OpsDeck · Pre-RC 1\.0/u);
   assert.match(evidence, /IPM \/ ZPM lifecycle[\s\S]*?QUALIFIED/u);
   assert.match(evidence, /Local-source load, uninstall, and clean same-source reload were reproduced for OpsDeck 0\.2\.0/u);
   assert.match(evidence, /Scope: tested local-source lifecycle only[\s\S]*?Exact core IPM version and public-registry installation remain unverified/u);
@@ -218,7 +218,7 @@ test("System About uses canonical product identity and leaves provider view inta
     state.systemSection = "about";
     providerDomainView("system")
   `, context);
-  assert.match(identity, /Beta Release[\s\S]*OpsDeck[\s\S]*Version 0\.2/u);
+  assert.match(identity, /Pre-RC[\s\S]*OpsDeck[\s\S]*Version 1\.0/u);
   assert.match(identity, /Internal version[\s\S]*0\.8\.0/u);
   assert.match(identity, /Package version[\s\S]*0\.8\.0/u);
   assert.match(identity, /IRIS Fixture 2026\.2/u);
