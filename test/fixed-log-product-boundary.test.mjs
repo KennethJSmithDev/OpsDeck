@@ -14,7 +14,8 @@ test("native class package owns a reserved product namespace and a separate API 
   assert.match(moduleXml, /Name="\/opsdeck-api"[\s\S]*?DispatchClass="OpsDeck\.Product\.FixedLogREST"[\s\S]*?ServeFiles="0"/u);
   assert.match(moduleXml, /Name="\/opsdeck"[\s\S]*?ServeFiles="1"/u);
   assert.match(moduleXml, /AutheEnabled="32"/gu);
-  assert.equal([...moduleXml.matchAll(/<Resource Name=/gu)].length, 1);
+  assert.match(moduleXml, /<Resource Name="OpsDeckDerivedStore" ProcessorClass="OpsDeck\.Product\.DerivedStorage"\s*\/>/u);
+  assert.equal([...moduleXml.matchAll(/<Resource Name=/gu)].length, 2);
 });
 
 test("REST class exposes only fixed semantic routes and never accepts a path", () => {

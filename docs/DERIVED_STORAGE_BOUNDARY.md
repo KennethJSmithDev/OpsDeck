@@ -1,12 +1,12 @@
 # Derived storage boundary for the next gate
 
-Status: proposed product contract; not implemented or runtime-qualified. Accepted milestone is 0.8.0.
+Status: product lifecycle foundation implemented and qualified on the authorized disposable Docker target. Vector schema/data lifecycle is not yet qualified. Accepted milestone remains 0.8.0.
 
 ## Scope and identities
 
 The proposed owner is the OpsDeck package. A dedicated `OPSDECK` namespace/database stores only rebuildable vector records and search metadata. The proposed disposable path is `/durable/iris/mgr/OPSDECK/`. No new mappings into `%SYS` or USER are required. Existing REST dispatch remains in `%SYS`, preserves the authenticated caller and delegates only closed derived-data operations into OPSDECK.
 
-The dedicated database resource is `%DB_OPSDECK`, with no public permission. IRIS automatically associates a same-name database role with a custom database resource. Product installation must not assign that role or resource to an operator. Temporary qualification READ/WRITE for OpsDeckQualifyRole requires separate authorization.
+The dedicated database resource is `%DB_OPSDECK`, with no public permission. IRIS automatically associates a same-name database role with a custom database resource. Product installation does not assign that role or resource to an operator. The user authorized temporary qualification READ/WRITE for OpsDeckQualifyRole; the refusal probe used it and revoked it.
 
 Read-only inspection on OPSDECK_08_TEST_TARGET found the namespace, configured database, path and resource absent. This is a point-in-time observation, not permission to provision them or skip install-time collision checks.
 
@@ -21,7 +21,11 @@ Read-only inspection on OPSDECK_08_TEST_TARGET found the namespace, configured d
 | Uninstall | Standard IPM Clean hook, not an unconnected custom action. Verify ownership and bindings; refuse deletion if foreign resources/data are detected. Remove only derived state and owned namespace/database/resource/automatic role. Read back absence. |
 | Collision or changed ownership | Refuse adoption/deletion and report the precise conflict. Operator resolves it explicitly. |
 
-Ownership marker location and failure rollback must be implemented and independently tested before provisioning is qualified. A marker alone is insufficient if namespace/database bindings or contents disagree. The existing isolated storage lifecycle fixture is evidence about callback ordering, not the final product owner.
+`OpsDeck.Product.DerivedStorage` owns the virtual `OpsDeckDerivedStore` manifest resource. Configure creates the directory, database, configuration, namespace and dedicated resource. `^OpsDeckDerivedOwner` lives in OPSDECK and binds the identities above. Fresh IRIS metadata has bounded SHA-256 fingerprints; physical database references bypass mappings. The numeric `oddDEF` generation counter is normalized, while all definition children remain checked. Lazy, physically empty IRIS metadata headers are allowed only from the observed fixed list.
+
+Clean preflight runs before IPM unconfigures applications. It refuses changed bindings, mappings, foreign globals/files/streams, foreign resource use or memberships in the associated role. The Clean callback repeats validation before removing artifacts. Directory cleanup uses only removal of empty directories, including the IRIS-created stream child. Failed provisioning rolls back successful creations in reverse order and reports incomplete rollback.
+
+Runtime qualification passed fresh creation, repeat Configure, empty-directory collision refusal, foreign-global refusal/preservation, temporary foreign-role refusal/preservation, actual package upgrade, uninstall absence for all five artifacts, unrelated IPM/app preservation and reinstall. The early foreign-data refusal also preserved both product web applications. These tests establish the empty-store foundation; record preservation, schema evolution and Vector data/index ownership remain separate gates.
 
 ## Stored representation
 
@@ -36,4 +40,4 @@ Only compact identity, source identity/time, normalized fingerprint/text, vector
 
 ## Decision boundary
 
-Provisioning the dedicated database/namespace and security resource/automatic role is a material new architecture and security boundary. Until specifically authorized, continue read-only/source work only. No resource/role reassignment, fixture grant or product persistence is authorized by the completed v0.8 temporary grants. This proposal does not advance the version.
+The user explicitly authorized this Docker-only architecture/qualification boundary. Host IRISTesting remains excluded. The installed Docker store is retained for the next Vector gate, with no public access and no remaining temporary operator grant. Main and public versions are unchanged. This source milestone does not accept v0.9.

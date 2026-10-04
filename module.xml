@@ -8,6 +8,7 @@
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>
       <Resource Name="OpsDeck.Product.PKG" />
+      <Resource Name="OpsDeckDerivedStore" ProcessorClass="OpsDeck.Product.DerivedStorage" />
 
       <FileCopy Name="public/app.js" Target="{$cspdir}opsdeck/app.js" />
       <FileCopy Name="public/index.html" Target="{$cspdir}opsdeck/index.html" />
