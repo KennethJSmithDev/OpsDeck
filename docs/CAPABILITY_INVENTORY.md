@@ -1,10 +1,10 @@
 # Generated capability inventory
 
-113 IRIS SysAdmin operations exposed · 51 runtime-observed · 28 independently verified · 6 qualified mutation workflows.
+117 IRIS SysAdmin operations exposed · 56 runtime-observed · 34 independently verified · 12 qualified mutation workflows.
 
 Generated with `npm run inventory`. HTTP method + canonical SysAdmin v2 path; workflow variants counted separately. Recorded identities and targets only. Verification covers named positive read-back projections or fixture effects, not complete endpoint schemas or effective authority. Empty/denied observations do not prove item behavior. No inferred runtime proof from source tests.
 
-Official spec SHA-256: `1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee5898596650`. 276 declared operations; 161 mutation-shaped contracts, 3 exposed mutation operations. POST audit queries are observational but remain conservatively classified by method. Non-SysAdmin product/REST/monitor and v1 handoff routes are listed separately in the JSON.
+Official spec SHA-256: `1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee5898596650`. 276 declared operations; 161 mutation-shaped contracts, 7 exposed mutation operations. POST audit queries are observational but remain conservatively classified by method. Non-SysAdmin product/REST/monitor and v1 handoff routes are listed separately in the JSON.
 
 | Operation | Exposed | Observed | Reproduced | Independent | Mutable | Gap |
 |---|---|---|---|---|---|---|
@@ -103,7 +103,7 @@ Official spec SHA-256: `1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee58
 | GET /api/admin/v2/process | true | false | false | false | false | runtime-qualification |
 | GET /api/admin/v2/processes | true | true | false | false | false | runtime-qualification |
 | GET /api/admin/v2/security/audit/enabled | true | true | true | true | false | qualified-at-recorded-scope |
-| GET /api/admin/v2/security/audit/event | true | true | false | false | false | runtime-qualification |
+| GET /api/admin/v2/security/audit/event | true | true | true | true | false | qualified-at-recorded-scope |
 | GET /api/admin/v2/security/audit/events | true | true | false | false | false | runtime-qualification |
 | GET /api/admin/v2/security/audit/record | true | false | false | false | false | runtime-qualification |
 | GET /api/admin/v2/security/encryption/data-element-keys | false | false | false | false | false | provider-adapter |
@@ -139,7 +139,7 @@ Official spec SHA-256: `1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee58
 | GET /api/admin/v2/security/sql-admin-privileges | true | true | false | false | false | runtime-qualification |
 | GET /api/admin/v2/security/sql-column-privileges | true | true | false | false | false | runtime-qualification |
 | GET /api/admin/v2/security/sql-privileges | true | true | false | false | false | runtime-qualification |
-| GET /api/admin/v2/security/ssl-configuration | true | false | false | false | false | runtime-qualification |
+| GET /api/admin/v2/security/ssl-configuration | true | true | true | true | false | qualified-at-recorded-scope |
 | GET /api/admin/v2/security/ssl-configurations | true | false | false | false | false | runtime-qualification |
 | GET /api/admin/v2/security/superserver | true | true | false | false | false | runtime-qualification |
 | GET /api/admin/v2/security/superservers | true | true | true | true | false | qualified-at-recorded-scope |
@@ -259,7 +259,7 @@ Official spec SHA-256: `1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee58
 | PUT /api/admin/v2/namespace/package-mapping | false | false | false | false | true | provider-adapter |
 | PUT /api/admin/v2/namespace/routine-mapping | false | false | false | false | true | provider-adapter |
 | PUT /api/admin/v2/security/audit/enabled | false | false | false | false | true | provider-adapter |
-| PUT /api/admin/v2/security/audit/event | false | false | false | false | true | provider-adapter |
+| PUT /api/admin/v2/security/audit/event | true | true | true | true | true | qualified-at-recorded-scope |
 | PUT /api/admin/v2/security/encryption/settings | false | false | false | false | true | provider-adapter |
 | PUT /api/admin/v2/security/ldap/configuration | false | false | false | false | true | provider-adapter |
 | PUT /api/admin/v2/security/mft/connection | false | false | false | false | true | provider-adapter |
@@ -270,10 +270,10 @@ Official spec SHA-256: `1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee58
 | PUT /api/admin/v2/security/oauth2/server | false | false | false | false | true | provider-adapter |
 | PUT /api/admin/v2/security/oauth2/server/client | false | false | false | false | true | provider-adapter |
 | PUT /api/admin/v2/security/privileged-routine | false | false | false | false | true | provider-adapter |
-| PUT /api/admin/v2/security/resource | false | false | false | false | true | provider-adapter |
-| PUT /api/admin/v2/security/role | false | false | false | false | true | provider-adapter |
+| PUT /api/admin/v2/security/resource | true | true | true | true | true | qualified-at-recorded-scope |
+| PUT /api/admin/v2/security/role | true | true | true | true | true | qualified-at-recorded-scope |
 | PUT /api/admin/v2/security/service | false | false | false | false | true | provider-adapter |
-| PUT /api/admin/v2/security/ssl-configuration | false | false | false | false | true | provider-adapter |
+| PUT /api/admin/v2/security/ssl-configuration | true | true | true | true | true | qualified-at-recorded-scope |
 | PUT /api/admin/v2/security/superserver | false | false | false | false | true | provider-adapter |
 | PUT /api/admin/v2/security/user | false | false | false | false | true | provider-adapter |
 | PUT /api/admin/v2/security/web-auth | false | false | false | false | true | provider-adapter |

@@ -71,3 +71,15 @@ test('generic read-back accounting retains positive projection scope and actual 
   assert.equal(proofFor(changed).independentlyVerified,false);
   assert.equal(artifact.records.some(record=>record.operation==='GET /api/admin/v2/security/audit/events'),false,'already changed counters are not retried to select a passing instant');
 });
+
+test('mutation accounting admits only fixture-qualified dispatch/read-back families and distinguishes endpoints from workflow variants',async()=>{
+  const inventory=await buildInventory(),get=id=>inventory.operations.find(row=>row.id===id);
+  for(const path of ['/security/role','/security/resource','/security/ssl-configuration','/security/audit/event']){
+    const row=get('PUT /api/admin/v2'+path);assert.equal(row.exposed,true);assert.equal(row.observed,true);assert.equal(row.independentlyVerified,true);assert.equal(row.mutationScope.existingOnly,true);assert.ok(row.mutationScope.fields.includes('Description'));
+    const workflows=inventory.workflows.filter(w=>w.operation===row.id);assert.ok(workflows.length);assert.ok(workflows.every(w=>w.qualified&&w.evidence.some(proof=>proof.verified)));
+  }
+  const audit=get('PUT /api/admin/v2/security/audit/event');assert.ok(audit.mutationScope.fields.includes('Enabled (OpsDeckFixture source only)'));assert.equal(inventory.workflows.filter(w=>w.operation===audit.id).length,3,'one endpoint, three scoped workflow variants');
+  assert.equal(get('PUT /api/admin/v2/task').exposed,false,'ambiguous candidate qualification cannot add exposure');
+  assert.equal(get('POST /api/admin/v2/security/role')?.exposed||false,false,'Description PUT proof does not mint separate CRUD support');
+  assert.match(inventory.sourceHashes.metadataAdapter,/^[a-f0-9]{64}$/u);
+});

@@ -17,6 +17,7 @@
       <FileCopy Name="public/workflow-engine.js" Target="{$cspdir}opsdeck/workflow-engine.js" />
       <FileCopy Name="public/entity-graph.js" Target="{$cspdir}opsdeck/entity-graph.js" />
       <FileCopy Name="public/target-context.js" Target="{$cspdir}opsdeck/target-context.js" />
+      <FileCopy Name="public/metadata-mutations.js" Target="{$cspdir}opsdeck/metadata-mutations.js" />
       <FileCopy Name="public/sysadmin-explorer.js" Target="{$cspdir}opsdeck/sysadmin-explorer.js" />
       <FileCopy Name="public/export-projection.js" Target="{$cspdir}opsdeck/export-projection.js" />
       <FileCopy Name="public/command-surface.js" Target="{$cspdir}opsdeck/command-surface.js" />

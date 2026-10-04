@@ -6,14 +6,14 @@ function compact(value){
 }
 export function buildDeclaredCatalog(inventory,spec){
   const resolveParameter=p=>p.$ref?spec.components.parameters[p.$ref.split('/').at(-1)]:p;
-  const operations=inventory.operations.map(({id,method,path,summary,exposed,mutable})=>{
+  const operations=inventory.operations.map(({id,method,path,summary,exposed,mutable,mutationScope})=>{
     const pathItem=spec.paths[path.slice('/api/admin'.length)],operation=pathItem[method.toLowerCase()];
     const parameters=new Map();
     for(const parameter of [...(pathItem.parameters||[]),...(operation.parameters||[])].map(resolveParameter))parameters.set(`${parameter.in}:${parameter.name}`,{
       name:parameter.name,in:parameter.in,required:parameter.required===true,schema:compact(parameter.schema),description:(parameter.description||'').replace(/<[^>]+>/gu,' ').slice(0,512)});
     const response=operation.responses?.['200'];
     const resolvedResponse=response?.$ref?spec.components.responses[response.$ref.split('/').at(-1)]:response;
-    return {id,method,path,summary,exposed,mutable,requiredPrivileges:[...new Set(summary.match(/%[A-Za-z0-9_]+:[A-Z]/gu)||[])],
+    return {id,method,path,summary,exposed,mutable,...(mutationScope?{mutationScope}:{}),requiredPrivileges:[...new Set(summary.match(/%[A-Za-z0-9_]+:[A-Z]/gu)||[])],
       parameters:[...parameters.values()],body:compact(operation.requestBody?.content?.['application/json']?.schema)||null,
       bodyRequired:operation.requestBody?.required===true,response:compact(resolvedResponse?.content?.['application/json']?.schema)||null};
   });

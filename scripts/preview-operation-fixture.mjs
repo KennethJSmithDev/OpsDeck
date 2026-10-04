@@ -14,6 +14,12 @@ const denyAppList=process.argv.includes('--deny-app-list');
 const delayedDetail=process.argv.includes('--delayed-detail'),invalidDetail=process.argv.includes('--invalid-detail');
 const delayedIntent=process.argv.includes('--delayed-intent');
 const packageName='ux-fixture-package-with-a-deliberately-long-identity-for-mobile-review',packageVersion='0.0.1',repository='ux-fixture-repository';
+const metadataFixtures={
+  '/api/admin/v2/security/role':{name:'OpsDeckMutationFixtureRole',value:{Description:'Synthetic metadata before',GrantedRoles:[],Resources:[],EscalationOnly:false}},
+  '/api/admin/v2/security/resource':{name:'OpsDeckMutationFixtureResource',value:{Description:'Synthetic metadata before',PublicPermission:''}},
+  '/api/admin/v2/security/ssl-configuration':{name:'OpsDeckFixtureSSLMetadata',value:{Description:'Synthetic metadata before',Enabled:false,Type:0,VerifyPeer:0}},
+  '/api/admin/v2/security/audit/event':{name:'Fixture',source:'OpsDeckFixtureMutation',type:'Qualification',value:{Description:'Synthetic metadata before',Enabled:false}},
+};
 let enabled=true,sequence=0,installedPackageVersion=null;
 const result=value=>({status:{errors:[]},result:value,console:[]});
 const envelope=profileId=>({provider:'opsdeck-intent-rehearsal-v1',username,namespace:'%SYS',profileId,dispatchAllowed:0,trust:'server-reconstructed-current-iris-state'});
@@ -26,6 +32,8 @@ createServer(async(request,response)=>{
       if(path==='public/index.html')bytes=Buffer.from(bytes.toString().replace('<body>','<body><p class="notice warning" role="status">SYNTHETIC UX QUALIFICATION FIXTURE · NO IRIS CONNECTION · use SyntheticUX with any fixture-only text to enter. Every observation, plan and receipt on this page uses disposable in-memory data.</p>'));
       response.writeHead(200,{'Content-Type':types[extname(path)],'Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'"});return response.end(bytes);
     }
+    const metadata=metadataFixtures[url.pathname],metadataIdentity=metadata&&url.searchParams.get('name')===metadata.name&&(!metadata.source||url.searchParams.get('source')===metadata.source&&url.searchParams.get('type')===metadata.type);
+    if(method==='GET'&&metadataIdentity)return send(200,result({...metadata.value}));
     if(method==='GET'&&url.pathname==='/api/admin/info')return send(200,result({username,apiVersion:2,serverVersion:'SYNTHETIC UX FIXTURE — no IRIS connection',systemMode:'TEST',namespaces:[{name:'%SYS'}],privileges:{Secure:{use:true}}}));
     if(method==='GET'&&url.pathname==='/api/admin/v2/web-apps')return denyAppList?send(403,{error:'Outside the current fixture policy.'}):send(200,result([{Name:name,Namespace:'%SYS',Enabled:enabled,Type:'CSP',AuthenticationMethods:['Password']}]));
     if(method==='GET'&&url.pathname==='/api/admin/v2/web-app'&&url.searchParams.get('name')===name){if(delayedDetail)await new Promise(resolve=>setTimeout(resolve,1500));return send(200,result({Name:name,NameSpace:'%SYS',Enabled:invalidDetail?'invalid':enabled,DispatchClass:'Fixture.UX',AutheEnabled:32}));}
@@ -36,6 +44,7 @@ createServer(async(request,response)=>{
     if(method==='GET'&&url.pathname==='/opsdeck-api/intent-profiles')return send(200,{...envelope(),state:'OBSERVED',profiles:profiles.map(id=>({id,operationIds:['webapp.observe',...(['AI_PROFILE_ADMIN','AI_PROFILE_SECURITY'].includes(id)?['webapp.enable','webapp.disable']:[])]}))});
     if(['POST','PUT'].includes(method)){
       let body='';for await(const chunk of request){body+=chunk;if(body.length>4096)throw new Error('Bound exceeded');}const input=JSON.parse(body);
+      if(method==='PUT'&&metadataIdentity&&Object.keys(input).length===1&&(typeof input.Description==='string'&&input.Description.length<=256||metadata.source&&typeof input.Enabled==='boolean')){Object.assign(metadata.value,input);return send(200,result({...metadata.value}));}
       if(method==='POST'&&url.pathname==='/opsdeck-api/package-operation'&&Object.keys(input).length===6&&['install','remove'].includes(input.action)&&input.name===packageName&&input.version===packageVersion&&input.repository===repository&&input.namespace==='%SYS'&&input.expectedInstalledVersion===(installedPackageVersion||'')){
         if(input.action==='install'&&installedPackageVersion||input.action==='remove'&&!installedPackageVersion)return send(409,{error:'Fixture pre-state refused'});
         if(!packageMismatch)installedPackageVersion=input.action==='install'?packageVersion:null;

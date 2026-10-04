@@ -6,12 +6,14 @@
     "sha256": "1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee5898596650"
   },
   "sourceHashes": {
-    "app": "381b1ecf671ed9e29fe31e4052f9689d3ee60a50a449327db33c85f9402606dc",
+    "app": "28b09ac558d1737086f98336697a5c8229d6099595db254b5c54c58fb91567e0",
     "provider": "de821f10eb78445cfe609e3eab06f249b1fe83ec5d1d2f6dc9ca92c515bfc0fd",
-    "engine": "92ab893f6405345da107a4c8f1e9198ddafca651e8e6acf04b143bf9ac7e122f",
+    "engine": "252dfe6cefd45262ce755d2af016e0bf8489ef6e95318678f4d43ecf7306444b",
     "generic": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153",
+    "metadataAdapter": "a32a083c6ef7f7099e0762da11608e7d9c55fb47a3052ce47901829df36687f2",
     "nativeRoutes": "31719aae8816d6a64c57c7afb0dbc6eddb5f87fc3c0f938432efea267c017355",
     "witnesses": "2181a10f4bb49edc7d87313ab37e309b5214e9d2bdc8823dfb565bf77f1f9f8e",
+    "mutationWitnesses": "aa78c3385df35eb6c350eec3cbf6c8985e089f1a672074fd19b2550e1307c66d",
     "docs/evidence/phase9-generic-readers.json": "dab9d8074742a2e040a15ae856113b11058e6a992db2e623fe0482bbe89c6c43",
     "docs/evidence/phase9-named-readers.json": "271827026b500d9ded77fb400c7fa16bf98127aa41779c25eb95273d81e61e4d",
     "docs/evidence/phase9-entity-readers.json": "2b2afa07acc481f81dc39aa45c11ac28706fd6cbac790e52cd815cfb07e73548",
@@ -25,13 +27,13 @@
   "qualificationBoundary": "Recorded identities and targets only. Verification covers named positive read-back projections or fixture effects, not complete endpoint schemas or effective authority. Empty/denied observations do not prove item behavior. No inferred runtime proof from source tests.",
   "counts": {
     "declared": 276,
-    "exposed": 113,
-    "observed": 51,
-    "reproduced": 31,
-    "independentlyVerified": 28,
+    "exposed": 117,
+    "observed": 56,
+    "reproduced": 37,
+    "independentlyVerified": 34,
     "mutable": 161,
-    "qualifiedMutationWorkflows": 6,
-    "exposedMutableOperations": 3
+    "qualifiedMutationWorkflows": 12,
+    "exposedMutableOperations": 7
   },
   "operations": [
     {
@@ -2321,10 +2323,23 @@
         "generic:sysadmin-v2-bounded-reader-v1"
       ],
       "observed": true,
-      "reproduced": false,
-      "independentlyVerified": false,
+      "reproduced": true,
+      "independentlyVerified": true,
       "mutable": false,
       "evidence": [
+        {
+          "operation": "GET /api/admin/v2/security/audit/event",
+          "observed": true,
+          "reproduced": true,
+          "independentlyVerified": true,
+          "scope": "2026-10-04T14:18:55.155Z; native custom event Description/Enabled update and restore; complete named guards unchanged; separate HTTP restoration; global auditing unchanged; own disabled fixture cleanup independently absent. Flag dispatch limited to OpsDeckFixture sources. GET verification is limited to named positive detail fields, not the complete response schema.",
+          "artifactSha256": "d8eb3f880abebc20427a5a23f3a44a8d454a99e7969b7cc0dd69c1586746ed77",
+          "sourceHashes": {
+            "public/operation-engine.js": "ffb7cf3a28341770a01954845a75e47d29c1a609e11892cc2e6ca932f1f6f367",
+            "public/metadata-mutations.js": "ae47d4e52e01eb8e51070d66f87ff790784ebbba3dc5b75cb1bda59058316d63",
+            "public/sysadmin-explorer.js": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153"
+          }
+        },
         {
           "operation": "GET /api/admin/v2/security/audit/event",
           "observed": true,
@@ -2336,7 +2351,7 @@
           "readerSha256": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153"
         }
       ],
-      "gap": "runtime-qualification"
+      "gap": "qualified-at-recorded-scope"
     },
     {
       "id": "GET /api/admin/v2/security/audit/events",
@@ -3327,12 +3342,26 @@
       "sockets": [
         "generic:sysadmin-v2-bounded-reader-v1"
       ],
-      "observed": false,
-      "reproduced": false,
-      "independentlyVerified": false,
+      "observed": true,
+      "reproduced": true,
+      "independentlyVerified": true,
       "mutable": false,
-      "evidence": [],
-      "gap": "runtime-qualification"
+      "evidence": [
+        {
+          "operation": "GET /api/admin/v2/security/ssl-configuration",
+          "observed": true,
+          "reproduced": true,
+          "independentlyVerified": true,
+          "scope": "2026-10-04T14:24:53.403Z; native disabled unused SSL fixture Description update and restore; observed Enabled/Type/VerifyPeer guard unchanged; separate HTTP restoration; no certificates/private keys, connections or permission changes; fixture cleanup independently absent. Other SSL fields unqualified. GET verification is limited to named positive detail fields, not the complete response schema.",
+          "artifactSha256": "27d6874d1c9fcf89ebc958b3944c41fecc2d2fcdaf297d1932813fed23183f02",
+          "sourceHashes": {
+            "public/operation-engine.js": "252dfe6cefd45262ce755d2af016e0bf8489ef6e95318678f4d43ecf7306444b",
+            "public/metadata-mutations.js": "a32a083c6ef7f7099e0762da11608e7d9c55fb47a3052ce47901829df36687f2",
+            "public/sysadmin-explorer.js": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153"
+          }
+        }
+      ],
+      "gap": "qualified-at-recorded-scope"
     },
     {
       "id": "GET /api/admin/v2/security/ssl-configurations",
@@ -5881,14 +5910,40 @@
       ],
       "summary": "(%Admin_Secure:U) Create or edit an audit event",
       "declared": true,
-      "exposed": false,
-      "sockets": [],
-      "observed": false,
-      "reproduced": false,
-      "independentlyVerified": false,
+      "exposed": true,
+      "mutationScope": {
+        "fields": [
+          "Enabled (OpsDeckFixture source only)",
+          "Description"
+        ],
+        "existingOnly": true,
+        "qualification": "Native reversible fixture effect and restoration; named observed guards only"
+      },
+      "sockets": [
+        "policy:enable-custom-audit-event",
+        "policy:disable-custom-audit-event",
+        "policy:update-description"
+      ],
+      "observed": true,
+      "reproduced": true,
+      "independentlyVerified": true,
       "mutable": true,
-      "evidence": [],
-      "gap": "provider-adapter"
+      "evidence": [
+        {
+          "operation": "PUT /api/admin/v2/security/audit/event",
+          "observed": true,
+          "reproduced": true,
+          "independentlyVerified": true,
+          "scope": "2026-10-04T14:18:55.155Z; native custom event Description/Enabled update and restore; complete named guards unchanged; separate HTTP restoration; global auditing unchanged; own disabled fixture cleanup independently absent. Flag dispatch limited to OpsDeckFixture sources. GET verification is limited to named positive detail fields, not the complete response schema.",
+          "artifactSha256": "d8eb3f880abebc20427a5a23f3a44a8d454a99e7969b7cc0dd69c1586746ed77",
+          "sourceHashes": {
+            "public/operation-engine.js": "ffb7cf3a28341770a01954845a75e47d29c1a609e11892cc2e6ca932f1f6f367",
+            "public/metadata-mutations.js": "ae47d4e52e01eb8e51070d66f87ff790784ebbba3dc5b75cb1bda59058316d63",
+            "public/sysadmin-explorer.js": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153"
+          }
+        }
+      ],
+      "gap": "qualified-at-recorded-scope"
     },
     {
       "id": "PUT /api/admin/v2/security/encryption/settings",
@@ -6079,14 +6134,37 @@
       ],
       "summary": "(%Admin_Secure:U) Create/edit a resource",
       "declared": true,
-      "exposed": false,
-      "sockets": [],
-      "observed": false,
-      "reproduced": false,
-      "independentlyVerified": false,
+      "exposed": true,
+      "mutationScope": {
+        "fields": [
+          "Description"
+        ],
+        "existingOnly": true,
+        "qualification": "Native reversible fixture effect and restoration; named observed guards only"
+      },
+      "sockets": [
+        "policy:update-description"
+      ],
+      "observed": true,
+      "reproduced": true,
+      "independentlyVerified": true,
       "mutable": true,
-      "evidence": [],
-      "gap": "provider-adapter"
+      "evidence": [
+        {
+          "operation": "PUT /api/admin/v2/security/resource",
+          "observed": true,
+          "reproduced": true,
+          "independentlyVerified": true,
+          "scope": "2026-10-04T14:04:40.568Z; existing owned Docker/current caller; Description update and restore verified; authority invariants unchanged; separate HTTP restoration; inert fixture cleanup independently absent. Only Description fields supported.",
+          "artifactSha256": "69298c3c0a6eb3b3d583523e955a33bedccff46ff155476cf21dc579662ab79c",
+          "sourceHashes": {
+            "public/operation-engine.js": "1e6cc25c8815aa16d9000139f21cb619bc8e5402a164d1f3fbfb0ba249582577",
+            "public/metadata-mutations.js": "20e2c06bc19d56f42b0732ae4c2d7cdb7895edd61961ba583b99e345096b2b3c",
+            "public/sysadmin-explorer.js": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153"
+          }
+        }
+      ],
+      "gap": "qualified-at-recorded-scope"
     },
     {
       "id": "PUT /api/admin/v2/security/role",
@@ -6097,14 +6175,37 @@
       ],
       "summary": "(%Admin_Secure:U) Create/edit a role",
       "declared": true,
-      "exposed": false,
-      "sockets": [],
-      "observed": false,
-      "reproduced": false,
-      "independentlyVerified": false,
+      "exposed": true,
+      "mutationScope": {
+        "fields": [
+          "Description"
+        ],
+        "existingOnly": true,
+        "qualification": "Native reversible fixture effect and restoration; named observed guards only"
+      },
+      "sockets": [
+        "policy:update-description"
+      ],
+      "observed": true,
+      "reproduced": true,
+      "independentlyVerified": true,
       "mutable": true,
-      "evidence": [],
-      "gap": "provider-adapter"
+      "evidence": [
+        {
+          "operation": "PUT /api/admin/v2/security/role",
+          "observed": true,
+          "reproduced": true,
+          "independentlyVerified": true,
+          "scope": "2026-10-04T14:04:40.568Z; existing owned Docker/current caller; Description update and restore verified; authority invariants unchanged; separate HTTP restoration; inert fixture cleanup independently absent. Only Description fields supported.",
+          "artifactSha256": "69298c3c0a6eb3b3d583523e955a33bedccff46ff155476cf21dc579662ab79c",
+          "sourceHashes": {
+            "public/operation-engine.js": "1e6cc25c8815aa16d9000139f21cb619bc8e5402a164d1f3fbfb0ba249582577",
+            "public/metadata-mutations.js": "20e2c06bc19d56f42b0732ae4c2d7cdb7895edd61961ba583b99e345096b2b3c",
+            "public/sysadmin-explorer.js": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153"
+          }
+        }
+      ],
+      "gap": "qualified-at-recorded-scope"
     },
     {
       "id": "PUT /api/admin/v2/security/service",
@@ -6133,14 +6234,37 @@
       ],
       "summary": "(%Admin_Secure:U) Create/edit an SSL Configuration",
       "declared": true,
-      "exposed": false,
-      "sockets": [],
-      "observed": false,
-      "reproduced": false,
-      "independentlyVerified": false,
+      "exposed": true,
+      "mutationScope": {
+        "fields": [
+          "Description"
+        ],
+        "existingOnly": true,
+        "qualification": "Native reversible fixture effect and restoration; named observed guards only"
+      },
+      "sockets": [
+        "policy:update-description"
+      ],
+      "observed": true,
+      "reproduced": true,
+      "independentlyVerified": true,
       "mutable": true,
-      "evidence": [],
-      "gap": "provider-adapter"
+      "evidence": [
+        {
+          "operation": "PUT /api/admin/v2/security/ssl-configuration",
+          "observed": true,
+          "reproduced": true,
+          "independentlyVerified": true,
+          "scope": "2026-10-04T14:24:53.403Z; native disabled unused SSL fixture Description update and restore; observed Enabled/Type/VerifyPeer guard unchanged; separate HTTP restoration; no certificates/private keys, connections or permission changes; fixture cleanup independently absent. Other SSL fields unqualified. GET verification is limited to named positive detail fields, not the complete response schema.",
+          "artifactSha256": "27d6874d1c9fcf89ebc958b3944c41fecc2d2fcdaf297d1932813fed23183f02",
+          "sourceHashes": {
+            "public/operation-engine.js": "252dfe6cefd45262ce755d2af016e0bf8489ef6e95318678f4d43ecf7306444b",
+            "public/metadata-mutations.js": "a32a083c6ef7f7099e0762da11608e7d9c55fb47a3052ce47901829df36687f2",
+            "public/sysadmin-explorer.js": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153"
+          }
+        }
+      ],
+      "gap": "qualified-at-recorded-scope"
     },
     {
       "id": "PUT /api/admin/v2/security/superserver",
@@ -6515,6 +6639,90 @@
     }
   ],
   "workflows": [
+    {
+      "id": "sysadmin.auditEvent.enable",
+      "operation": "PUT /api/admin/v2/security/audit/event",
+      "mutable": true,
+      "evidence": [
+        {
+          "capability": "sysadmin.auditEvent.enable",
+          "verified": true,
+          "scope": "2026-10-04T14:18:55.155Z; native custom event Description/Enabled update and restore; complete named guards unchanged; separate HTTP restoration; global auditing unchanged; own disabled fixture cleanup independently absent. Flag dispatch limited to OpsDeckFixture sources.",
+          "artifactSha256": "d8eb3f880abebc20427a5a23f3a44a8d454a99e7969b7cc0dd69c1586746ed77"
+        }
+      ],
+      "qualified": true
+    },
+    {
+      "id": "sysadmin.auditEvent.disable",
+      "operation": "PUT /api/admin/v2/security/audit/event",
+      "mutable": true,
+      "evidence": [
+        {
+          "capability": "sysadmin.auditEvent.disable",
+          "verified": true,
+          "scope": "2026-10-04T14:18:55.155Z; native custom event Description/Enabled update and restore; complete named guards unchanged; separate HTTP restoration; global auditing unchanged; own disabled fixture cleanup independently absent. Flag dispatch limited to OpsDeckFixture sources.",
+          "artifactSha256": "d8eb3f880abebc20427a5a23f3a44a8d454a99e7969b7cc0dd69c1586746ed77"
+        }
+      ],
+      "qualified": true
+    },
+    {
+      "id": "sysadmin.metadata.sslConfig.description",
+      "operation": "PUT /api/admin/v2/security/ssl-configuration",
+      "mutable": true,
+      "evidence": [
+        {
+          "capability": "sysadmin.metadata.sslConfig.description",
+          "verified": true,
+          "scope": "2026-10-04T14:24:53.403Z; native disabled unused SSL fixture Description update and restore; observed Enabled/Type/VerifyPeer guard unchanged; separate HTTP restoration; no certificates/private keys, connections or permission changes; fixture cleanup independently absent. Other SSL fields unqualified.",
+          "artifactSha256": "27d6874d1c9fcf89ebc958b3944c41fecc2d2fcdaf297d1932813fed23183f02"
+        }
+      ],
+      "qualified": true
+    },
+    {
+      "id": "sysadmin.metadata.auditEvent.description",
+      "operation": "PUT /api/admin/v2/security/audit/event",
+      "mutable": true,
+      "evidence": [
+        {
+          "capability": "sysadmin.metadata.auditEvent.description",
+          "verified": true,
+          "scope": "2026-10-04T14:18:55.155Z; native custom event Description/Enabled update and restore; complete named guards unchanged; separate HTTP restoration; global auditing unchanged; own disabled fixture cleanup independently absent. Flag dispatch limited to OpsDeckFixture sources.",
+          "artifactSha256": "d8eb3f880abebc20427a5a23f3a44a8d454a99e7969b7cc0dd69c1586746ed77"
+        }
+      ],
+      "qualified": true
+    },
+    {
+      "id": "sysadmin.metadata.role.description",
+      "operation": "PUT /api/admin/v2/security/role",
+      "mutable": true,
+      "evidence": [
+        {
+          "capability": "sysadmin.metadata.role.description",
+          "verified": true,
+          "scope": "2026-10-04T14:04:40.568Z; existing owned Docker/current caller; Description update and restore verified; authority invariants unchanged; separate HTTP restoration; inert fixture cleanup independently absent. Only Description fields supported.",
+          "artifactSha256": "69298c3c0a6eb3b3d583523e955a33bedccff46ff155476cf21dc579662ab79c"
+        }
+      ],
+      "qualified": true
+    },
+    {
+      "id": "sysadmin.metadata.resource.description",
+      "operation": "PUT /api/admin/v2/security/resource",
+      "mutable": true,
+      "evidence": [
+        {
+          "capability": "sysadmin.metadata.resource.description",
+          "verified": true,
+          "scope": "2026-10-04T14:04:40.568Z; existing owned Docker/current caller; Description update and restore verified; authority invariants unchanged; separate HTTP restoration; inert fixture cleanup independently absent. Only Description fields supported.",
+          "artifactSha256": "69298c3c0a6eb3b3d583523e955a33bedccff46ff155476cf21dc579662ab79c"
+        }
+      ],
+      "qualified": true
+    },
     {
       "id": "sysadmin.rehearse",
       "operation": "SysAdmin schema rehearsal · UNQUALIFIED",

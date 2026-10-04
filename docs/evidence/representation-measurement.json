@@ -22,6 +22,11 @@
       "sha256": "4c28bfa1df5d35fc05d3b58076a04883cd30107ba6c9b752c1d4360d45ba1df0"
     },
     {
+      "path": "public/metadata-mutations.js",
+      "bytes": 10014,
+      "sha256": "a32a083c6ef7f7099e0762da11608e7d9c55fb47a3052ce47901829df36687f2"
+    },
+    {
       "path": "public/sysadmin-explorer.js",
       "bytes": 11677,
       "sha256": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153"
@@ -38,13 +43,13 @@
     },
     {
       "path": "public/api-catalog.json",
-      "bytes": 231423,
-      "sha256": "843ff16d1308b228d57ea88c5b3b3359dcd81f069c5855e5cdf0f1bae578981a"
+      "bytes": 232090,
+      "sha256": "90120682c04476443003b13b9ce5426b70c5a220fcad187bb0e18fdaf8432c08"
     },
     {
       "path": "public/capability-summary.json",
-      "bytes": 1954,
-      "sha256": "a402d4e2de6013de1a86607c32b53ff9190f7aeb03ef6fad5580123e5c802d90"
+      "bytes": 2046,
+      "sha256": "793ec5381c5607f160dbec26c0f86a5bc6dba122c9c5d9c249dd75807fdc642f"
     },
     {
       "path": "public/fx-studio.js",
@@ -53,8 +58,8 @@
     },
     {
       "path": "public/app.js",
-      "bytes": 209652,
-      "sha256": "381b1ecf671ed9e29fe31e4052f9689d3ee60a50a449327db33c85f9402606dc"
+      "bytes": 211919,
+      "sha256": "28b09ac558d1737086f98336697a5c8229d6099595db254b5c54c58fb91567e0"
     },
     {
       "path": "public/index.html",
@@ -78,8 +83,8 @@
     },
     {
       "path": "public/operation-engine.js",
-      "bytes": 38427,
-      "sha256": "92ab893f6405345da107a4c8f1e9198ddafca651e8e6acf04b143bf9ac7e122f"
+      "bytes": 43000,
+      "sha256": "252dfe6cefd45262ce755d2af016e0bf8489ef6e95318678f4d43ecf7306444b"
     },
     {
       "path": "public/packages-workspace.js",
@@ -117,11 +122,11 @@
       "sha256": "c3f3cc1631e5a3f8c0f0d6290d4c9ffc605381e55a5cd652db308e044c6ccd8b"
     }
   ],
-  "browserBytes": 417697,
-  "lazyMetadataBytes": 233377,
-  "allManifestFileBytes": 651812,
+  "browserBytes": 434551,
+  "lazyMetadataBytes": 234136,
+  "allManifestFileBytes": 669425,
   "preservedBaselineBytes": 228337,
-  "deltaBytes": 189360,
-  "deltaPercent": 82.93,
+  "deltaBytes": 206214,
+  "deltaPercent": 90.31,
   "boundary": "Uncompressed source including lazy modules; not transfer size. Browser timing/heap not inferred."
 }

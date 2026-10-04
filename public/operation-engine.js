@@ -13,7 +13,19 @@ export function setObserveOnly(value) {
 }
 export function isObserveOnly() { return observeOnly; }
 const OPERATION_PLAN_SCHEMA = "opsdeck-operation-plan-v1";
+export const METADATA_MUTATION_FAMILIES = Object.freeze({
+  sslConfig: Object.freeze({path:'/api/admin/v2/security/ssl-configuration',kind:'ssl-configuration',domain:'security',identityKeys:Object.freeze(['name']),invariantKeys:Object.freeze(['Enabled','Type','VerifyPeer'])}),
+  auditEvent: Object.freeze({path:'/api/admin/v2/security/audit/event',kind:'audit-event',domain:'security',identityKeys:Object.freeze(['source','type','name']),invariantKeys:Object.freeze(['Enabled'])}),
+  role: Object.freeze({path:'/api/admin/v2/security/role',kind:'role',identityKeys:Object.freeze(['name']),invariantKeys:Object.freeze(['EscalationOnly','GrantedRoles','Resources'])}),
+  resource: Object.freeze({path:'/api/admin/v2/security/resource',kind:'resource',identityKeys:Object.freeze(['name']),invariantKeys:Object.freeze(['PublicPermission'])}),
+});
 export const OPERATION_POLICIES = Object.freeze({
+  ...Object.fromEntries(['enable','disable'].map(action=>[`sysadmin.auditEvent.${action}`,Object.freeze({semanticAction:`${action}-custom-audit-event`,risk:'MEDIUM',providerOperation:'PUT /api/admin/v2/security/audit/event',requiredPrivileges:Object.freeze(['%Admin_Secure:U']),targetDomain:'security',targetKind:'audit-event',targetProvider:'iris-sysadmin-metadata-v1',parameterKeys:Object.freeze(['enabled','identity']),preStateKeys:Object.freeze(['enabled','guard'])})])),
+  ...Object.fromEntries(Object.entries(METADATA_MUTATION_FAMILIES).map(([family,definition])=>[`sysadmin.metadata.${family}.description`,Object.freeze({
+    semanticAction:'update-description',risk:'MEDIUM',providerOperation:`PUT ${definition.path}`,requiredPrivileges:Object.freeze(['%Admin_Secure:U']),
+    targetDomain:definition.domain||'access',targetKind:definition.kind,targetProvider:'iris-sysadmin-metadata-v1',
+    parameterKeys:Object.freeze(['description','identity']),preStateKeys:Object.freeze(['description','guard']),
+  })])),
   'sysadmin.rehearse': Object.freeze({
     semanticAction:'schema-operation-rehearsal',risk:'HIGH',providerOperation:'SysAdmin schema rehearsal · UNQUALIFIED',
     requiredPrivileges:Object.freeze(['UNVERIFIED · operation-specific']),targetDomain:'sysadmin',targetKind:'api-operation',
@@ -163,6 +175,17 @@ function validateOperationParameters(capabilityId, parameters, policy) {
   if (!exactParameterKeys(parameters, policy.parameterKeys)) {
     throw new Error("Operation parameters do not match the deterministic policy schema.");
   }
+  if(capabilityId.startsWith('sysadmin.auditEvent.')) {
+    const identity=parameters.identity;
+    if(typeof parameters.enabled!=='boolean'||parameters.enabled!==(capabilityId.endsWith('.enable'))||!plain(identity)||!exactParameterKeys(identity,['name','source','type'])||Object.values(identity).some(value=>typeof value!=='string'||!/^[A-Za-z_][A-Za-z0-9_.-]{0,63}$/u.test(value))||!/^OpsDeckFixture[A-Za-z0-9_.-]*$/u.test(identity.source))throw new Error('Only bounded OpsDeck fixture audit-event flag changes are supported.');
+    return;
+  }
+  if(capabilityId.startsWith('sysadmin.metadata.')) {
+    const family=METADATA_MUTATION_FAMILIES[capabilityId.split('.')[2]];
+    if(!family||typeof parameters.description!=='string'||parameters.description.length>256||/[\u0000-\u001f\u007f]/u.test(parameters.description)||!plain(parameters.identity)||!exactParameterKeys(parameters.identity,[...family.identityKeys].sort()))throw new Error('Metadata mutation parameters are invalid.');
+    for(const key of family.identityKeys)if(typeof parameters.identity[key]!=='string'||!/^[A-Za-z%_][A-Za-z0-9_.%-]{0,63}$/u.test(parameters.identity[key]))throw new Error('Metadata entity identity is invalid.');
+    return;
+  }
   if(capabilityId==='sysadmin.rehearse'){
     if(!['POST','PUT','DELETE'].includes(parameters.method)||!/^\/api\/admin\/v2\/[A-Za-z0-9/_-]+$/u.test(parameters.path)||!plain(parameters.query)||!(parameters.body===null||plain(parameters.body)||Array.isArray(parameters.body)))throw new Error('Schema rehearsal request is invalid.');
     return;
@@ -202,6 +225,11 @@ function validateOperationPreState(capabilityId, preState, parameters, policy) {
   capabilityId = capabilityId.replace("ipm.live.", "ipm.package.");
   if (!exactParameterKeys(preState, policy.preStateKeys)) {
     throw new Error("Operation pre-state does not match the deterministic policy schema.");
+  }
+  if(capabilityId.startsWith('sysadmin.auditEvent.')){if(typeof preState.enabled!=='boolean'||typeof preState.guard!=='string'||!/^[a-f0-9]{64}$/u.test(preState.guard))throw new Error('Complete observed audit-event flag/description guard required.');return;}
+  if(capabilityId.startsWith('sysadmin.metadata.')) {
+    if(typeof preState.description!=='string'||preState.description.length>256||/[\u0000-\u001f\u007f]/u.test(preState.description)||typeof preState.guard!=='string'||!/^[a-f0-9]{64}$/u.test(preState.guard))throw new Error('Metadata mutation requires a complete observed description and invariant guard.');
+    return;
   }
   if(capabilityId==='sysadmin.rehearse'){if(preState.observed!==false)throw new Error('Unqualified schema rehearsal cannot claim an observed pre-state.');return;}
   if (capabilityId === "webapp.fixture.create") {
@@ -245,8 +273,13 @@ function validateOperationPreState(capabilityId, preState, parameters, policy) {
   }
 }
 
+export function verifyMetadataMutationReadback(plan, readback) {
+  const before=JSON.parse(plan.preStateFingerprint),field=plan.capability.id.startsWith('sysadmin.auditEvent.')?'enabled':'description';
+  return {supported:true,matched:plain(readback)&&exactParameterKeys(readback,[field,'guard'].sort())&&readback[field]===plan.parameters[field]&&readback.guard===before.guard,safeReadback:readback};
+}
 function verifyPolicyReadback(plan, readback) {
   const safeReadback = safeProjection(readback);
+  if(plan.capability.id.startsWith('sysadmin.metadata.')||plan.capability.id.startsWith('sysadmin.auditEvent.'))return verifyMetadataMutationReadback(plan,safeReadback);
   if (plan.capability.id.startsWith("ipm.live.")) {
     const matched = exactParameterKeys(safeReadback, ["installedVersion", "namespace", "packageName"]) &&
       safeReadback.packageName === plan.parameters.packageName && safeReadback.namespace === plan.target.scope &&
@@ -308,6 +341,7 @@ export function createOperationPlan(input, now = Date.now()) {
       !/^[A-Za-z0-9_.-]{1,128}$/u.test(parameters.sourceIdentity))) {
     throw new Error("Live package identity/version/source must match the supported namespace and policy.");
   }
+  if((capability.id.startsWith('sysadmin.metadata.')||capability.id.startsWith('sysadmin.auditEvent.'))&&target.key!==new URLSearchParams(parameters.identity).toString())throw new Error('Metadata plan target must bind the exact canonical identity.');
   const preState = safeProjection(input.preState);
   validateOperationPreState(capability.id, preState, parameters, policy);
   const id = boundedText(input.id, "plan.id", 128);

@@ -1,13 +1,7 @@
 name: Deploy safe demo to GitHub Pages
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "public/**"
-      - "src/iris-provider.js"
-      - "demo/**"
-      - ".github/workflows/pages-demo.yml"
+  # Publication requires an explicit manual dispatch; Main checkpoints do not deploy.
   workflow_dispatch:
 
 permissions:
@@ -50,6 +44,7 @@ jobs:
           cp demo/index.html _site/index.html
           cp demo/demo-provider.js _site/demo-provider.js
           cp public/target-context.js _site/target-context.js
+          cp public/metadata-mutations.js _site/metadata-mutations.js
           cp public/sysadmin-explorer.js _site/sysadmin-explorer.js
           cp public/export-projection.js _site/export-projection.js
           cp public/command-surface.js _site/command-surface.js
