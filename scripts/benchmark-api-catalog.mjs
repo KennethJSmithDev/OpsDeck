@@ -1,0 +1,11 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import {performance} from 'node:perf_hooks';
+import {packApiCatalog} from './api-catalog-pack.mjs';
+import {expandApiCatalog} from '../public/api-catalog-codec.js';
+if(typeof global.gc!=='function')throw new Error('Run with node --expose-gc.');
+const before=await readFile('public/api-catalog.json','utf8'),packed=JSON.stringify(packApiCatalog(JSON.parse(before)))+'\n';
+await writeFile('public/api-catalog.compact.json',packed);
+const samples=fn=>{const times=[];for(let i=0;i<100;i++){const at=performance.now();fn();times.push(performance.now()-at);}times.sort((a,b)=>a-b);return {medianMs:times[50],p95Ms:times[95]};};
+const retained=fn=>{const values=[];global.gc();const before=process.memoryUsage().heapUsed;for(let i=0;i<100;i++)values.push(fn());global.gc();const bytes=(process.memoryUsage().heapUsed-before)/100;const count=values[0].operations.length;values.length=0;global.gc();return {bytesPerActiveCatalog:Math.round(bytes),operations:count};};
+const result={schema:'opsdeck-catalog-representation-probe-v1',runtime:process.version,expandedBytes:Buffer.byteLength(before),packedBytes:Buffer.byteLength(packed),decoderBytes:(await readFile('public/api-catalog-codec.js')).length,parse:{expanded:samples(()=>JSON.parse(before)),packedAndExpanded:samples(()=>expandApiCatalog(JSON.parse(packed)))},activeMemory:{expanded:retained(()=>JSON.parse(before)),packedAndExpanded:retained(()=>expandApiCatalog(JSON.parse(packed)))},boundary:'100 warmed local Node samples; retained V8 heap delta across 100 active expanded catalogs after GC. Not browser heap, production latency, network transfer or RSS.'};
+await writeFile('docs/evidence/catalog-representation-probe.json',JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));

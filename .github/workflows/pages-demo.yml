@@ -48,7 +48,8 @@ jobs:
           cp public/sysadmin-explorer.js _site/sysadmin-explorer.js
           cp public/export-projection.js _site/export-projection.js
           cp public/command-surface.js _site/command-surface.js
-          cp public/api-catalog.json _site/api-catalog.json
+          cp public/api-catalog.compact.json _site/api-catalog.json
+          cp public/api-catalog-codec.js _site/api-catalog-codec.js
           cp public/capability-summary.json _site/capability-summary.json
           cp public/trusted-intelligence.js _site/trusted-intelligence.js
           cp public/workflow-engine.js _site/workflow-engine.js

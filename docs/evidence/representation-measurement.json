@@ -42,9 +42,14 @@
       "sha256": "048c34851c154ee43c03f1e57bd111f5280e9f761fc29e937de72ba437021ab4"
     },
     {
-      "path": "public/api-catalog.json",
-      "bytes": 232090,
-      "sha256": "90120682c04476443003b13b9ce5426b70c5a220fcad187bb0e18fdaf8432c08"
+      "path": "public/api-catalog-codec.js",
+      "bytes": 1883,
+      "sha256": "626bc276951281ba2e6b7b5da17a3c66a9360900366b15a8013710a163b9d612"
+    },
+    {
+      "path": "public/api-catalog.compact.json",
+      "bytes": 170984,
+      "sha256": "c0919361988208cbf867580fb44142683ec44c08fd02d1c4d35dbb9bae5ad944"
     },
     {
       "path": "public/capability-summary.json",
@@ -58,8 +63,8 @@
     },
     {
       "path": "public/app.js",
-      "bytes": 211919,
-      "sha256": "28b09ac558d1737086f98336697a5c8229d6099595db254b5c54c58fb91567e0"
+      "bytes": 212092,
+      "sha256": "71ac5c434d9dd5b04174f4b5620d5bac7bd87c4955a8f7c74f0415410487633c"
     },
     {
       "path": "public/index.html",
@@ -122,11 +127,11 @@
       "sha256": "c3f3cc1631e5a3f8c0f0d6290d4c9ffc605381e55a5cd652db308e044c6ccd8b"
     }
   ],
-  "browserBytes": 434545,
-  "lazyMetadataBytes": 234136,
-  "allManifestFileBytes": 669419,
+  "browserBytes": 436601,
+  "lazyMetadataBytes": 173030,
+  "allManifestFileBytes": 610369,
   "preservedBaselineBytes": 228337,
-  "deltaBytes": 206208,
-  "deltaPercent": 90.31,
+  "deltaBytes": 208264,
+  "deltaPercent": 91.21,
   "boundary": "Uncompressed source including lazy modules; not transfer size. Browser timing/heap not inferred."
 }

@@ -21,7 +21,8 @@
       <FileCopy Name="public/sysadmin-explorer.js" Target="{$cspdir}opsdeck/sysadmin-explorer.js" />
       <FileCopy Name="public/export-projection.js" Target="{$cspdir}opsdeck/export-projection.js" />
       <FileCopy Name="public/command-surface.js" Target="{$cspdir}opsdeck/command-surface.js" />
-      <FileCopy Name="public/api-catalog.json" Target="{$cspdir}opsdeck/api-catalog.json" />
+      <FileCopy Name="public/api-catalog-codec.js" Target="{$cspdir}opsdeck/api-catalog-codec.js" />
+      <FileCopy Name="public/api-catalog.compact.json" Target="{$cspdir}opsdeck/api-catalog.json" />
       <FileCopy Name="public/capability-summary.json" Target="{$cspdir}opsdeck/capability-summary.json" />
       <FileCopy Name="public/fx-studio.js" Target="{$cspdir}opsdeck/fx-studio.js" />
       <FileCopy Name="public/app.js" Target="{$cspdir}opsdeck/app.js" />

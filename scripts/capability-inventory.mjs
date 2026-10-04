@@ -6,6 +6,7 @@ import { OPERATION_POLICIES } from '../public/operation-engine.js';
 import {isGenericReadable} from '../public/sysadmin-explorer.js';
 import {createMetadataMutationProvider} from '../public/metadata-mutations.js';
 import {buildDeclaredCatalog} from './sysadmin-catalog.mjs';
+import {packApiCatalog} from './api-catalog-pack.mjs';
 
 const root = new URL('../', import.meta.url);
 const read = path => readFile(new URL(path, root), 'utf8');
@@ -117,7 +118,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const data = await buildInventory();
   await writeFile(new URL('docs/CAPABILITY_INVENTORY.json', root), JSON.stringify(data, null, 2) + '\n');
   await writeFile(new URL('docs/CAPABILITY_INVENTORY.md', root), inventoryMarkdown(data));
-  await writeFile(new URL('public/api-catalog.json', root), JSON.stringify(buildDeclaredCatalog(data,JSON.parse(await read('metadata/sysadmin-v2.json'))))+'\n');
+  const catalog=buildDeclaredCatalog(data,JSON.parse(await read('metadata/sysadmin-v2.json')));
+  await writeFile(new URL('public/api-catalog.json', root), JSON.stringify(catalog)+'\n');
+  await writeFile(new URL('public/api-catalog.compact.json', root), JSON.stringify(packApiCatalog(catalog))+'\n');
   await writeFile(new URL('public/capability-summary.json',root),JSON.stringify({schema:'opsdeck-capability-summary-v1',counts:data.counts,unit:data.unit,qualificationBoundary:data.qualificationBoundary,specSha256:data.spec.sha256,witnessSha256:data.sourceHashes.witnesses,...(data.sourceHashes.mutationWitnesses?{mutationWitnessSha256:data.sourceHashes.mutationWitnesses}:{}),artifacts:Object.entries(data.sourceHashes).filter(([path])=>path.startsWith('docs/evidence/')).map(([path,sha256])=>({path,sha256}))})+'\n');
   console.log(JSON.stringify(data.counts));
 }

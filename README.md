@@ -56,15 +56,15 @@ OpsDeck is deliberately thin:
 - **Logs** — audit status/event definitions, task history, and journal-file metadata where available.
 - **Evidence** — what OpsDeck can prove, what is blocked, and where qualification deliberately stops.
 
-## Capability status
+## Current capability status
 
 | Path | Current evidence | Boundary |
 |---|---|---|
-| Native IRIS browser app | Sign-in, identity, web-app list/read-back, selected Applications, Access, Security, Tasks, System, Logs, sign-out, and responsive behavior reproduced on IRIS 2026.2 | M1 remains partial; audit async result retrieval, Messages, and System Monitor readers remain unqualified/deferred |
-| Local-source IPM lifecycle | Load, registration, deployed hashes, HTTP checks, uninstall/removal, unrelated-state preservation, and clean reload reproduced | Exact core IPM version, fresh public-checkout byte parity, and public-registry installation remain unverified |
-| Safe demo | Deterministic sanitized evaluator data, authority personas, responsive UI, and Evidence semantics | Demo data is not live IRIS evidence |
-| Node reference runtime | Live identity, web-app discovery/read-back, fixed routes, safe mappings, and session behavior | Development/reference workflow; not required by the native browser path |
-| ObjectScript execution / CallIn | No execution bridge is present | No native arbitrary execution capability is claimed |
+| Native IRIS product | All-nine-phase bounded acceptance; 117 exposed operations, 56 observed, 34 independently verified at recorded scopes; 7 mutation endpoints and 12 qualified workflows | API declaration does not imply complete CRUD or effective authority; task Description 500 remains excluded known debt |
+| Owned Docker package lifecycle | Current local-source load, uninstall/absence, same-source reload, derived ownership validation and 25 exact HTTP assets | Only the owned disposable target; no public-registry or arbitrary third-party package qualification |
+| Browser/mobile interface | Current-source desktop/mobile smoke, generic discovery/rehearsal, exact review, Observe Only, synthetic update/restore receipts; earlier native effects preserved | Synthetic UI contributes no native capability counts; native effects remain tied to recorded identities/fixtures |
+| Representation optimization | Shipped catalog dictionary expands exactly to the accepted expanded contract; 259 tests PASS; 59,050 fewer manifest-file bytes | Local Node parse/memory probes are not production latency or browser heap claims |
+| Published historical demo/release | Existing sanitized public demo and v0.2.0 artifacts retained | They do not represent current Main; publication is manual-only |
 
 ## Built with the IRIS Community
 

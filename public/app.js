@@ -291,7 +291,8 @@ async function openCommands() {
     if (!apiCatalog.length) {
       const response = await fetch(`${nativeMode ? '/opsdeck/' : './'}api-catalog.json`, {cache:'force-cache'});
       if (!response.ok) throw new Error('Declared API metadata unavailable.');
-      const catalog = await response.json();
+      let catalog = await response.json();
+      if(catalog.schema==='opsdeck-api-catalog-dictionary-v1'){const {expandApiCatalog}=await import('./api-catalog-codec.js?v=catalog-1');catalog=expandApiCatalog(catalog);}
       if (catalog.schema !== 'opsdeck-declared-api-catalog-v2' || !Array.isArray(catalog.operations)) throw new Error('API catalog contract invalid.');
       apiCatalogDocument = catalog;
       apiCatalog = catalog.operations;

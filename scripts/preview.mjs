@@ -9,7 +9,7 @@ createServer(async (request, response) => {
   if (process.env.OPSDECK_PREVIEW_WITHOUT_FX === '1' && pathname === '/fx-studio.js') { response.writeHead(404); return response.end(); }
   if (request.method !== 'GET' || !/^\/[A-Za-z0-9_.-]*$/u.test(pathname)) { response.writeHead(404); return response.end(); }
   const file = pathname === '/' || pathname === '/index.html' ? 'demo/index.html' : pathname === '/demo-provider.js' ? 'demo/demo-provider.js' :
-    pathname === '/iris-provider.js' ? 'src/iris-provider.js' : `public${pathname}`;
+    pathname === '/api-catalog.json' ? 'public/api-catalog.compact.json' : pathname === '/iris-provider.js' ? 'src/iris-provider.js' : `public${pathname}`;
   try {
     const bytes = await readFile(new URL(file, root));
     response.writeHead(200, { 'Content-Type':types[extname(file)] || 'application/octet-stream', 'Cache-Control':'no-store',

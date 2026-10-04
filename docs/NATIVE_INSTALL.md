@@ -6,7 +6,7 @@ Current product label is OpsDeck Pre-RC 1.0. IPM package version remains opsdeck
 
 Use an IRIS instance with IPM in %SYS and an installer identity authorized for package ownership/configuration. Ordinary viewing/mutation authority is separate. Current lifecycle smoke is qualified only on owned disposable Docker OPSDECK_08_TEST_TARGET (loopback HTTP 52774). IRISTesting is excluded.
 
-Read module.xml for the authoritative ownership manifest: 24 browser/static assets, OpsDeck.Product package classes, /opsdeck and /opsdeck-api web applications, and the ownership-checked rebuildable OPSDECK derived store. The manifest may change during representation optimization; regenerate its hashes rather than maintaining an independent file count.
+Read module.xml for the authoritative ownership manifest: 25 browser/static assets (24 at the solidification baseline), OpsDeck.Product package classes, /opsdeck and /opsdeck-api web applications, and the ownership-checked rebuildable OPSDECK derived store. The manifest may change during representation optimization; regenerate its hashes rather than maintaining an independent file count.
 
 Before changing an installation, capture existing app definitions, package registration, deployed asset hashes and derived-store ownership. Refuse unknown collisions or foreign state. The dedicated %DB_OPSDECK resource has no public permission; the package assigns no operator grants. Never overwrite an unrelated /opsdeck installation.
 

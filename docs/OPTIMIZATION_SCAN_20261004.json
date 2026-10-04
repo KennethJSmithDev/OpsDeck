@@ -1,0 +1,1691 @@
+{
+  "schema": "opsdeck-representation-scan-v1",
+  "appSha256": "71ac5c434d9dd5b04174f4b5620d5bac7bd87c4955a8f7c74f0415410487633c",
+  "appPartitionBytes": 212092,
+  "classificationCounts": {
+    "REACHABLE": 102,
+    "LAZY-CANDIDATE": 5,
+    "DUPLICATED": 0,
+    "LEGACY/DEAD": 0,
+    "UNVERIFIED": 1
+  },
+  "method": "Partition at top-level named function declarations, retaining adjacent initialization/bindings; lexical references are conservative, not dynamic coverage or formal reachability. No unreferenced code is declared dead. Every byte is accounted once.",
+  "chunks": [
+    {
+      "name": "composition-preamble",
+      "startLine": 1,
+      "endLine": 33,
+      "bytes": 2804,
+      "classification": "REACHABLE",
+      "basis": "Imports, fixed descriptors and composition state initialized by module load."
+    },
+    {
+      "name": "isAuthorityDenial",
+      "startLine": 34,
+      "endLine": 38,
+      "bytes": 118,
+      "classification": "REACHABLE",
+      "outsideReferences": 7,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "providerUiEvidence",
+      "startLine": 38,
+      "endLine": 72,
+      "bytes": 2304,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "routeUiEvidence",
+      "startLine": 72,
+      "endLine": 96,
+      "bytes": 1647,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "relatedNavigationRoutes",
+      "startLine": 96,
+      "endLine": 106,
+      "bytes": 657,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "projectUiNavigation",
+      "startLine": 106,
+      "endLine": 200,
+      "bytes": 4368,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "recordHandle",
+      "startLine": 200,
+      "endLine": 204,
+      "bytes": 163,
+      "classification": "REACHABLE",
+      "outsideReferences": 8,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "uniqueRecord",
+      "startLine": 204,
+      "endLine": 239,
+      "bytes": 3220,
+      "classification": "REACHABLE",
+      "outsideReferences": 14,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "requestJson",
+      "startLine": 239,
+      "endLine": 275,
+      "bytes": 1981,
+      "classification": "REACHABLE",
+      "outsideReferences": 21,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "setTheme",
+      "startLine": 275,
+      "endLine": 286,
+      "bytes": 447,
+      "classification": "REACHABLE",
+      "outsideReferences": 5,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "openCommands",
+      "startLine": 286,
+      "endLine": 304,
+      "bytes": 1143,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "activateDialog",
+      "startLine": 304,
+      "endLine": 308,
+      "bytes": 196,
+      "classification": "REACHABLE",
+      "outsideReferences": 5,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "reviewedOperation",
+      "startLine": 308,
+      "endLine": 312,
+      "bytes": 318,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "openConfirmationReview",
+      "startLine": 312,
+      "endLine": 317,
+      "bytes": 356,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "closeConfirmationReview",
+      "startLine": 317,
+      "endLine": 321,
+      "bytes": 331,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "completeConfirmationReview",
+      "startLine": 321,
+      "endLine": 330,
+      "bytes": 594,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "confirmationReviewPanel",
+      "startLine": 330,
+      "endLine": 334,
+      "bytes": 981,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "openFxStudio",
+      "startLine": 334,
+      "endLine": 340,
+      "bytes": 250,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "syncDialogScope",
+      "startLine": 340,
+      "endLine": 348,
+      "bytes": 516,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "commandResults",
+      "startLine": 348,
+      "endLine": 358,
+      "bytes": 1285,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "commandPanel",
+      "startLine": 358,
+      "endLine": 363,
+      "bytes": 1209,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "apiExplorerPanel",
+      "startLine": 363,
+      "endLine": 368,
+      "bytes": 3134,
+      "classification": "LAZY-CANDIDATE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "apiEvidence",
+      "startLine": 368,
+      "endLine": 376,
+      "bytes": 678,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "runApiAction",
+      "startLine": 376,
+      "endLine": 410,
+      "bytes": 3896,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "invalidateApiDraft",
+      "startLine": 410,
+      "endLine": 418,
+      "bytes": 504,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "closeCommands",
+      "startLine": 418,
+      "endLine": 419,
+      "bytes": 109,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "targetComparisonPanel",
+      "startLine": 419,
+      "endLine": 423,
+      "bytes": 1429,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "compareApplicationTargets",
+      "startLine": 423,
+      "endLine": 445,
+      "bytes": 2126,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "bindCommandSurface",
+      "startLine": 445,
+      "endLine": 468,
+      "bytes": 2107,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "presentationRole",
+      "startLine": 468,
+      "endLine": 476,
+      "bytes": 400,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "applyCurrentFx",
+      "startLine": 476,
+      "endLine": 482,
+      "bytes": 280,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "refreshFx",
+      "startLine": 482,
+      "endLine": 491,
+      "bytes": 375,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "fxStudioPanel",
+      "startLine": 491,
+      "endLine": 496,
+      "bytes": 1617,
+      "classification": "LAZY-CANDIDATE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "badge",
+      "startLine": 496,
+      "endLine": 500,
+      "bytes": 111,
+      "classification": "REACHABLE",
+      "outsideReferences": 50,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "environmentBadge",
+      "startLine": 500,
+      "endLine": 511,
+      "bytes": 426,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "shell",
+      "startLine": 511,
+      "endLine": 550,
+      "bytes": 5920,
+      "classification": "REACHABLE",
+      "outsideReferences": 8,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "connectView",
+      "startLine": 550,
+      "endLine": 578,
+      "bytes": 2544,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "demoPersonaProfile",
+      "startLine": 578,
+      "endLine": 609,
+      "bytes": 1367,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "demoPersonaCard",
+      "startLine": 609,
+      "endLine": 628,
+      "bytes": 959,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "safeDemoTour",
+      "startLine": 628,
+      "endLine": 643,
+      "bytes": 1365,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "overviewView",
+      "startLine": 643,
+      "endLine": 681,
+      "bytes": 4892,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "pageHeader",
+      "startLine": 681,
+      "endLine": 691,
+      "bytes": 1805,
+      "classification": "REACHABLE",
+      "outsideReferences": 7,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "applicationsView",
+      "startLine": 691,
+      "endLine": 734,
+      "bytes": 8575,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "impactForecast",
+      "startLine": 734,
+      "endLine": 750,
+      "bytes": 2841,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "planReview",
+      "startLine": 750,
+      "endLine": 755,
+      "bytes": 933,
+      "classification": "REACHABLE",
+      "outsideReferences": 7,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "operationEvent",
+      "startLine": 755,
+      "endLine": 766,
+      "bytes": 1090,
+      "classification": "REACHABLE",
+      "outsideReferences": 6,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "webAppOperationPanel",
+      "startLine": 766,
+      "endLine": 775,
+      "bytes": 2515,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "workflowPanel",
+      "startLine": 775,
+      "endLine": 781,
+      "bytes": 863,
+      "classification": "LAZY-CANDIDATE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "startAvailabilityWorkflow",
+      "startLine": 781,
+      "endLine": 816,
+      "bytes": 3765,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "confirmAvailabilityWorkflow",
+      "startLine": 816,
+      "endLine": 822,
+      "bytes": 366,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "prepareWebAppOperation",
+      "startLine": 822,
+      "endLine": 856,
+      "bytes": 2885,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "operationOutcome",
+      "startLine": 856,
+      "endLine": 862,
+      "bytes": 349,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "confirmWebAppOperation",
+      "startLine": 862,
+      "endLine": 881,
+      "bytes": 1145,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "applicationsTabs",
+      "startLine": 881,
+      "endLine": 885,
+      "bytes": 653,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "packageOperationPanel",
+      "startLine": 885,
+      "endLine": 892,
+      "bytes": 1322,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "prepareLivePackageOperation",
+      "startLine": 892,
+      "endLine": 923,
+      "bytes": 2816,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "confirmLivePackageOperation",
+      "startLine": 923,
+      "endLine": 941,
+      "bytes": 1134,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "packagesWorkspaceView",
+      "startLine": 941,
+      "endLine": 973,
+      "bytes": 11581,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "restServiceMatches",
+      "startLine": 973,
+      "endLine": 990,
+      "bytes": 637,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "sourceSelector",
+      "startLine": 990,
+      "endLine": 997,
+      "bytes": 433,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "cellValue",
+      "startLine": 997,
+      "endLine": 1005,
+      "bytes": 337,
+      "classification": "REACHABLE",
+      "outsideReferences": 6,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "projectionExports",
+      "startLine": 1005,
+      "endLine": 1009,
+      "bytes": 519,
+      "classification": "REACHABLE",
+      "outsideReferences": 4,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "sourcePanel",
+      "startLine": 1009,
+      "endLine": 1012,
+      "bytes": 140,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "sourcePanelBody",
+      "startLine": 1012,
+      "endLine": 1077,
+      "bytes": 12431,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "relationList",
+      "startLine": 1077,
+      "endLine": 1082,
+      "bytes": 624,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "userDetailContent",
+      "startLine": 1082,
+      "endLine": 1098,
+      "bytes": 1391,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "roleDetailContent",
+      "startLine": 1098,
+      "endLine": 1124,
+      "bytes": 3108,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "resourcePermissionList",
+      "startLine": 1124,
+      "endLine": 1129,
+      "bytes": 717,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "resourceDetailContent",
+      "startLine": 1129,
+      "endLine": 1145,
+      "bytes": 1520,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "taskDetailContent",
+      "startLine": 1145,
+      "endLine": 1161,
+      "bytes": 1386,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "providerDomainView",
+      "startLine": 1161,
+      "endLine": 1185,
+      "bytes": 3483,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "jobCenterPanel",
+      "startLine": 1185,
+      "endLine": 1192,
+      "bytes": 1259,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "visibleJobs",
+      "startLine": 1192,
+      "endLine": 1203,
+      "bytes": 489,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "auditQueryPanel",
+      "startLine": 1203,
+      "endLine": 1217,
+      "bytes": 1610,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadCapabilitySummary",
+      "startLine": 1217,
+      "endLine": 1229,
+      "bytes": 1255,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "capabilitySummaryPanel",
+      "startLine": 1229,
+      "endLine": 1234,
+      "bytes": 1686,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "evidenceView",
+      "startLine": 1234,
+      "endLine": 1284,
+      "bytes": 8828,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "semanticSearchPanel",
+      "startLine": 1284,
+      "endLine": 1290,
+      "bytes": 2206,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "runSemanticSearch",
+      "startLine": 1290,
+      "endLine": 1318,
+      "bytes": 1396,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "interpretSemanticResult",
+      "startLine": 1318,
+      "endLine": 1331,
+      "bytes": 760,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "currentEvidenceCollection",
+      "startLine": 1331,
+      "endLine": 1418,
+      "bytes": 7861,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "entityGraphPanel",
+      "startLine": 1418,
+      "endLine": 1423,
+      "bytes": 1233,
+      "classification": "LAZY-CANDIDATE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "intelligencePanel",
+      "startLine": 1423,
+      "endLine": 1429,
+      "bytes": 2474,
+      "classification": "LAZY-CANDIDATE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "invalidateIntentDraft",
+      "startLine": 1429,
+      "endLine": 1438,
+      "bytes": 484,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "rehearseIntent",
+      "startLine": 1438,
+      "endLine": 1465,
+      "bytes": 3716,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "render",
+      "startLine": 1465,
+      "endLine": 1654,
+      "bytes": 14854,
+      "classification": "REACHABLE",
+      "outsideReferences": 79,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "clearSession",
+      "startLine": 1654,
+      "endLine": 1710,
+      "bytes": 2771,
+      "classification": "REACHABLE",
+      "outsideReferences": 6,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "expireSession",
+      "startLine": 1710,
+      "endLine": 1716,
+      "bytes": 92,
+      "classification": "REACHABLE",
+      "outsideReferences": 13,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "disconnect",
+      "startLine": 1716,
+      "endLine": 1724,
+      "bytes": 214,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "connect",
+      "startLine": 1724,
+      "endLine": 1793,
+      "bytes": 2185,
+      "classification": "REACHABLE",
+      "outsideReferences": 18,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "apiPayload",
+      "startLine": 1793,
+      "endLine": 1797,
+      "bytes": 100,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "readJson",
+      "startLine": 1797,
+      "endLine": 1801,
+      "bytes": 98,
+      "classification": "REACHABLE",
+      "outsideReferences": 11,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "nativeApiPath",
+      "startLine": 1801,
+      "endLine": 1840,
+      "bytes": 2310,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "refreshLive",
+      "startLine": 1840,
+      "endLine": 1887,
+      "bytes": 1613,
+      "classification": "REACHABLE",
+      "outsideReferences": 4,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadSource",
+      "startLine": 1887,
+      "endLine": 1919,
+      "bytes": 1184,
+      "classification": "REACHABLE",
+      "outsideReferences": 7,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadMessageRotation",
+      "startLine": 1919,
+      "endLine": 1941,
+      "bytes": 908,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadPackageInventory",
+      "startLine": 1941,
+      "endLine": 1963,
+      "bytes": 833,
+      "classification": "REACHABLE",
+      "outsideReferences": 3,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadAvailablePackageCatalog",
+      "startLine": 1963,
+      "endLine": 1989,
+      "bytes": 1092,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "runAuditQuery",
+      "startLine": 1989,
+      "endLine": 2101,
+      "bytes": 6524,
+      "classification": "REACHABLE",
+      "outsideReferences": 1,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadWebAppDetail",
+      "startLine": 2101,
+      "endLine": 2128,
+      "bytes": 1050,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadUserDetail",
+      "startLine": 2128,
+      "endLine": 2161,
+      "bytes": 1217,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadRoleDetail",
+      "startLine": 2161,
+      "endLine": 2189,
+      "bytes": 1183,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadRoleOwners",
+      "startLine": 2189,
+      "endLine": 2218,
+      "bytes": 1227,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadResourceDetail",
+      "startLine": 2218,
+      "endLine": 2246,
+      "bytes": 1235,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadTaskDetail",
+      "startLine": 2246,
+      "endLine": 2274,
+      "bytes": 1135,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "loadRestSpec",
+      "startLine": 2274,
+      "endLine": 2303,
+      "bytes": 1207,
+      "classification": "REACHABLE",
+      "outsideReferences": 2,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "ensureRouteSource",
+      "startLine": 2303,
+      "endLine": 2311,
+      "bytes": 240,
+      "classification": "REACHABLE",
+      "outsideReferences": 5,
+      "basis": "Referenced by current composition/handlers; conservative static over-approximation."
+    },
+    {
+      "name": "restoreSession",
+      "startLine": 2311,
+      "endLine": 2381,
+      "bytes": 3072,
+      "classification": "UNVERIFIED",
+      "outsideReferences": 0,
+      "basis": "No outside lexical reference; not proof of dead code, including adjacent bindings/initialization."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".gitattributes",
+      "classification": "must persist",
+      "bytes": 3726
+    },
+    {
+      "path": ".github/workflows/pages-demo.yml",
+      "classification": "must persist",
+      "bytes": 3173
+    },
+    {
+      "path": ".gitignore",
+      "classification": "must persist",
+      "bytes": 971
+    },
+    {
+      "path": "LICENSE",
+      "classification": "must persist",
+      "bytes": 1094
+    },
+    {
+      "path": "README.md",
+      "classification": "must persist",
+      "bytes": 9596
+    },
+    {
+      "path": "SECURITY.md",
+      "classification": "must persist",
+      "bytes": 2352
+    },
+    {
+      "path": "assets/OpsDeckLogo.png",
+      "classification": "must persist",
+      "bytes": 2125901
+    },
+    {
+      "path": "demo/demo-provider.js",
+      "classification": "must persist",
+      "bytes": 14639
+    },
+    {
+      "path": "demo/index.html",
+      "classification": "must persist",
+      "bytes": 686
+    },
+    {
+      "path": "docs/CAPABILITY_INVENTORY.json",
+      "classification": "can regenerate",
+      "bytes": 234525
+    },
+    {
+      "path": "docs/CAPABILITY_INVENTORY.md",
+      "classification": "can regenerate",
+      "bytes": 30082
+    },
+    {
+      "path": "docs/COMMUNITY_IDEAS_STATUS.md",
+      "classification": "must persist",
+      "bytes": 7779
+    },
+    {
+      "path": "docs/DERIVED_SEARCH_QUALIFICATION.md",
+      "classification": "must persist",
+      "bytes": 5935
+    },
+    {
+      "path": "docs/DERIVED_STORAGE_BOUNDARY.md",
+      "classification": "must persist",
+      "bytes": 9997
+    },
+    {
+      "path": "docs/EVALUATOR_GUIDE.md",
+      "classification": "must persist",
+      "bytes": 3721
+    },
+    {
+      "path": "docs/EXECUTION_PLAN_20261004.md",
+      "classification": "must persist",
+      "bytes": 4894
+    },
+    {
+      "path": "docs/INTEGRATION_CHECKPOINT_20261004.md",
+      "classification": "must persist",
+      "bytes": 5746
+    },
+    {
+      "path": "docs/IRIS_IMPLEMENTATION_HANDOFF_20261002.md",
+      "classification": "must persist",
+      "bytes": 11451
+    },
+    {
+      "path": "docs/MAIN_PRE_RC_STATE_20261004.md",
+      "classification": "must persist",
+      "bytes": 2141
+    },
+    {
+      "path": "docs/MUTATION_BREADTH_20261004.md",
+      "classification": "must persist",
+      "bytes": 8684
+    },
+    {
+      "path": "docs/MUTATION_BREADTH_MILESTONE_20261004.md",
+      "classification": "must persist",
+      "bytes": 1722
+    },
+    {
+      "path": "docs/NATIVE_INSTALL.md",
+      "classification": "must persist",
+      "bytes": 3171
+    },
+    {
+      "path": "docs/OBJECTSCRIPT_QUALITY_GATE_20261003.md",
+      "classification": "must persist",
+      "bytes": 4954
+    },
+    {
+      "path": "docs/OPSDECK_0_9_AUTHENTICATED_HTTP_BOUNDARY_20261003.md",
+      "classification": "must persist",
+      "bytes": 12472
+    },
+    {
+      "path": "docs/OPSDECK_0_9_AVAILABLE_CATALOG_RECONNAISSANCE_20261003.md",
+      "classification": "must persist",
+      "bytes": 5638
+    },
+    {
+      "path": "docs/OPSDECK_0_9_DISPOSABLE_LIFECYCLE_20261003.md",
+      "classification": "must persist",
+      "bytes": 3451
+    },
+    {
+      "path": "docs/OPSDECK_0_9_EGEHAR_20261003.md",
+      "classification": "must persist",
+      "bytes": 7196
+    },
+    {
+      "path": "docs/OPSDECK_0_9_IPM_OPERATIONS_RECONNAISSANCE_20261003.md",
+      "classification": "must persist",
+      "bytes": 8193
+    },
+    {
+      "path": "docs/OPSDECK_0_9_IPM_STORAGE_LIFECYCLE_20261003.md",
+      "classification": "must persist",
+      "bytes": 11036
+    },
+    {
+      "path": "docs/OPSDECK_0_9_PERFORMANCE_BASELINE.md",
+      "classification": "must persist",
+      "bytes": 11876
+    },
+    {
+      "path": "docs/OPSDECK_0_9_ROTATED_LOG_RECONNAISSANCE_20261003.md",
+      "classification": "must persist",
+      "bytes": 3968
+    },
+    {
+      "path": "docs/OPSDECK_0_9_VECTOR_RUNTIME_RECONNAISSANCE_20261003.md",
+      "classification": "must persist",
+      "bytes": 4498
+    },
+    {
+      "path": "docs/OPSDECK_0_9_WEBAPP_PUT_CONTRACT_20261003.md",
+      "classification": "must persist",
+      "bytes": 7704
+    },
+    {
+      "path": "docs/OPSDECK_1_0_ARCHITECTURE_DECISION.md",
+      "classification": "must persist",
+      "bytes": 24715
+    },
+    {
+      "path": "docs/OPSDECK_1_0_PRODUCT_INTEGRATION.md",
+      "classification": "must persist",
+      "bytes": 15932
+    },
+    {
+      "path": "docs/OPSDECK_DREAM_1_0_EXECUTION_PLAN.md",
+      "classification": "must persist",
+      "bytes": 11401
+    },
+    {
+      "path": "docs/PHASE9_ACCEPTANCE_20261004.md",
+      "classification": "must persist",
+      "bytes": 4962
+    },
+    {
+      "path": "docs/QUALIFICATION_EVIDENCE_INDEX_20261004.json",
+      "classification": "must persist",
+      "bytes": 14819
+    },
+    {
+      "path": "docs/QUALIFICATION_STATUS.md",
+      "classification": "must persist",
+      "bytes": 20983
+    },
+    {
+      "path": "docs/RELEASE_0_2_0.md",
+      "classification": "must persist",
+      "bytes": 2634
+    },
+    {
+      "path": "docs/RELEASE_0_5_0.md",
+      "classification": "must persist",
+      "bytes": 2876
+    },
+    {
+      "path": "docs/RELEASE_0_8_0.md",
+      "classification": "must persist",
+      "bytes": 1332
+    },
+    {
+      "path": "docs/REMOTE_REVIEW_HARDENING_20261002.md",
+      "classification": "must persist",
+      "bytes": 6410
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "classification": "must persist",
+      "bytes": 9584
+    },
+    {
+      "path": "docs/VERSION_GATE_LEDGER.md",
+      "classification": "must persist",
+      "bytes": 16782
+    },
+    {
+      "path": "docs/evidence/phase9-additional-readbacks.json",
+      "classification": "public evidence",
+      "bytes": 2564
+    },
+    {
+      "path": "docs/evidence/phase9-configuration-readers.json",
+      "classification": "public evidence",
+      "bytes": 4228
+    },
+    {
+      "path": "docs/evidence/phase9-entity-readers.json",
+      "classification": "public evidence",
+      "bytes": 3356
+    },
+    {
+      "path": "docs/evidence/phase9-generic-readbacks.json",
+      "classification": "public evidence",
+      "bytes": 13773
+    },
+    {
+      "path": "docs/evidence/phase9-generic-readers.json",
+      "classification": "public evidence",
+      "bytes": 15957
+    },
+    {
+      "path": "docs/evidence/phase9-named-readers.json",
+      "classification": "public evidence",
+      "bytes": 8690
+    },
+    {
+      "path": "docs/evidence/phase9-owner-readbacks.json",
+      "classification": "public evidence",
+      "bytes": 1240
+    },
+    {
+      "path": "docs/evidence/phase9-percent-access-readers.json",
+      "classification": "public evidence",
+      "bytes": 2320
+    },
+    {
+      "path": "docs/evidence/phase9-semantic-readbacks.json",
+      "classification": "public evidence",
+      "bytes": 4315
+    },
+    {
+      "path": "docs/evidence/representation-measurement.json",
+      "classification": "can regenerate",
+      "bytes": 4361
+    },
+    {
+      "path": "metadata/competitor-claims.json",
+      "classification": "must persist",
+      "bytes": 1470
+    },
+    {
+      "path": "metadata/mutation-qualification-witnesses.json",
+      "classification": "public evidence",
+      "bytes": 8933
+    },
+    {
+      "path": "metadata/qualification-witnesses.json",
+      "classification": "public evidence",
+      "bytes": 12013
+    },
+    {
+      "path": "metadata/sysadmin-v2.json",
+      "classification": "must persist",
+      "bytes": 1004473
+    },
+    {
+      "path": "module.xml",
+      "classification": "must persist",
+      "bytes": 3505
+    },
+    {
+      "path": "package.json",
+      "classification": "must persist",
+      "bytes": 265
+    },
+    {
+      "path": "public/api-catalog-codec.js",
+      "classification": "runtime asset",
+      "bytes": 1883
+    },
+    {
+      "path": "public/api-catalog.compact.json",
+      "classification": "runtime asset",
+      "bytes": 170984
+    },
+    {
+      "path": "public/api-catalog.json",
+      "classification": "can regenerate",
+      "bytes": 232090
+    },
+    {
+      "path": "public/app.js",
+      "classification": "runtime asset",
+      "bytes": 212092
+    },
+    {
+      "path": "public/capability-summary.json",
+      "classification": "runtime asset",
+      "bytes": 2046
+    },
+    {
+      "path": "public/command-surface.js",
+      "classification": "runtime asset",
+      "bytes": 1378
+    },
+    {
+      "path": "public/entity-graph.js",
+      "classification": "runtime asset",
+      "bytes": 5007
+    },
+    {
+      "path": "public/evidence-center.js",
+      "classification": "runtime asset",
+      "bytes": 10019
+    },
+    {
+      "path": "public/export-projection.js",
+      "classification": "runtime asset",
+      "bytes": 1160
+    },
+    {
+      "path": "public/fx-studio.js",
+      "classification": "runtime asset",
+      "bytes": 3153
+    },
+    {
+      "path": "public/index.html",
+      "classification": "runtime asset",
+      "bytes": 475
+    },
+    {
+      "path": "public/job-center.js",
+      "classification": "runtime asset",
+      "bytes": 3549
+    },
+    {
+      "path": "public/metadata-mutations.js",
+      "classification": "runtime asset",
+      "bytes": 10014
+    },
+    {
+      "path": "public/operation-engine.js",
+      "classification": "runtime asset",
+      "bytes": 43000
+    },
+    {
+      "path": "public/packages-workspace.js",
+      "classification": "runtime asset",
+      "bytes": 15129
+    },
+    {
+      "path": "public/product-identity.js",
+      "classification": "runtime asset",
+      "bytes": 1471
+    },
+    {
+      "path": "public/semantic-search.js",
+      "classification": "runtime asset",
+      "bytes": 4421
+    },
+    {
+      "path": "public/snippet-http-read.txt",
+      "classification": "runtime asset",
+      "bytes": 480
+    },
+    {
+      "path": "public/snippet-namespace.txt",
+      "classification": "runtime asset",
+      "bytes": 88
+    },
+    {
+      "path": "public/snippet-try-catch.txt",
+      "classification": "runtime asset",
+      "bytes": 170
+    },
+    {
+      "path": "public/styles.css",
+      "classification": "runtime asset",
+      "bytes": 46433
+    },
+    {
+      "path": "public/sysadmin-explorer.js",
+      "classification": "runtime asset",
+      "bytes": 11677
+    },
+    {
+      "path": "public/target-context.js",
+      "classification": "runtime asset",
+      "bytes": 4151
+    },
+    {
+      "path": "public/trusted-intelligence.js",
+      "classification": "runtime asset",
+      "bytes": 5965
+    },
+    {
+      "path": "public/workflow-engine.js",
+      "classification": "runtime asset",
+      "bytes": 5914
+    },
+    {
+      "path": "scripts/api-catalog-pack.mjs",
+      "classification": "must persist",
+      "bytes": 829
+    },
+    {
+      "path": "scripts/capability-inventory.mjs",
+      "classification": "must persist",
+      "bytes": 13616
+    },
+    {
+      "path": "scripts/measure.mjs",
+      "classification": "must persist",
+      "bytes": 1256
+    },
+    {
+      "path": "scripts/preview-operation-fixture.mjs",
+      "classification": "must persist",
+      "bytes": 9334
+    },
+    {
+      "path": "scripts/preview.mjs",
+      "classification": "must persist",
+      "bytes": 1721
+    },
+    {
+      "path": "scripts/sysadmin-catalog.mjs",
+      "classification": "must persist",
+      "bytes": 2065
+    },
+    {
+      "path": "src/OpsDeck/Product/DerivedSearch.cls",
+      "classification": "must persist",
+      "bytes": 7689
+    },
+    {
+      "path": "src/OpsDeck/Product/DerivedStorage.cls",
+      "classification": "must persist",
+      "bytes": 16131
+    },
+    {
+      "path": "src/OpsDeck/Product/DerivedVector.cls",
+      "classification": "must persist",
+      "bytes": 3440
+    },
+    {
+      "path": "src/OpsDeck/Product/FixedLogREST.cls",
+      "classification": "must persist",
+      "bytes": 13487
+    },
+    {
+      "path": "src/OpsDeck/Product/FixedLogReader.cls",
+      "classification": "must persist",
+      "bytes": 10849
+    },
+    {
+      "path": "src/OpsDeck/Product/IntentRehearsal.cls",
+      "classification": "must persist",
+      "bytes": 7622
+    },
+    {
+      "path": "src/OpsDeck/Product/LogInterpreter.cls",
+      "classification": "must persist",
+      "bytes": 4643
+    },
+    {
+      "path": "src/OpsDeck/Product/PackageOperations.cls",
+      "classification": "must persist",
+      "bytes": 4957
+    },
+    {
+      "path": "src/iris-provider.js",
+      "classification": "runtime asset",
+      "bytes": 49710
+    },
+    {
+      "path": "src/operation-engine.js",
+      "classification": "must persist",
+      "bytes": 205
+    },
+    {
+      "path": "src/server.mjs",
+      "classification": "must persist",
+      "bytes": 29803
+    },
+    {
+      "path": "src/target-context.js",
+      "classification": "must persist",
+      "bytes": 56
+    },
+    {
+      "path": "test/api-catalog-codec.test.mjs",
+      "classification": "must persist",
+      "bytes": 2706
+    },
+    {
+      "path": "test/app-bootstrap.test.mjs",
+      "classification": "must persist",
+      "bytes": 21663
+    },
+    {
+      "path": "test/capability-inventory.test.mjs",
+      "classification": "must persist",
+      "bytes": 7175
+    },
+    {
+      "path": "test/capability-projection.test.mjs",
+      "classification": "must persist",
+      "bytes": 8931
+    },
+    {
+      "path": "test/command-surface.test.mjs",
+      "classification": "must persist",
+      "bytes": 1797
+    },
+    {
+      "path": "test/derived-storage-boundary.test.mjs",
+      "classification": "must persist",
+      "bytes": 2027
+    },
+    {
+      "path": "test/derived-vector-boundary.test.mjs",
+      "classification": "must persist",
+      "bytes": 1670
+    },
+    {
+      "path": "test/embedded-python-log-analysis.test.mjs",
+      "classification": "must persist",
+      "bytes": 5469
+    },
+    {
+      "path": "test/entity-graph.test.mjs",
+      "classification": "must persist",
+      "bytes": 5109
+    },
+    {
+      "path": "test/evaluator-native-integration.test.mjs",
+      "classification": "must persist",
+      "bytes": 56029
+    },
+    {
+      "path": "test/evidence-center.test.mjs",
+      "classification": "must persist",
+      "bytes": 6146
+    },
+    {
+      "path": "test/export-projection.test.mjs",
+      "classification": "must persist",
+      "bytes": 781
+    },
+    {
+      "path": "test/fixed-log-product-boundary.test.mjs",
+      "classification": "must persist",
+      "bytes": 4520
+    },
+    {
+      "path": "test/fixed-log-reader-contract.test.mjs",
+      "classification": "must persist",
+      "bytes": 5068
+    },
+    {
+      "path": "test/fixtures/ipm-storage-lifecycle/module.xml",
+      "classification": "must persist",
+      "bytes": 635
+    },
+    {
+      "path": "test/fixtures/ipm-storage-lifecycle/src/OpsDeck/Qualification/StorageLifecycleFixture.cls",
+      "classification": "must persist",
+      "bytes": 1555
+    },
+    {
+      "path": "test/fx-studio.test.mjs",
+      "classification": "must persist",
+      "bytes": 1637
+    },
+    {
+      "path": "test/iris-provider.test.js",
+      "classification": "must persist",
+      "bytes": 30424
+    },
+    {
+      "path": "test/job-center.test.mjs",
+      "classification": "must persist",
+      "bytes": 2776
+    },
+    {
+      "path": "test/live-package-operation.test.mjs",
+      "classification": "must persist",
+      "bytes": 4028
+    },
+    {
+      "path": "test/live-package-selection.test.mjs",
+      "classification": "must persist",
+      "bytes": 1285
+    },
+    {
+      "path": "test/metadata-mutations.test.mjs",
+      "classification": "must persist",
+      "bytes": 11783
+    },
+    {
+      "path": "test/operation-engine.test.mjs",
+      "classification": "must persist",
+      "bytes": 24608
+    },
+    {
+      "path": "test/packages-workspace.test.mjs",
+      "classification": "must persist",
+      "bytes": 12061
+    },
+    {
+      "path": "test/product-identity.test.mjs",
+      "classification": "must persist",
+      "bytes": 2392
+    },
+    {
+      "path": "test/responsive-layout-contract.test.mjs",
+      "classification": "must persist",
+      "bytes": 3733
+    },
+    {
+      "path": "test/rotated-fixed-log-provider.test.mjs",
+      "classification": "must persist",
+      "bytes": 2030
+    },
+    {
+      "path": "test/semantic-search.test.mjs",
+      "classification": "must persist",
+      "bytes": 4455
+    },
+    {
+      "path": "test/server.test.mjs",
+      "classification": "must persist",
+      "bytes": 19606
+    },
+    {
+      "path": "test/session-selection.test.mjs",
+      "classification": "must persist",
+      "bytes": 11300
+    },
+    {
+      "path": "test/sysadmin-explorer.test.mjs",
+      "classification": "must persist",
+      "bytes": 7253
+    },
+    {
+      "path": "test/target-context.test.mjs",
+      "classification": "must persist",
+      "bytes": 5147
+    },
+    {
+      "path": "test/trusted-intelligence.test.mjs",
+      "classification": "must persist",
+      "bytes": 6357
+    },
+    {
+      "path": "test/workflow-engine.test.mjs",
+      "classification": "must persist",
+      "bytes": 4651
+    }
+  ],
+  "privateEvidence": {
+    "classification": "private evidence",
+    "scope": "Ignored qualification traces, temporary probes and private-vault contents preserved separately; never included in runtime manifest."
+  },
+  "decision": "No proven-dead segment removed. Existing lazy compiler/catalog/FX module boundaries retained. Rare projections remain candidates; splitting them would add asynchronous composition/confirmation seams for limited savings without stronger reachability evidence.",
+  "subsurfaceCandidates": [
+    {
+      "name": "About",
+      "classification": "LAZY-CANDIDATE",
+      "source": "Inline branch in readOnlyWorkspace; already reachable from System About",
+      "decision": "Retain inline projection. Small markup; splitting adds async rendering/context seams."
+    }
+  ]
+}
