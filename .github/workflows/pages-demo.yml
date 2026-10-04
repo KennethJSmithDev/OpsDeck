@@ -55,6 +55,7 @@ jobs:
           cp public/operation-engine.js _site/operation-engine.js
           cp public/packages-workspace.js _site/packages-workspace.js
           cp public/job-center.js _site/job-center.js
+          cp public/product-identity.js _site/product-identity.js
           cp public/snippet-*.txt _site/
           cp src/iris-provider.js _site/iris-provider.js
           sed -i 's|from "/iris-provider.js"|from "./iris-provider.js"|' _site/app.js
