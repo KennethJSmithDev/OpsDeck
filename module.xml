@@ -3,7 +3,7 @@
   <Document name="opsdeck.ZPM">
     <Module>
       <Name>opsdeck</Name>
-      <Version>0.8.0</Version>
+      <Version>1.0.0</Version>
       <Description>OpsDeck bounded observations and verified operations for InterSystems IRIS</Description>
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>

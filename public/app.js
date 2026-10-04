@@ -2,7 +2,7 @@ import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, same
 import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, exportEvidenceCSV, filterEvidence, operationReceiptEvidence, sessionLedger, evidenceLabel } from "./evidence-center.js?v=opsdeck-0.8.0";
 import { comparePackageCatalogToInstalled, fixturePackageInventory, livePackageSelection, mapAvailablePackageCatalog, mapInstalledPackageInventory, preparePackagePlan } from "./packages-workspace.js?v=opsdeck-0.8.0-ipm";
 import { mapAuditJob, upsertJob } from "./job-center.js?v=opsdeck-0.8.0";
-import { ProductIdentity } from "./product-identity.js?v=opsdeck-0.8.0-about";
+import { ProductIdentity } from "./product-identity.js?v=opsdeck-1.0.0-about";
 import { createOperationPlan, createIPMPackageOperationProvider, createWebAppOperationProvider, executeOperationPlan, OPERATION_POLICIES, setObserveOnly } from "./operation-engine.js?v=opsdeck-0.8.0-ipm";
 import {configureCurrentTarget,targetChoices,readAcrossTargets,compareTargetObservations} from './target-context.js?v=target-1';
 import {relationshipObservations,projectEntityGraph} from './entity-graph.js?v=graph-1';

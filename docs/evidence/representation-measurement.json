@@ -64,7 +64,7 @@
     {
       "path": "public/app.js",
       "bytes": 212092,
-      "sha256": "71ac5c434d9dd5b04174f4b5620d5bac7bd87c4955a8f7c74f0415410487633c"
+      "sha256": "0a745b280d40dc2a6722f8cfcb7e3ec1e34b841ffc86148f030ed798cbd3775c"
     },
     {
       "path": "public/index.html",
@@ -103,8 +103,8 @@
     },
     {
       "path": "public/product-identity.js",
-      "bytes": 1471,
-      "sha256": "bb5c91753f71bf95ecd7083c7f0d4f89ebef123ee0f18157ba89608aafdc5692"
+      "bytes": 1484,
+      "sha256": "80b124115a10d35620e9ba752ad361a711316d65d3d7815c20cd3e8e95946735"
     },
     {
       "path": "public/semantic-search.js",
@@ -127,11 +127,11 @@
       "sha256": "c3f3cc1631e5a3f8c0f0d6290d4c9ffc605381e55a5cd652db308e044c6ccd8b"
     }
   ],
-  "browserBytes": 436601,
+  "browserBytes": 436614,
   "lazyMetadataBytes": 173030,
-  "allManifestFileBytes": 610369,
+  "allManifestFileBytes": 610382,
   "preservedBaselineBytes": 228337,
-  "deltaBytes": 208264,
+  "deltaBytes": 208277,
   "deltaPercent": 91.21,
   "boundary": "Uncompressed source including lazy modules; not transfer size. Browser timing/heap not inferred."
 }

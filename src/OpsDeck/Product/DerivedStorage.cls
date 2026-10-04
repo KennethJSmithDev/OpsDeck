@@ -12,6 +12,14 @@ Method OnBeforePhase(pPhase As %String, ByRef pParams) As %Status
     quit ..CleanupPreflight()
 }
 
+/// Derived records are runtime cache, never package export inputs.
+/// Configure reconstructs the owned schema from the shipped product classes.
+Method OnExportItem(pFullExportPath As %String, pItemName As %String, ByRef pItemParams, ByRef pParams, Output pItemHandled As %Boolean = 0) As %Status
+{
+    set pItemHandled=1
+    quit $$$OK
+}
+
 Method OnAfterPhase(pPhase As %String, ByRef pParams) As %Status
 {
     if pPhase'="Configure" quit $$$OK

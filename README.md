@@ -24,15 +24,15 @@
 
 OpsDeck is being developed for the **InterSystems Programming Contest: Build Your Own Management Portal (2026)**.
 
-## Current Main state — OpsDeck 1.0 Pre-RC
+## OpsDeck 1.0.0 Release Candidate
 
-Main is the authoritative pre-RC product source. The accepted mutation checkpoint `e6328c704d021052629f40b6d41c2759596e2c1e` was promoted by merge `3b7a5307183addec6e32418b7858161a8aa666f3`; remote Main and integration had exactly the same tree `793e621a335a80befff4b92ac1400bc6b2578e17`.
+The release candidate preserves authoritative Pre-RC Main `62f363a41d8dcc70e65cd9fb9093a058736aad4f` and its nine-phase, mutation and optimization milestones. Release qualification repairs are limited to consistent 1.0.0 identity and the package-owned derived-store export hook.
 
 All nine roadmap phases retain bounded acceptance. Source-generated accounting is **117 exposed / 56 observed / 37 reproduced / 34 independently verified / 7 exposed mutation endpoints / 12 qualified mutation workflows**, over 276 declared operations and 161 mutation-shaped contracts. Supported fields and authority/read-back scopes are explicit in the generic explorer. The task Description HTTP 500 is known debt and contributes no exposed capability.
 
-Product identity is **OpsDeck · Pre-RC 1.0**. Internal and IPM package version remains **0.8.0**, the accepted package milestone; no 1.0 release, RC tag or public-registry distribution is implied. The existing published v0.2.0 release and demo are historical artifacts and do not represent current Main. GitHub Pages publication requires explicit manual dispatch.
+Product identity, internal version and IPM package version are **OpsDeck 1.0.0 · Release Candidate**. No v1.0.0 tag, release, registry upload or site publication has occurred. The existing v0.2.0 release and demo remain historical. Pages publication requires explicit manual dispatch.
 
-Current acceptance, solidification and optimization results are in [Main state](docs/MAIN_PRE_RC_STATE_20261004.md), [mutation milestone](docs/MUTATION_BREADTH_MILESTONE_20261004.md), and [generated capability inventory](docs/CAPABILITY_INVENTORY.md). The [nine-phase roadmap](docs/OPSDECK_DREAM_1_0_EXECUTION_PLAN.md) remains the durable product contract. Historical release evidence is retained in the dated version and qualification ledgers.
+Release qualification and exact artifact identity are recorded in [1.0 RC qualification](docs/RC_1_0_0_QUALIFICATION_20261004.md). The [Pre-RC checkpoint](docs/MAIN_PRE_RC_STATE_20261004.md), [mutation milestone](docs/MUTATION_BREADTH_MILESTONE_20261004.md), [generated capability inventory](docs/CAPABILITY_INVENTORY.md), and [nine-phase roadmap](docs/OPSDECK_DREAM_1_0_EXECUTION_PLAN.md) remain preserved. Qualification is scoped to the owned Docker target; public distribution and other IRIS versions are not inferred.
 
 ## Why OpsDeck
 
