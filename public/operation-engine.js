@@ -29,6 +29,28 @@ export const OPERATION_POLICIES = Object.freeze({
     parameterKeys: Object.freeze(["enabled"]),
     preStateKeys: Object.freeze(["enabled"]),
   }),
+  "webapp.fixture.create": Object.freeze({
+    semanticAction: "create-qualification-fixture",
+    risk: "HIGH",
+    providerOperation: "PUT /api/admin/v2/web-app",
+    requiredPrivileges: Object.freeze(["%Admin_Secure:U"]),
+    targetDomain: "applications",
+    targetKind: "web-app",
+    targetProvider: "iris-admin-api",
+    parameterKeys: Object.freeze(["authenticationMask", "enabled", "namespace", "path", "recurse", "serveFiles"]),
+    preStateKeys: Object.freeze(["exists"]),
+  }),
+  "webapp.fixture.delete": Object.freeze({
+    semanticAction: "delete-qualification-fixture",
+    risk: "HIGH",
+    providerOperation: "DELETE /api/admin/v2/web-app",
+    requiredPrivileges: Object.freeze(["%Admin_Secure:U"]),
+    targetDomain: "applications",
+    targetKind: "web-app",
+    targetProvider: "iris-admin-api",
+    parameterKeys: Object.freeze([]),
+    preStateKeys: Object.freeze(["authenticationMask", "enabled", "exists", "namespace", "path", "recurse", "serveFiles"]),
+  }),
   "ipm.package.install": Object.freeze({
     semanticAction: "package-install",
     risk: "HIGH",
@@ -127,6 +149,14 @@ function validateOperationParameters(capabilityId, parameters, policy) {
   if (capabilityId === "webapp.disable" && parameters.enabled !== false) {
     throw new Error("webapp.disable requires enabled=false.");
   }
+  if (capabilityId === "webapp.fixture.create" &&
+      (parameters.authenticationMask !== 32 || parameters.enabled !== false || parameters.namespace !== "%SYS" ||
+       parameters.path !== "/usr/irissys/csp/opsdeck/" || parameters.recurse !== true || parameters.serveFiles !== true)) {
+    throw new Error("Qualification fixture creation must use the exact bounded disabled CSP fixture contract.");
+  }
+  if (capabilityId === "webapp.fixture.delete" && Object.keys(parameters).length !== 0) {
+    throw new Error("Qualification fixture deletion does not accept parameters.");
+  }
   if (capabilityId.startsWith("ipm.package.")) {
     for (const key of ["namespace", "packageName", "requestedVersion", "sourceIdentity"]) {
       boundedText(parameters[key], `parameters.${key}`, key === "requestedVersion" ? 64 : 128);
@@ -147,6 +177,20 @@ function validateOperationParameters(capabilityId, parameters, policy) {
 function validateOperationPreState(capabilityId, preState, parameters, policy) {
   if (!exactParameterKeys(preState, policy.preStateKeys)) {
     throw new Error("Operation pre-state does not match the deterministic policy schema.");
+  }
+  if (capabilityId === "webapp.fixture.create") {
+    if (preState.exists !== false) throw new Error("Qualification fixture creation requires an authoritative absent pre-state.");
+    return;
+  }
+  if (capabilityId === "webapp.fixture.delete") {
+    const expectedKeys = ["authenticationMask", "enabled", "exists", "namespace", "path", "recurse", "serveFiles"];
+    if (preState.exists !== true || preState.enabled !== false || preState.authenticationMask !== 32 ||
+        preState.namespace !== "%SYS" || preState.path !== "/usr/irissys/csp/opsdeck/" ||
+        preState.recurse !== true || preState.serveFiles !== true ||
+        !exactParameterKeys(preState, expectedKeys)) {
+      throw new Error("Qualification fixture deletion requires the exact observed disabled fixture state.");
+    }
+    return;
   }
   if (capabilityId.startsWith("webapp.")) {
     if (typeof preState.enabled !== "boolean") throw new Error("Web-app pre-state requires a boolean enabled field.");
@@ -175,13 +219,20 @@ function validateOperationPreState(capabilityId, preState, parameters, policy) {
   }
 }
 
-function verifyFixtureReadback(plan, readback) {
+function verifyPolicyReadback(plan, readback) {
   const safeReadback = safeProjection(readback);
   if (plan.capability.id === "webapp.enable" || plan.capability.id === "webapp.disable") {
     if (!exactParameterKeys(safeReadback, ["enabled"]) || typeof safeReadback.enabled !== "boolean") {
       return { supported: true, matched: false, safeReadback };
     }
     return { supported: true, matched: safeReadback.enabled === plan.parameters.enabled, safeReadback };
+  }
+  if (plan.capability.id === "webapp.fixture.create") {
+    const expected = { authenticationMask: 32, enabled: false, exists: true, namespace: "%SYS", path: "/usr/irissys/csp/opsdeck/", recurse: true, serveFiles: true };
+    return { supported: true, matched: stable(safeReadback) === stable(expected), safeReadback };
+  }
+  if (plan.capability.id === "webapp.fixture.delete") {
+    return { supported: true, matched: exactParameterKeys(safeReadback, ["exists"]) && safeReadback.exists === false, safeReadback };
   }
   return { supported: false, matched: false, safeReadback };
 }
@@ -212,6 +263,9 @@ export function createOperationPlan(input, now = Date.now()) {
       target.kind !== policy.targetKind ||
       target.provider !== policy.targetProvider) {
     throw new Error("Operation does not match a deterministic risk/authority/provider policy.");
+  }
+  if (capability.id.startsWith("webapp.fixture.") && (target.key !== "/opsdeck-fixture" || scope !== "%SYS")) {
+    throw new Error("Qualification web-app fixture operations are bound to /opsdeck-fixture in %SYS.");
   }
   const parameters = safeProjection(input.parameters || {});
   validateOperationParameters(capability.id, parameters, policy);
@@ -359,7 +413,7 @@ export async function executeFixturePlan(plan, options = {}) {
       return { state: "ACCEPTED", status: "fixture-success", warnings: ["Fixture evidence does not qualify a live IRIS operation."] };
     },
     readBack: async () => options.readback,
-    verifyReadback: async (currentPlan, readback) => verifyFixtureReadback(currentPlan, readback),
+    verifyReadback: async (currentPlan, readback) => verifyPolicyReadback(currentPlan, readback),
   };
   const confirmation = options.confirmed === true
     ? { planId: plan?.id, preStateFingerprint: plan?.preStateFingerprint, confirmed: true }
@@ -368,3 +422,102 @@ export async function executeFixturePlan(plan, options = {}) {
 }
 
 export function isTerminalOperationState(state) { return TERMINAL.has(state); }
+
+function webAppState(payload, expectedName) {
+  if (!plain(payload) || !plain(payload.status) || (Array.isArray(payload.status.errors) && payload.status.errors.length) ||
+      !plain(payload.result) || (payload.result.Name !== undefined && payload.result.Name !== expectedName)) {
+    throw new Error("IRIS returned an invalid web-app result.");
+  }
+  const value = payload.result;
+  return {
+    exists: true,
+    authenticationMask: Number.isInteger(value.AutheEnabled) ? value.AutheEnabled : null,
+    enabled: value.Enabled === true || value.Enabled === 1,
+    namespace: typeof value.NameSpace === "string" ? value.NameSpace : null,
+    path: typeof value.Path === "string" ? value.Path : null,
+    recurse: value.Recurse === true || value.Recurse === 1,
+    serveFiles: value.ServeFiles === true || value.ServeFiles === 1 || value.ServeFiles === "Always",
+  };
+}
+
+export function createWebAppOperationProvider({ requestJson, username }) {
+  const observedUsername = boundedText(username, "observed IRIS username", 128);
+  if (typeof requestJson !== "function") throw new Error("A same-identity IRIS request function is required.");
+  const detailPath = plan => `/api/admin/v2/web-app?${new URLSearchParams({ name: plan.target.key })}`;
+  const read = async plan => {
+    try { return webAppState(await requestJson(detailPath(plan)), plan.target.key); }
+    catch (error) {
+      if (error?.status === 404) return { exists: false };
+      throw error;
+    }
+  };
+  return Object.freeze({
+    identity: "iris-admin-webapp-provider-v1",
+    targetProvider: "iris-admin-api",
+    readPreState: async plan => {
+      const current = await read(plan);
+      if (current.exists === true && current.namespace !== plan.target.scope) {
+        throw new Error("Web-app namespace no longer matches the planned target.");
+      }
+      if (plan.capability.id === "webapp.enable" || plan.capability.id === "webapp.disable") {
+        if (current.exists !== true || typeof current.enabled !== "boolean") throw new Error("Selected web application is no longer present.");
+        return { enabled: current.enabled };
+      }
+      return current;
+    },
+    checkAuthority: async () => {
+      const payload = await requestJson("/api/admin/info");
+      if (!plain(payload) || !plain(payload.status) || (Array.isArray(payload.status.errors) && payload.status.errors.length) || !plain(payload.result)) {
+        return { state: "UNVERIFIED" };
+      }
+      if (payload.result.username !== observedUsername) return { state: "DENIED" };
+      const use = payload.result.privileges?.Secure?.use;
+      if (use === false) return { state: "DENIED" };
+      if (use !== true) return { state: "UNVERIFIED" };
+      return { state: "SUPPORTED", evidence: "iris-admin-api:security-secure-use:true" };
+    },
+    dispatch: async plan => {
+      let method;
+      let body;
+      if (plan.capability.id === "webapp.fixture.create") {
+        method = "PUT";
+        body = {
+          Enabled: false,
+          NameSpace: "%SYS",
+          Path: "/usr/irissys/csp/opsdeck/",
+          Recurse: 1,
+          ServeFiles: 1,
+          AutheEnabled: 32,
+        };
+      } else if (plan.capability.id === "webapp.fixture.delete") {
+        method = "DELETE";
+      } else if (plan.capability.id === "webapp.enable" || plan.capability.id === "webapp.disable") {
+        method = "PUT";
+        body = { Enabled: plan.parameters.enabled };
+      } else {
+        return { state: "UNAVAILABLE", reason: "operation-not-supported-by-webapp-provider" };
+      }
+      try {
+        await requestJson(detailPath(plan), {
+          method,
+          ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
+        });
+        return { state: "ACCEPTED", status: `${method.toLowerCase()}-accepted` };
+      } catch (error) {
+        if (error?.status === 401 || error?.status === 403) return { state: "DENIED", reason: "iris-denied-webapp-operation" };
+        if (Number.isInteger(error?.status) && error.status >= 400 && error.status < 500) return { state: "FAILED", reason: `iris-rejected-webapp-operation-${error.status}` };
+        if (Number.isInteger(error?.status) && error.status >= 500) return { state: "AMBIGUOUS" };
+        throw error;
+      }
+    },
+    readBack: async plan => {
+      const current = await read(plan);
+      if (plan.capability.id === "webapp.enable" || plan.capability.id === "webapp.disable") {
+        if (current.exists !== true || typeof current.enabled !== "boolean") throw new Error("Web-app read-back is unavailable.");
+        return { enabled: current.enabled };
+      }
+      return current;
+    },
+    verifyReadback: async (plan, readback) => verifyPolicyReadback(plan, readback),
+  });
+}

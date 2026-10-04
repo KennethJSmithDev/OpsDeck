@@ -79,6 +79,24 @@ export function createEvidenceCollection(records, providerState = "AVAILABLE") {
   return Object.freeze({ state, truncated: records.length > MAX_ITEMS, records: Object.freeze(bounded) });
 }
 
+export function operationReceiptEvidence(receipt) {
+  if (!object(receipt) || !["VERIFIED", "FAILED"].includes(receipt.verification) ||
+      !object(receipt.target) || !object(receipt.timestamps)) {
+    throw new Error("An authoritative operation receipt is required.");
+  }
+  return createEvidenceRef({
+    id: receipt.id,
+    kind: "operation-receipt",
+    state: receipt.verification,
+    title: receipt.intent,
+    observedAt: receipt.timestamps.completedAt,
+    source: { identity: receipt.provider },
+    resource: receipt.target,
+    summary: `Authoritative read-back ${receipt.verification === "VERIFIED" ? "matched" : "did not match"} the confirmed operation plan.`,
+    evidence: receipt,
+  });
+}
+
 export function filterEvidence(collection, query = "", state = "ALL") {
   if (!collection || !Array.isArray(collection.records)) throw new Error("Evidence collection is invalid.");
   if (state !== "ALL" && !STATES.has(state)) throw new Error("Evidence filter state is invalid.");

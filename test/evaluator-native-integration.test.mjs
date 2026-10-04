@@ -69,8 +69,8 @@ test("System About uses canonical product identity and leaves provider view inta
     providerDomainView("system")
   `, context);
   assert.match(identity, /Beta Release[\s\S]*OpsDeck[\s\S]*Version 0\.2/u);
-  assert.match(identity, /Internal version[\s\S]*0\.5\.0/u);
-  assert.match(identity, /Package version[\s\S]*0\.5\.0/u);
+  assert.match(identity, /Internal version[\s\S]*0\.6\.0/u);
+  assert.match(identity, /Package version[\s\S]*0\.6\.0/u);
   assert.match(identity, /IRIS Fixture 2026\.2/u);
   assert.match(identity, /Namespace[\s\S]*%SYS/u);
   assert.match(identity, /Native IRIS CSP application/u);

@@ -1,4 +1,4 @@
-import { createOperationPlan } from "./operation-engine.js?v=opsdeck-0.5.0";
+import { createOperationPlan } from "./operation-engine.js?v=opsdeck-0.6.0";
 
 const SYNTHETIC_SOURCE = "opsdeck-fixture://package-catalog";
 const INSTALLED_IPM_SOURCE = "iris-ipm-installed-v1";

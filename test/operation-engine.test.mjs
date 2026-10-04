@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { cancelOperationPlan, createOperationPlan, executeFixturePlan, executeOperationPlan, fingerprintPreState, isTerminalOperationState } from "../src/operation-engine.js";
+import { cancelOperationPlan, createOperationPlan, createWebAppOperationProvider, executeFixturePlan, executeOperationPlan, fingerprintPreState, isTerminalOperationState } from "../src/operation-engine.js";
+import { createEvidenceCollection, exportEvidenceJSON, operationReceiptEvidence } from "../public/evidence-center.js";
 
 const now = Date.parse("2026-10-02T12:00:00Z");
 const input = {
@@ -138,7 +139,95 @@ test("reversible web-app disable policy admits an exact plan and verifies its fi
   });
   assert.equal(result.state, "VERIFIED");
   assert.equal(result.receipt.verification, "VERIFIED");
+  const evidence = createEvidenceCollection([operationReceiptEvidence(result.receipt)]);
+  assert.equal(evidence.records[0].kind, "operation-receipt");
+  assert.equal(evidence.records[0].state, "VERIFIED");
+  assert.equal(evidence.records[0].resource.key, "/opsdeck-fixture");
+  assert.equal(evidence.records[0].evidence.operationId, disable.id);
+  assert.doesNotMatch(exportEvidenceJSON(evidence), /requestSummary|preStateFingerprint|authenticationMask/u);
   assert.deepEqual(result.receipt.requestSummary, { enabled: false });
+});
+
+test("live web-app fixture creation is fixed-scope, confirmed, authority-checked, and read-back verified", async () => {
+  const plan = createOperationPlan({
+    id: "fixture-create-001", intent: "Create disabled OpsDeck qualification fixture",
+    expectedReadback: "Exact disabled CSP fixture properties match", expiresAt: now + 60_000,
+    target: { ...input.target, observedAt: "2026-10-03T12:00:00Z" },
+    capability: { ...input.capability, id: "webapp.fixture.create", semanticAction: "create-qualification-fixture", risk: "HIGH" },
+    parameters: { authenticationMask: 32, enabled: false, namespace: "%SYS", path: "/usr/irissys/csp/opsdeck/", recurse: true, serveFiles: true },
+    preState: { exists: false }, preStateEvidence: "iris-admin-api:fixture-absent",
+    authorityValidation: { state: "SUPPORTED", evidence: "iris-admin-api:security-secure-use:true" },
+    preconditions: [{ claim: "Exact fixture is absent", observed: true, evidence: "iris-admin-api:fixture-absent" }],
+  }, now);
+  const calls = [];
+  let created = null;
+  const provider = createWebAppOperationProvider({
+    username: "OpsDeckQualify",
+    requestJson: async (path, options = {}) => {
+      calls.push({ path, options });
+      if (path === "/api/admin/info") return { status: { errors: [] }, result: { username: "OpsDeckQualify", privileges: { Secure: { use: true } } } };
+      if (options.method === "PUT") { created = { status: { errors: [] }, result: { Name: "/opsdeck-fixture" } }; return created; }
+      if (!created) { const error = new Error("not found"); error.status = 404; throw error; }
+      return { status: { errors: [] }, result: {
+        Name: "/opsdeck-fixture", Enabled: false, NameSpace: "%SYS", Path: "/usr/irissys/csp/opsdeck/",
+        Recurse: 1, ServeFiles: 1, AutheEnabled: 32, Type: "CSP",
+      } };
+    },
+  });
+  const result = await executeOperationPlan(plan, provider, {
+    providerIdentity: provider.identity, now,
+    confirmation: { planId: plan.id, preStateFingerprint: plan.preStateFingerprint, confirmed: true },
+  });
+  assert.equal(result.state, "VERIFIED");
+  assert.equal(result.receipt.verification, "VERIFIED");
+  assert.deepEqual(calls.map(({ path, options }) => options.method ? `${options.method} ${path}` : `GET ${path}`), [
+    "GET /api/admin/v2/web-app?name=%2Fopsdeck-fixture",
+    "GET /api/admin/info",
+    "PUT /api/admin/v2/web-app?name=%2Fopsdeck-fixture",
+    "GET /api/admin/v2/web-app?name=%2Fopsdeck-fixture",
+  ]);
+  assert.deepEqual(JSON.parse(calls[2].options.body), {
+    Enabled: false, NameSpace: "%SYS", Path: "/usr/irissys/csp/opsdeck/", Recurse: 1, ServeFiles: 1, AutheEnabled: 32,
+  });
+});
+
+test("live fixture deletion requires exact disabled state and verifies authoritative absence", async () => {
+  const fixtureState = { authenticationMask: 32, enabled: false, exists: true, namespace: "%SYS", path: "/usr/irissys/csp/opsdeck/", recurse: true, serveFiles: true };
+  const plan = createOperationPlan({
+    id: "fixture-delete-001", intent: "Remove the exact disabled OpsDeck qualification fixture",
+    expectedReadback: "Exact fixture is absent", expiresAt: now + 60_000,
+    target: { ...input.target, observedAt: "2026-10-03T12:00:00Z" },
+    capability: { ...input.capability, id: "webapp.fixture.delete", semanticAction: "delete-qualification-fixture", providerOperation: "DELETE /api/admin/v2/web-app", risk: "HIGH" },
+    parameters: {}, preState: fixtureState, preStateEvidence: "iris-admin-api:fixture-present",
+    authorityValidation: { state: "SUPPORTED", evidence: "iris-admin-api:security-secure-use:true" },
+    preconditions: [{ claim: "Fixture is disabled and matches the exact created contract", observed: true, evidence: "iris-admin-api:fixture-present" }],
+  }, now);
+  let present = true;
+  const calls = [];
+  const provider = createWebAppOperationProvider({
+    username: "OpsDeckQualify",
+    requestJson: async (path, options = {}) => {
+      calls.push({ path, options });
+      if (path === "/api/admin/info") return { status: { errors: [] }, result: { username: "OpsDeckQualify", privileges: { Secure: { use: true } } } };
+      if (options.method === "DELETE") { present = false; return { status: { errors: [] }, result: {} }; }
+      if (!present) { const error = new Error("not found"); error.status = 404; throw error; }
+      return { status: { errors: [] }, result: {
+        Name: "/opsdeck-fixture", Enabled: false, NameSpace: "%SYS", Path: "/usr/irissys/csp/opsdeck/",
+        Recurse: 1, ServeFiles: 1, AutheEnabled: 32, Type: "CSP",
+      } };
+    },
+  });
+  const result = await executeOperationPlan(plan, provider, {
+    providerIdentity: provider.identity, now,
+    confirmation: { planId: plan.id, preStateFingerprint: plan.preStateFingerprint, confirmed: true },
+  });
+  assert.equal(result.state, "VERIFIED");
+  assert.deepEqual(calls.map(({ path, options }) => options.method ? `${options.method} ${path}` : `GET ${path}`), [
+    "GET /api/admin/v2/web-app?name=%2Fopsdeck-fixture",
+    "GET /api/admin/info",
+    "DELETE /api/admin/v2/web-app?name=%2Fopsdeck-fixture",
+    "GET /api/admin/v2/web-app?name=%2Fopsdeck-fixture",
+  ]);
 });
 
 test("ambiguous provider result is terminal and never retried", async () => {
