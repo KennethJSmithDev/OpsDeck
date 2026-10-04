@@ -1,8 +1,9 @@
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.6.0";
-import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence } from "./evidence-center.js?v=opsdeck-0.6.0";
-import { comparePackageCatalogToInstalled, fixturePackageInventory, mapAvailablePackageCatalog, mapInstalledPackageInventory, preparePackagePlan } from "./packages-workspace.js?v=opsdeck-0.6.0";
-import { mapAuditJob, upsertJob } from "./job-center.js?v=opsdeck-0.6.0";
-import { ProductIdentity } from "./product-identity.js?v=opsdeck-0.6.0-about";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.7.0";
+import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence, operationReceiptEvidence } from "./evidence-center.js?v=opsdeck-0.7.0";
+import { comparePackageCatalogToInstalled, fixturePackageInventory, mapAvailablePackageCatalog, mapInstalledPackageInventory, preparePackagePlan } from "./packages-workspace.js?v=opsdeck-0.7.0";
+import { mapAuditJob, upsertJob } from "./job-center.js?v=opsdeck-0.7.0";
+import { ProductIdentity } from "./product-identity.js?v=opsdeck-0.7.0-about";
+import { createOperationPlan, createWebAppOperationProvider, executeOperationPlan, OPERATION_POLICIES } from "./operation-engine.js?v=opsdeck-0.7.0";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -132,6 +133,8 @@ const state = {
   selected: "",
   lastRead: null,
   verification: null,
+  webAppOperation: null,
+  operationEvidence: [],
   sourceData: {}, sourceErrors: {}, sourceLoading: "", sourceVerification: {}, selectedRotation: "", rotationLoading: "",
   sourceTabs: { applications: "restServices", access: "users", security: "walletCollections", tasks: "tasks", system: "systemUsage", logs: "auditEnabled" },
   systemSection: "providers",
@@ -217,8 +220,8 @@ async function requestJson(path, options = {}) {
     response = await fetch(path, {
       cache: "no-store",
       credentials: "same-origin",
-      headers,
       ...options,
+      headers,
       signal: options.signal || AbortSignal.timeout(20000),
     });
   } catch (error) {
@@ -477,10 +480,68 @@ function applicationsView() {
     ${state.error ? `<div class="notice error" role="alert">${esc(state.error)}</div>` : ""}
     <section class="apps-layout">
       <article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>Web application</th><th>Namespace</th><th>State</th><th>Type</th><th>Authentication</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="empty-cell">No web applications were returned by IRIS.</td></tr>`}</tbody></table></div><div class="panel-foot">Provider <code>SysAdmin API v2</code> · Updated ${fmtTime(state.lastRead)}</div></article>
-      <aside class="panel inspector"><div class="panel-kicker">RESOURCE INSPECTOR</div>${selected ? `<h2 class="inspector-title"><code>${esc(selected.name)}</code></h2><p class="inspector-sub">Provider-owned identity · namespace scoped</p><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(selected.namespace)}</code></dd><dt>Enabled</dt><dd>${selected.enabled ? "Yes" : "No"}</dd><dt>Type</dt><dd>${selected.type === null ? "Not returned" : esc(selected.type)}</dd><dt>Resource</dt><dd>${selected.resource === null ? "Not returned" : selected.resource ? `<code>${esc(selected.resource)}</code>` : "None"}</dd><dt>Authentication</dt><dd>${esc(selected.authenticationMethods.join(", ") || "None returned")}</dd><dt>Default namespace</dt><dd>${selected.namespaceDefault === null ? "Not returned" : selected.namespaceDefault ? "Yes" : "No"}</dd><dt>System application</dt><dd>${selected.isSystemApp === null ? "Not returned" : selected.isSystemApp ? "Yes" : "No"}</dd><dt>Dispatch class</dt><dd>${selected.dispatchClass === null ? "Not returned" : selected.dispatchClass ? `<code>${esc(selected.dispatchClass)}</code>` : "None"}</dd></dl><div class="inspector-foot">Key <code>${esc(selected.ref.key)}</code> · refreshed ${fmtTime(selected.ref.observedAt)}</div><section class="inspector-section"><div class="panel-kicker">AUTHORITATIVE DETAIL</div>${detailContent}</section><section class="inspector-section"><div class="panel-kicker">REST SERVICE RELATIONSHIP</div>${relationshipContent}</section>` : `<div class="empty-inspector">Select an application to inspect its observed fields.</div>`}</aside>
+      <aside class="panel inspector"><div class="panel-kicker">RESOURCE INSPECTOR</div>${selected ? `<h2 class="inspector-title"><code>${esc(selected.name)}</code></h2><p class="inspector-sub">Provider-owned identity · namespace scoped</p><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(selected.namespace)}</code></dd><dt>Enabled</dt><dd>${selected.enabled ? "Yes" : "No"}</dd><dt>Type</dt><dd>${selected.type === null ? "Not returned" : esc(selected.type)}</dd><dt>Resource</dt><dd>${selected.resource === null ? "Not returned" : selected.resource ? `<code>${esc(selected.resource)}</code>` : "None"}</dd><dt>Authentication</dt><dd>${esc(selected.authenticationMethods.join(", ") || "None returned")}</dd><dt>Default namespace</dt><dd>${selected.namespaceDefault === null ? "Not returned" : selected.namespaceDefault ? "Yes" : "No"}</dd><dt>System application</dt><dd>${selected.isSystemApp === null ? "Not returned" : selected.isSystemApp ? "Yes" : "No"}</dd><dt>Dispatch class</dt><dd>${selected.dispatchClass === null ? "Not returned" : selected.dispatchClass ? `<code>${esc(selected.dispatchClass)}</code>` : "None"}</dd></dl><div class="inspector-foot">Key <code>${esc(selected.ref.key)}</code> · refreshed ${fmtTime(selected.ref.observedAt)}</div><section class="inspector-section"><div class="panel-kicker">AUTHORITATIVE DETAIL</div>${detailContent}</section><section class="inspector-section"><div class="panel-kicker">REST SERVICE RELATIONSHIP</div>${relationshipContent}</section>${webAppOperationPanel(selected)}` : `<div class="empty-inspector">Select an application to inspect its observed fields.</div>`}</aside>
     </section>
     <section class="verification-banner ${state.verification?.matched ? "verified" : state.verification ? "mismatch" : "pending"}"><div class="verification-symbol">${state.verification?.matched ? "✓" : state.verification ? "!" : "·"}</div><div><strong>${state.verification?.matched ? "Read-back confirmed" : state.verification ? "Read-back requires review" : "Waiting for authoritative read-back"}</strong><p>${state.verification ? `${state.verification.count} web-app records from the rendered list were compared with a second GET response.` : "OpsDeck performs a separate read after the initial list is rendered."}</p></div><code>GET /api/admin/v2/web-apps</code></section>
     <section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">REST DISCOVERY</div><h2>Namespace REST services</h2></div>${badge("Live source", "accent")}</div>${sourceSelector("applications")}${sourcePanel(state.sourceTabs.applications)}</section>`);
+}
+
+function webAppOperationPanel(selected) {
+  if (!nativeMode || !state.connected || state.info?.systemMode === "DEMO") return "";
+  const operation = state.webAppOperation;
+  const current = operation?.plan?.target.key === selected.name ? operation : null;
+  const unique = Boolean(uniqueRecord(state.apps, item => item.name === selected.name));
+  return `<section class="inspector-section"><div class="panel-kicker">REVIEWED OPERATION</div><p>Change only this application's Enabled flag. Disabling it can interrupt requests to its routes.</p><button class="button secondary" data-webapp-plan="${esc(selected.name)}" ${!unique || operation?.busy ? "disabled" : ""}>Prepare ${selected.enabled ? "disable" : "enable"} plan</button>${current ? `<p role="status">${esc(current.state)}</p>${current.plan ? `<p><strong>Target</strong> <code>${esc(current.plan.target.key)}</code> · ${esc(current.plan.target.scope)}</p><p><strong>Impact</strong> Enabled ${current.plan.parameters.enabled ? "true" : "false"}; ${esc(current.plan.risk)} risk. Authority is checked again before dispatch.</p><p><strong>Freshness</strong> Expires ${esc(current.plan.expiresAt)}</p><p>UNVERIFIED: a reviewed plan predicts a change; only authoritative read-back can verify it.</p>${current.state === "REVIEW_REQUIRED" ? `<button class="button primary" data-webapp-confirm="${esc(current.plan.id)}">Confirm ${current.plan.parameters.enabled ? "enable" : "disable"} ${esc(current.plan.target.key)}</button>` : ""}` : ""}${current.reason ? `<p>${esc(current.reason)}</p>` : ""}` : operation && !operation.plan ? `<p role="status">${esc(operation.state)} · ${esc(operation.reason || "")}</p>` : ""}</section>`;
+}
+
+async function prepareWebAppOperation(name) {
+  if (!nativeMode || !state.connected || state.info?.systemMode === "DEMO" || state.webAppOperation?.busy) return;
+  const selected = uniqueRecord(state.apps, item => item.name === name);
+  if (!selected) return;
+  const owner = sessionEpoch;
+  const username = state.info.username;
+  const provider = createWebAppOperationProvider({ username, requestJson: (path, options) => {
+    if (owner !== sessionEpoch || !state.connected) throw new Error("Operation session expired.");
+    return requestJson(path, options);
+  } });
+  const target = { domain: "applications", kind: "web-app", provider: "iris-admin-api", key: selected.name, scope: selected.namespace, label: selected.name, observedAt: new Date().toISOString() };
+  state.webAppOperation = { busy: true, state: "PREFLIGHT" };
+  render();
+  try {
+    const preState = await provider.readPreState({ target, capability: { id: "webapp.enable" } });
+    const authority = await provider.checkAuthority();
+    if (owner !== sessionEpoch) return;
+    if (authority.state !== "SUPPORTED") { state.webAppOperation = { state: authority.state, reason: "Existing IRIS application administration authority is required." }; return; }
+    const id = preState.enabled ? "webapp.disable" : "webapp.enable";
+    const policy = OPERATION_POLICIES[id];
+    const plan = createOperationPlan({
+      id: `webapp:${Date.now()}`, intent: `${preState.enabled ? "Disable" : "Enable"} ${name}`, target,
+      capability: { id, state: "SUPPORTED", ...policy }, parameters: { enabled: !preState.enabled }, preState,
+      preStateEvidence: "iris-admin-api:selected-webapp-detail", authorityValidation: authority,
+      preconditions: [{ claim: "Unique application identity and fresh namespace-scoped state", observed: true, evidence: "iris-admin-api:selected-webapp-detail" }],
+      expectedReadback: `Enabled is ${!preState.enabled}`, expiresAt: Date.now() + 120000,
+    });
+    state.webAppOperation = { plan, provider, state: "REVIEW_REQUIRED", busy: false };
+    state.operationEvidence = [...state.operationEvidence, { id: plan.id, kind: "operation-plan", state: "UNVERIFIED", title: plan.intent, observedAt: plan.createdAt, source: { identity: provider.identity }, resource: plan.target, summary: `UNVERIFIED: planned Enabled=${plan.parameters.enabled}; changing application availability can interrupt requests. No mutation has occurred.`, evidence: { operationId: plan.id, risk: plan.risk, capability: id, authorityState: authority.state, requiresConfirmation: true, preStateEvidence: plan.preStateEvidence, expectedReadback: plan.expectedReadback } }].slice(-32);
+  } catch (error) {
+    if (owner === sessionEpoch) state.webAppOperation = { state: "UNAVAILABLE", reason: error.message };
+  } finally { if (owner === sessionEpoch) render(); }
+}
+
+async function confirmWebAppOperation(id) {
+  const operation = state.webAppOperation;
+  if (!operation || operation.state !== "REVIEW_REQUIRED" || operation.plan?.id !== id || operation.busy) return;
+  const owner = sessionEpoch;
+  operation.busy = true;
+  operation.state = "IN_FLIGHT";
+  render();
+  const result = await executeOperationPlan(operation.plan, operation.provider, { providerIdentity: operation.provider.identity, confirmation: { planId: id, preStateFingerprint: operation.plan.preStateFingerprint, confirmed: true } });
+  if (owner !== sessionEpoch) return;
+  operation.state = result.state;
+  operation.reason = result.reason || (result.receipt ? `KNOWN: authoritative read-back ${result.receipt.verification}. Receipt is available in Evidence.` : "No verified receipt. No automatic retry.");
+  operation.busy = false;
+  if (result.receipt) state.operationEvidence = [...state.operationEvidence, operationReceiptEvidence(result.receipt)].slice(-32);
+  render();
 }
 
 function applicationsTabs() {
@@ -852,7 +913,7 @@ function currentEvidenceCollection() {
         observedAt: observation.observedAt,
         source: { identity: observation.provider, provider: analysis.provider },
         resource: { domain: "logs", kind: sourceId, provider: observation.provider, key: `line:${finding.lineNumber}`, label: `${analysis.source} line ${finding.lineNumber}`, observedAt: observation.observedAt },
-        summary: `${finding.summary} ${finding.consequence} Suggested next step: ${finding.nextAction}`,
+        summary: `INFERRED: ${finding.summary} ${finding.consequence} Suggested next step: ${finding.nextAction}`,
         evidence: { providerState: analysis.status, fields: ["ruleId", "lineNumber", "marker"], identityBasis: "bounded-fixed-log-line", truncated: observation.truncated, bytesReturned: observation.bytesReturned },
       });
     }
@@ -861,6 +922,7 @@ function currentEvidenceCollection() {
     const plan = state.packagePlan.plan;
     records.push({ id: plan.id, kind: "operation-plan", state: "UNVERIFIED", title: plan.intent, observedAt: plan.createdAt, source: { identity: state.packagePlan.executorIdentity || "not-attached" }, resource: { key: plan.target.key, scope: plan.target.scope }, summary: "Synthetic package plan preview. No package operation was executed; live IPM execution remains unavailable.", evidence: { risk: plan.risk, capability: plan.capability.id, preStateEvidence: plan.preStateEvidence } });
   }
+  records.push(...state.operationEvidence);
   return createEvidenceCollection(records, records.length ? "AVAILABLE" : "EMPTY");
 }
 
@@ -995,6 +1057,8 @@ function render() {
   });
   app.querySelectorAll("[data-load-webapp-detail]").forEach((button) => button.addEventListener("click", () => loadWebAppDetail(button.dataset.loadWebappDetail, true)));
   app.querySelectorAll("[data-load-rest-spec]").forEach((button) => button.addEventListener("click", () => loadRestSpec(button.dataset.loadRestSpec, true)));
+  app.querySelectorAll("[data-webapp-plan]").forEach(button => button.addEventListener("click", () => prepareWebAppOperation(button.dataset.webappPlan)));
+  app.querySelectorAll("[data-webapp-confirm]").forEach(button => button.addEventListener("click", () => confirmWebAppOperation(button.dataset.webappConfirm)));
   app.querySelector("#connect-form")?.addEventListener("submit", connect);
   app.querySelector("#disconnect-button")?.addEventListener("click", disconnect);
   app.querySelector("#refresh-button")?.addEventListener("click", () => refreshLive(true));
@@ -1014,6 +1078,8 @@ function clearSession() {
   state.selected = "";
   state.lastRead = null;
   state.verification = null;
+  state.webAppOperation = null;
+  state.operationEvidence = [];
   for (const key of [
     "sourceData", "sourceErrors", "sourceVerification", "selectedItems", "webAppDetails", "webAppDetailErrors",
     "userDetails", "userDetailErrors", "userDetailVerification", "roleDetails", "roleDetailErrors",

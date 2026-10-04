@@ -9,6 +9,7 @@ import * as jobs from "../public/job-center.js";
 import { ProductIdentity } from "../public/product-identity.js";
 
 const source = (await readFile(new URL("../public/app.js", import.meta.url), "utf8")).replace(/^import[^\n]+\n/gm, "");
+const operationSource = (await readFile(new URL("../public/operation-engine.js", import.meta.url), "utf8")).replace(/^export /gm, "");
 function contextFor(pathname = "/opsdeck/index.html", fetch = async () => { throw new Error("Unexpected request"); }) {
   const element = { innerHTML: "", querySelector: () => null, querySelectorAll: () => [] };
   const context = vm.createContext({
@@ -19,6 +20,7 @@ function contextFor(pathname = "/opsdeck/index.html", fetch = async () => { thro
     history: { replaceState() {} }, matchMedia: () => ({ matches: false, addEventListener() {} }),
     addEventListener() {}, fetch,
   });
+  vm.runInContext(operationSource, context);
   vm.runInContext(source, context);
   return { context, element };
 }
@@ -69,8 +71,8 @@ test("System About uses canonical product identity and leaves provider view inta
     providerDomainView("system")
   `, context);
   assert.match(identity, /Beta Release[\s\S]*OpsDeck[\s\S]*Version 0\.2/u);
-  assert.match(identity, /Internal version[\s\S]*0\.6\.0/u);
-  assert.match(identity, /Package version[\s\S]*0\.6\.0/u);
+  assert.match(identity, /Internal version[\s\S]*0\.7\.0/u);
+  assert.match(identity, /Package version[\s\S]*0\.7\.0/u);
   assert.match(identity, /IRIS Fixture 2026\.2/u);
   assert.match(identity, /Namespace[\s\S]*%SYS/u);
   assert.match(identity, /Native IRIS CSP application/u);
@@ -327,4 +329,55 @@ test("restricted demo retains its known identity when application inventory is d
 test("similarly named paths do not select native authentication mode", () => {
   const { context } = contextFor("/opsdeck-other/");
   assert.equal(vm.runInContext('nativeMode', context), false);
+});
+
+test("live operation review requires confirmation and renders its verified receipt in session Evidence", async () => {
+  let enabled = false;
+  const calls = [];
+  const { context } = contextFor("/opsdeck/index.html", async (path, options) => {
+    calls.push({ path, options });
+    if (path === "/api/admin/info") return { ok: true, status: 200, json: async () => realmJSON({ status: { errors: [] }, result: { username: "Qualification", privileges: { Secure: { use: true } } } }) };
+    if (options.method === "PUT") enabled = JSON.parse(options.body).Enabled;
+    return { ok: true, status: 200, json: async () => realmJSON({ status: { errors: [] }, result: { Enabled: enabled, NameSpace: "%SYS" } }) };
+  });
+  function realmJSON(value) { return vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify(value))})`, context); }
+  vm.runInContext(`state.connected=true; state.info={username:"Qualification",serverVersion:"Fixture IRIS"}; nativeAuthorization="Basic opaque-fixture"; state.route="applications"; state.apps=mapWebApps({status:{errors:[]},result:[{Name:"/opsdeck-fixture",Namespace:"%SYS",Enabled:false,Type:"CSP",AuthenticationMethods:["Password"]}]});`, context);
+  await vm.runInContext('prepareWebAppOperation("/opsdeck-fixture")', context);
+  assert.equal(vm.runInContext('state.webAppOperation.state', context), "REVIEW_REQUIRED", vm.runInContext('state.webAppOperation.reason', context));
+  assert.equal(calls.filter(call => call.options.method === "PUT").length, 0);
+  const review = vm.runInContext('applicationsView()', context);
+  assert.match(review, /Confirm enable \/opsdeck-fixture/u);
+  assert.match(review, /Impact[\s\S]*Enabled true/u);
+  assert.match(review, /UNVERIFIED/u);
+  await vm.runInContext('confirmWebAppOperation(state.webAppOperation.plan.id)', context);
+  const write = calls.filter(call => call.options.method === "PUT");
+  assert.equal(write.length, 1);
+  assert.equal(write[0].options.headers.Authorization, "Basic opaque-fixture");
+  assert.deepEqual(JSON.parse(write[0].options.body), { Enabled: true });
+  const collection = vm.runInContext('currentEvidenceCollection()', context);
+  assert.ok(collection.records.some(record => record.kind === "operation-receipt" && record.state === "VERIFIED"));
+  const rendered = vm.runInContext('evidenceView()', context);
+  assert.match(rendered, /Enable \/opsdeck-fixture/u);
+  assert.match(rendered, /operation-receipt/u);
+  assert.match(rendered, /authoritative|Authoritative/u);
+  vm.runInContext('clearSession()', context);
+  assert.equal(vm.runInContext('state.operationEvidence.length', context), 0);
+});
+
+test("logout during operation preflight prevents further authority requests or dispatch", async () => {
+  let release;
+  let count = 0;
+  const { context } = contextFor("/opsdeck/index.html", async () => {
+    count++;
+    await new Promise(resolve => { release = resolve; });
+    return { ok: true, status: 200, json: async () => ({ status: { errors: [] }, result: { Enabled: false, NameSpace: "%SYS" } }) };
+  });
+  vm.runInContext(`state.connected=true; state.info={username:"Qualification"}; state.apps=mapWebApps({status:{errors:[]},result:[{Name:"/opsdeck-fixture",Namespace:"%SYS",Enabled:false,Type:"CSP",AuthenticationMethods:["Password"]}]});`, context);
+  const pending = vm.runInContext('prepareWebAppOperation("/opsdeck-fixture")', context);
+  vm.runInContext('clearSession()', context);
+  release();
+  await pending;
+  assert.equal(count, 1);
+  assert.equal(vm.runInContext('state.webAppOperation', context), null);
+  assert.equal(vm.runInContext('state.operationEvidence.length', context), 0);
 });
