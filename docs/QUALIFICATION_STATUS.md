@@ -1,5 +1,12 @@
 # OpsDeck qualification status
 
+## Main source checkpoint — 2026-10-03
+
+- Main includes the accepted v0.5 operational-visibility snapshot and the optional System > About identity surface at [`1aaee4ecca5055a5b64ceaf85cfbb1d493c5b435`](https://github.com/KennethJSmithDev/OpsDeck/commit/1aaee4ecca5055a5b64ceaf85cfbb1d493c5b435). GitHub's committer timestamp is **2026-10-04 00:16:22 UTC**.
+- The public product release remains `v0.2.0`; package/internal source version is `0.5.0`. No `0.5.0` tag or package publication was made.
+- The preregistered ambiguous-dispatch canary test is present unchanged. Main inclusion and exact file/test-block hashes are recorded in the private qualification evidence.
+- Main regression suite after the merge: **160/160 PASS**. JavaScript syntax checks and `module.xml` parsing pass. The merge range contains intentional Markdown hard-break spaces and blank lines at EOF, so commit-range `git diff --check` reports those documentation-format patterns; the clean working-tree check passes.
+
 ## Current integration snapshot — 2026-10-03
 
 - Branch at the start of the 2026-10-03 authenticated HTTP qualification: `integration/opsdeck-1.0-20261002`, pushed tip `65fa4a250c120b43998bb11b7734c6e83553e5c7`. The pushed follow-on checkpoints are recorded in Git; see [the authenticated catalog boundary record](OPSDECK_0_9_AUTHENTICATED_HTTP_BOUNDARY_20261003.md) for this qualification's Docker-only security changes and exact outcomes.
@@ -34,7 +41,7 @@ The live installed UI demonstrated the catalog behavior and correct version fact
 - **Representation cost:** current source measurement is 260,184 uncompressed browser bytes (222,152 JS, 37,584 CSS, 448 HTML), eight native initial requests, +31,847 bytes (+13.94%) versus the preserved 228,337-byte baseline. The +6,476-byte increase since the previous measurement is the bounded rotated-message-log observation path in the existing app/provider modules; it adds no asset or initial request. No framework or global catalog preload was introduced.
 - **Presentation debt:** the Docker-installed `0.2.2` renderer shows the truthful generic `INSTALLED` badge, with both versions alongside it. It does not display the more informative `INSTALLED_NEWER` label present in newer source. This is not a v0.5 acceptance failure because the written gate requires correct version semantics and no false update recommendation, not that exact badge string.
 - **Remaining gaps:** live web-app mutation, OperationReceipt, package install/remove, and current-source explicit relationship-label runtime observation remain for later gates. v0.6 is not yet accepted.
-- **Release boundary:** `0.5.0` is prepared on the integration branch only. No main merge, tag, publication, or public release occurred.
+- **Release boundary at acceptance:** `0.5.0` was first accepted on the integration branch. It is now included in the Main source checkpoint; no `0.5.0` tag, package publication, or public release occurred.
 
 **Current public release:** `v0.2.0`  
 **Release commit:** `23215459096cb47d255c45b1e6e86687f3d8e93a`  
@@ -120,6 +127,6 @@ Local regression results at those source commits: 0.6 **95/95**, 0.7 **100/100**
 4. Keep authoritative Evidence session-scoped while implementing the separate package-owned derived Vector Search index required for 0.9.
 5. Establish read-only available-package discovery and the exact install/update/remove contracts before enabling any package mutation path.
 
-The accepted 0.2.0 and 0.2.1 historical evidence is preserved. The 0.9 continuation is active on the integration branch. No main merge, tag, release, registry claim, or Open Exchange action has been made.
+The accepted 0.2.0 and 0.2.1 historical evidence is preserved. At the time of the 2026-10-02 source-frontier note, the 0.9 continuation was active on the integration branch and no main merge, tag, release, registry claim, or Open Exchange action had been made.
 
 - The contextual “IRIS concepts in this view” help is a collapsed static disclosure scoped to relevant routes. Focused render assertions and the full 152-test suite pass. It does not affect authority or providers. The repository's own Pages build recipe was staged locally and the current source bundle was rendered in Edge's safe demo: Overview, Logs, and Packages showed route-specific help; the safe-demo banner and synthetic package labels remained visible. This is source browser smoke only, not connected runtime qualification. The installed disposable app was not replaced, no IRIS credentials were entered, and no IRIS state changed. Current asset sizes and delta are in the performance baseline.

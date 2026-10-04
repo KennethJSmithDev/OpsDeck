@@ -1,6 +1,8 @@
-# OpsDeck 0.5.0 integration candidate
+# OpsDeck 0.5.0 accepted source checkpoint
 
-**Status:** accepted operational-visibility milestone on the integration branch. This is not a public release, tag, or mainline merge.
+**Status:** accepted operational-visibility milestone. Included in the Main source checkpoint at [`1aaee4e`](https://github.com/KennethJSmithDev/OpsDeck/commit/1aaee4ecca5055a5b64ceaf85cfbb1d493c5b435). This is not a public `0.5.0` release or tag; the latest public release remains `0.2.0`.
+
+The Main checkpoint also contains the small System > About surface. Its canonical product identity displays `OpsDeck`, `Beta Release`, and public version `0.2`; package/internal version `0.5.0` and runtime details are secondary. Git commit and build timestamp remain explicitly unembedded in the package. The source suite verifies that About is optional and shares ProductIdentity with Evidence.
 
 ## What v0.5 means
 
@@ -19,4 +21,4 @@ The Packages workspace combines installed IPM registrations with a bounded exact
 
 Catalog runtime authority is qualified only for the disposable fixture identity, whose grants include `%Admin_Secure:USE`; that is not a default operator grant. The Docker target's installed package remains `opsdeck@0.2.2`; it displays the generic `INSTALLED` badge while separately showing installed `0.2.2` and available `0.2.0`. This truthful state is sufficient for v0.5's written version-semantics criterion; the more specific `INSTALLED_NEWER` label in newer source is presentation debt and has source/test evidence, not installed-runtime evidence.
 
-v0.6 real verified mutation, v0.7 live receipt-backed Evidence, v0.8 package install/remove and DPI-I-261 completion, and v0.9 intelligence qualification remain unaccepted. Public registry installation, main merge, tag, and publication remain outside this candidate.
+v0.6 real verified mutation, v0.7 live receipt-backed Evidence, v0.8 package install/remove and DPI-I-261 completion, and v0.9 intelligence qualification remain unaccepted. Public registry installation, tag, and publication remain outside this checkpoint.
