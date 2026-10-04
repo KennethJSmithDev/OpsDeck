@@ -1,9 +1,9 @@
 # OpsDeck
 
 <p align="center">
-  <a href="https://kennethjsmithdev.github.io/OpsDeck/"><strong>🚀 HISTORICAL SAFE DEMO</strong></a>
+  <a href="https://kennethjsmithdev.github.io/OpsDeck/"><strong>🚀 SAFE DEMO</strong></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v0.2.0"><strong>📦 HISTORICAL v0.2.0</strong></a>
+  <a href="https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v1.0.0"><strong>📦 OPSDECK 1.0.0</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/NATIVE_INSTALL.md"><strong>🛠️ NATIVE INSTALL</strong></a>
   &nbsp;·&nbsp;
@@ -24,13 +24,13 @@
 
 OpsDeck is being developed for the **InterSystems Programming Contest: Build Your Own Management Portal (2026)**.
 
-## OpsDeck 1.0.0 Release Candidate
+## OpsDeck 1.0.0
 
-The release candidate preserves authoritative Pre-RC Main `62f363a41d8dcc70e65cd9fb9093a058736aad4f` and its nine-phase, mutation and optimization milestones. Release qualification repairs are limited to consistent 1.0.0 identity and the package-owned derived-store export hook.
+The 1.0.0 release is the exact qualified Main commit `be35ed89c21e91079b0152ba4572f0700839b515`, preserving the accepted nine-phase, mutation and optimization milestones. The published IPM archive is the exact qualified artifact, SHA-256 `178bf6ea3809b023ed76a39ea313cfaf33ff3f5e91a5afbfc2627cadf3faf798`.
 
 All nine roadmap phases retain bounded acceptance. Source-generated accounting is **117 exposed / 56 observed / 37 reproduced / 34 independently verified / 7 exposed mutation endpoints / 12 qualified mutation workflows**, over 276 declared operations and 161 mutation-shaped contracts. Supported fields and authority/read-back scopes are explicit in the generic explorer. The task Description HTTP 500 is known debt and contributes no exposed capability.
 
-Product identity, internal version and IPM package version are **OpsDeck 1.0.0 · Release Candidate**. No v1.0.0 tag, release, registry upload or site publication has occurred. The existing v0.2.0 release and demo remain historical. Pages publication requires explicit manual dispatch.
+Product identity, internal version and IPM package version are **OpsDeck 1.0.0**. The GitHub v1.0.0 release and exact package archive are published. The safe demo is deployed separately through the manual Pages workflow. Public IPM/Open Exchange registry availability is not yet confirmed.
 
 Release qualification and exact artifact identity are recorded in [1.0 RC qualification](docs/RC_1_0_0_QUALIFICATION_20261004.md). The [Pre-RC checkpoint](docs/MAIN_PRE_RC_STATE_20261004.md), [mutation milestone](docs/MUTATION_BREADTH_MILESTONE_20261004.md), [generated capability inventory](docs/CAPABILITY_INVENTORY.md), and [nine-phase roadmap](docs/OPSDECK_DREAM_1_0_EXECUTION_PLAN.md) remain preserved. Qualification is scoped to the owned Docker target; public distribution and other IRIS versions are not inferred.
 
@@ -82,20 +82,20 @@ The useful story is short:
 
 The safe demo is intentionally obvious about being sanitized sample data. Failed live IRIS reads are never replaced with demo records.
 
-## Native source installation
+## Native installation
 
 The tested deployment model is an IRIS-hosted IPM source package.
 
 ```powershell
 git clone https://github.com/KennethJSmithDev/OpsDeck.git
 cd OpsDeck
-git checkout v0.2.0
+git checkout v1.0.0
 ```
 
 Then, from the IRIS IPM prompt in `%SYS`:
 
 ```text
-load C:\path\to\OpsDeck
+load C:\path\to\opsdeck-1.0.0-rc.tgz
 ```
 
 Open:
@@ -106,7 +106,7 @@ http://127.0.0.1:52773/opsdeck/index.html
 
 Adjust the HTTP port for the local instance.
 
-**Important:** the v0.2.0 source release is published, but exact fresh-checkout byte parity on Windows is still being requalified because of the line-ending finding above. Public-registry availability/installation is also a separate unverified boundary. Do not advertise `install opsdeck` as qualified until the intended registry version has been independently confirmed and installed.
+The exact artifact passed local package build, Docker install/update/reinstall/remove lifecycle and ownership checks on IRIS 2026.2 Build 221U / IPM 0.10.8. This does not establish public-registry availability, arbitrary package safety, other IRIS versions or broad operator authority. Do not use `zpm install opsdeck` until the 1.0.0 IPM/Open Exchange registry publication is confirmed.
 
 See [Native Installation](docs/NATIVE_INSTALL.md) for prerequisites, ownership, recovery, and uninstall boundaries.
 
@@ -150,9 +150,9 @@ Open `http://127.0.0.1:4173`. The reference server defaults to IRIS at `http://1
 
 The application has no npm package dependencies; it uses Node built-ins.
 
-## Road to 1.0
+## Known limits
 
-The next product-facing milestone after distribution fidelity is the **capability-aware morphing UI**: one canonical interface projected according to observed authority, provider availability, context, and workspace width without inventing permissions or duplicating authoritative state.
+Task Description HTTP 500 and the message-rotation probe remain known debt and are excluded from dispatch and capability counts. Vector similarity is bounded concept navigation, not incident proof or a neural embedding claim. Native qualification is scoped to the recorded disposable Docker target, identity and exact authority fixtures. See [RC qualification](docs/RC_1_0_0_QUALIFICATION_20261004.md) for all limits.
 
 The longer sequence is tracked in [docs/ROADMAP.md](docs/ROADMAP.md).
 

@@ -1,6 +1,6 @@
-# Native installation — OpsDeck 1.0.0 Release Candidate
+# Native installation — OpsDeck 1.0.0
 
-Current product label is OpsDeck 1.0.0 Release Candidate. IPM package version is opsdeck 1.0.0. This document describes current Main; published v0.2.0 and its historical Windows evidence remain separate. No new registry publication, tag or release is claimed.
+Current product label and IPM package version are OpsDeck 1.0.0. The exact archive attached to the [v1.0.0 release](https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v1.0.0) passed the qualification in [RC_1_0_0_QUALIFICATION_20261004.md](RC_1_0_0_QUALIFICATION_20261004.md). Public registry availability and `zpm install opsdeck` are not yet verified; install the release archive directly.
 
 ## Scope and prerequisites
 
@@ -32,10 +32,10 @@ For a package-owned disposable installation only, preserve evidence, verify the 
 uninstall opsdeck
 ```
 
-Verify registration, owned classes/apps/assets/store/namespace/database/resource/automatic role are absent, with IPM and unrelated applications preserved. Reload the exact source and verify registration, ownership/schema, applications and byte-exact HTTP assets. Current pre-RC smoke completed load → uninstall/absence → same-source reload on the owned Docker target; detailed evidence is private and the public result is in MAIN_PRE_RC_STATE_20261004.md.
+Verify registration, owned classes/apps/assets/store/namespace/database/resource/automatic role are absent, with IPM and unrelated applications preserved. Reload the exact source and verify registration, ownership/schema, applications and byte-exact HTTP assets. The 1.0.0 qualification completed package install → uninstall/absence → exact-archive reinstall on the owned Docker target; detailed receipts remain in the private evidence store and the public summary is in RC_1_0_0_QUALIFICATION_20261004.md.
 
 Local-source load does not prove public-registry installation. Do not alter credentials, services, external registries or neighboring systems to work around a failed lifecycle. Ownership/refusal contracts and ambiguous outcomes remain authoritative.
 
 ## Qualified release artifact
 
-The RC record identifies the exact locally built IPM .tgz. Install that preserved archive with `load /absolute/path/to/opsdeck-1.0.0-rc.tgz`. The installer OS user needs a writable IPM package-cache location; Docker qualification created only the OpsDeck cache directory, with no registry or operator-grant changes for that filesystem preparation. Derived records are rebuildable runtime cache and are excluded from package export. Schema/provisioning classes remain packaged. See RC_1_0_0_QUALIFICATION_20261004.md for artifact, upgrade, cleanup and authority scope.
+Install the exact qualified archive with `load /absolute/path/to/opsdeck-1.0.0-rc.tgz` after checking SHA-256 `178bf6ea3809b023ed76a39ea313cfaf33ff3f5e91a5afbfc2627cadf3faf798`. The installer OS user needs a writable IPM package-cache location; qualification created only the OpsDeck cache directory, without registry or operator-grant changes. Derived records are rebuildable runtime cache and are excluded from package export. Schema/provisioning classes remain packaged. See RC_1_0_0_QUALIFICATION_20261004.md for artifact, upgrade, cleanup and authority scope.

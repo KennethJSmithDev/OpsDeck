@@ -1,6 +1,6 @@
 # OpsDeck 1.0 RC qualification — 2026-10-04
 
-**1.0 RC PASS at the owned Docker qualification boundary.** The preserved artifact is ready for deliberate v1.0.0 publication. No tag, release, IPM/Open Exchange upload, Pages publication or source-branch push is performed by this qualification.
+**1.0 RC PASS at the owned Docker qualification boundary.** This exact qualified artifact was subsequently promoted unchanged to Main and released as v1.0.0. GitHub release: https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v1.0.0. The exact preserved archive remains `opsdeck-1.0.0-rc.tgz`, SHA-256 `178bf6ea3809b023ed76a39ea313cfaf33ff3f5e91a5afbfc2627cadf3faf798`. Public IPM/Open Exchange registry availability is not established by this native qualification.
 
 ## Exact identity and preserved milestones
 
