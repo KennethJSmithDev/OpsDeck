@@ -1,0 +1,140 @@
+{
+  "schema": "opsdeck-semantic-readback-runtime-v1",
+  "target": "OPSDECK_08_TEST_TARGET",
+  "identity": "OpsDeckQualify",
+  "targetRef": {
+    "id": "local",
+    "label": "LOCAL Docker",
+    "origin": "http://127.0.0.1:52774",
+    "environment": "LOCAL"
+  },
+  "observedAt": "2026-10-04T09:09:51.841Z",
+  "records": [
+    {
+      "operation": "GET /api/admin/v2/security/users",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Current users semantic projection; bounded collection or empty-state agreement, no item/mutation-effect claim.",
+      "state": "VERIFIED",
+      "matched": true,
+      "empty": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/roles",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Current roles semantic projection; bounded collection or empty-state agreement, no item/mutation-effect claim.",
+      "state": "VERIFIED",
+      "matched": true,
+      "empty": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/resources",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Current resources semantic projection; bounded collection or empty-state agreement, no item/mutation-effect claim.",
+      "state": "VERIFIED",
+      "matched": true,
+      "empty": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/audit/enabled",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Current auditEnabled semantic projection; bounded collection or empty-state agreement, no item/mutation-effect claim.",
+      "state": "VERIFIED",
+      "matched": true,
+      "empty": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/audit/events",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Current auditEvents semantic projection; bounded collection or empty-state agreement, no item/mutation-effect claim.",
+      "state": "UNVERIFIED",
+      "matched": false,
+      "empty": false
+    },
+    {
+      "operation": "GET /api/admin/v2/tasks",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Current tasks semantic projection; bounded collection or empty-state agreement, no item/mutation-effect claim.",
+      "state": "VERIFIED",
+      "matched": true,
+      "empty": false
+    },
+    {
+      "operation": "GET /api/admin/v2/journal/files",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Current journalFiles semantic projection; bounded collection or empty-state agreement, no item/mutation-effect claim.",
+      "state": "VERIFIED",
+      "matched": true,
+      "empty": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/user",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Own identity direct/escalation role references only.",
+      "state": "VERIFIED",
+      "matched": true,
+      "empty": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/role",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Observed own role grants and direct/escalation relationships only.",
+      "state": "VERIFIED",
+      "matched": true,
+      "empty": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/resource",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Existing %Admin_Secure description and public-permission configuration only.",
+      "state": "VERIFIED",
+      "matched": true,
+      "empty": false
+    },
+    {
+      "operation": "GET /api/admin/v2/task",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Observed task identity/namespace and existing positive task projection only.",
+      "state": "VERIFIED",
+      "matched": true,
+      "empty": false
+    }
+  ],
+  "providerSha256": "de821f10eb78445cfe609e3eab06f249b1fe83ec5d1d2f6dc9ca92c515bfc0fd",
+  "specSha256": "1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee5898596650",
+  "dispatchCount": 0,
+  "permissionChanges": 0,
+  "boundary": "Two separately fetched responses under the same existing identity compared by the existing handcrafted semantic mapper. VERIFIED means agreement of the named positive projection at this time; it is not independent implementation, transaction, complete endpoint schema, mutation-effect or production qualification. Raw data withheld; no extra privileges."
+}

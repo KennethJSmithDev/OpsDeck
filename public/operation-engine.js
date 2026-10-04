@@ -1,3 +1,4 @@
+import {createTargetRef,getTargetRef,sameTarget} from './target-context.js?v=target-1';
 const SAFE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/u;
 const SAFE_REF = /^[A-Za-z0-9][A-Za-z0-9:._/-]{0,255}$/u;
 const SAFE_PLAN_ID = /^[A-Za-z0-9][A-Za-z0-9:._/-]{0,127}$/u;
@@ -5,8 +6,19 @@ const SECRET_KEY = /(?:password|secret|token|authorization|private.?key|credenti
 const TERMINAL = new Set(["CANCELLED", "DENIED", "UNAVAILABLE", "STALE", "AMBIGUOUS", "VERIFIED", "FAILED", "MISMATCH", "UNVERIFIED"]);
 const validatedOperationPlans = new WeakSet();
 const operationAttempts = new WeakMap();
+let observeOnly = false;
+export function setObserveOnly(value) {
+  if (typeof value !== 'boolean') throw new Error('Observe Only policy must be boolean.');
+  observeOnly = value;
+}
+export function isObserveOnly() { return observeOnly; }
 const OPERATION_PLAN_SCHEMA = "opsdeck-operation-plan-v1";
 export const OPERATION_POLICIES = Object.freeze({
+  'sysadmin.rehearse': Object.freeze({
+    semanticAction:'schema-operation-rehearsal',risk:'HIGH',providerOperation:'SysAdmin schema rehearsal · UNQUALIFIED',
+    requiredPrivileges:Object.freeze(['UNVERIFIED · operation-specific']),targetDomain:'sysadmin',targetKind:'api-operation',
+    targetProvider:'iris-sysadmin-schema-provider-v1',parameterKeys:Object.freeze(['body','method','path','query']),preStateKeys:Object.freeze(['observed']),
+  }),
   ...Object.fromEntries(["install", "remove"].map(action => [`ipm.live.${action}`, Object.freeze({
     semanticAction: `package-${action}`, risk: "HIGH", providerOperation: "POST /opsdeck-api/package-operation",
     requiredPrivileges: Object.freeze(["%Admin_Secure:U", "%DB_IRISSYS:W", "IPM inventory/catalog SELECT"]),
@@ -151,6 +163,10 @@ function validateOperationParameters(capabilityId, parameters, policy) {
   if (!exactParameterKeys(parameters, policy.parameterKeys)) {
     throw new Error("Operation parameters do not match the deterministic policy schema.");
   }
+  if(capabilityId==='sysadmin.rehearse'){
+    if(!['POST','PUT','DELETE'].includes(parameters.method)||!/^\/api\/admin\/v2\/[A-Za-z0-9/_-]+$/u.test(parameters.path)||!plain(parameters.query)||!(parameters.body===null||plain(parameters.body)||Array.isArray(parameters.body)))throw new Error('Schema rehearsal request is invalid.');
+    return;
+  }
   if (capabilityId === "webapp.enable" && parameters.enabled !== true) {
     throw new Error("webapp.enable requires enabled=true.");
   }
@@ -187,6 +203,7 @@ function validateOperationPreState(capabilityId, preState, parameters, policy) {
   if (!exactParameterKeys(preState, policy.preStateKeys)) {
     throw new Error("Operation pre-state does not match the deterministic policy schema.");
   }
+  if(capabilityId==='sysadmin.rehearse'){if(preState.observed!==false)throw new Error('Unqualified schema rehearsal cannot claim an observed pre-state.');return;}
   if (capabilityId === "webapp.fixture.create") {
     if (preState.exists !== false) throw new Error("Qualification fixture creation requires an authoritative absent pre-state.");
     return;
@@ -279,6 +296,7 @@ export function createOperationPlan(input, now = Date.now()) {
       target.provider !== policy.targetProvider) {
     throw new Error("Operation does not match a deterministic risk/authority/provider policy.");
   }
+  if(capability.id==='sysadmin.rehearse'&&capability.state!=='UNRESOLVED')throw new Error('Schema-only rehearsal cannot gain dispatch authority.');
   if (capability.id.startsWith("webapp.fixture.") && (target.key !== "/opsdeck-fixture" || scope !== "%SYS")) {
     throw new Error("Qualification web-app fixture operations are bound to /opsdeck-fixture in %SYS.");
   }
@@ -300,7 +318,8 @@ export function createOperationPlan(input, now = Date.now()) {
     schemaVersion: OPERATION_PLAN_SCHEMA,
     id,
     intent: boundedText(input.intent, "intent"),
-    target: { domain: target.domain, kind: target.kind, provider: target.provider, key: target.key, scope, label: target.label, volatile: Boolean(target.volatile), observedAt: boundedText(target.observedAt, "target.observedAt") },
+    targetRef:createTargetRef(input.targetRef||target.targetRef||getTargetRef()),
+    target: { domain: target.domain, kind: target.kind, provider: target.provider, key: target.key, ...(scope === undefined ? {} : { scope }), label: target.label, volatile: Boolean(target.volatile), observedAt: boundedText(target.observedAt, "target.observedAt") },
     capability: { id: capability.id, semanticAction: policy.semanticAction, providerOperation: policy.providerOperation, state: capability.state, risk: policy.risk, requiredPrivileges: [...policy.requiredPrivileges], verification: boundedText(input.expectedReadback, "expected read-back") },
     parameters,
     preconditions: Array.isArray(input.preconditions) ? input.preconditions.slice(0, 16).map(item => ({ claim: boundedText(item.claim, "precondition claim"), observed: item.observed === true ? true : item.observed === false ? false : "unknown", evidence: item.evidence ? evidenceRef(item.evidence, "precondition evidence") : undefined })) : [],
@@ -328,6 +347,9 @@ export function cancelOperationPlan(plan) {
 }
 
 export async function executeOperationPlan(plan, provider, options = {}) {
+  const contextCurrent=()=>{try{return options.isCurrent===undefined||typeof options.isCurrent==='function'&&options.isCurrent()===true;}catch{return false;}};
+  if(!contextCurrent())return {state:'CANCELLED',reason:'operation-context-changed',dispatchAllowed:false};
+  if (observeOnly) return { state: 'BLOCKED', reason: 'observe-only-policy', dispatchAllowed: false };
   if (!plan || !validatedOperationPlans.has(plan) || plan.schemaVersion !== OPERATION_PLAN_SCHEMA || plan.state !== "REVIEW_REQUIRED") {
     return { state: "UNRESOLVED", reason: "plan-not-qualified" };
   }
@@ -335,6 +357,7 @@ export async function executeOperationPlan(plan, provider, options = {}) {
   if (priorAttempt) return priorAttempt.state === "IN_FLIGHT"
     ? { state: "AMBIGUOUS", reason: "operation-plan-dispatch-in-progress", retryAllowed: false }
     : priorAttempt.result;
+  if(!sameTarget(getTargetRef(),plan.targetRef)||!sameTarget(provider?.targetRef||getTargetRef(),plan.targetRef)||(!provider?.targetRef&&plan.targetRef.id!=='local'))return {state:'BLOCKED',reason:'target-binding-mismatch'};
   let providerIdentity;
   try { providerIdentity = boundedText(provider?.identity, "provider identity", 128); }
   catch { return { state: "UNAVAILABLE", reason: "operation-provider-contract-unavailable" }; }
@@ -372,6 +395,10 @@ export async function executeOperationPlan(plan, provider, options = {}) {
       confirmation.preStateFingerprint !== plan.preStateFingerprint || confirmation.confirmed !== true)) {
     return { state: "BLOCKED", reason: "explicit-confirmation-required" };
   }
+  // A user can enable Observe Only while pre-state/authority reads are pending.
+  if(!contextCurrent())return {state:'CANCELLED',reason:'operation-context-changed',dispatchAllowed:false};
+  if (observeOnly) return { state: 'BLOCKED', reason: 'observe-only-policy', dispatchAllowed: false };
+  if(!sameTarget(getTargetRef(),plan.targetRef)||!sameTarget(provider?.targetRef||getTargetRef(),plan.targetRef))return {state:'BLOCKED',reason:'target-binding-mismatch'};
   operationAttempts.set(plan, { state: "IN_FLIGHT" });
   let dispatch;
   const finishAttempt = result => { operationAttempts.set(plan, { state: "COMPLETE", result }); return result; };
@@ -399,6 +426,7 @@ export async function executeOperationPlan(plan, provider, options = {}) {
   const receipt = deepFreeze({
     id: `${providerIdentity}:receipt:${plan.id}`,
     operationId: plan.id,
+    targetRef:plan.targetRef,
     target: plan.target,
     intent: plan.intent,
     provider: providerIdentity,
@@ -461,7 +489,7 @@ function webAppState(payload, expectedName) {
   };
 }
 
-export function createWebAppOperationProvider({ requestJson, username }) {
+export function createWebAppOperationProvider({ requestJson, username, targetRef=getTargetRef() }) {
   const observedUsername = boundedText(username, "observed IRIS username", 128);
   if (typeof requestJson !== "function") throw new Error("A same-identity IRIS request function is required.");
   const detailPath = plan => `/api/admin/v2/web-app?${new URLSearchParams({ name: plan.target.key })}`;
@@ -474,6 +502,7 @@ export function createWebAppOperationProvider({ requestJson, username }) {
   };
   return Object.freeze({
     identity: "iris-admin-webapp-provider-v1",
+    targetRef:createTargetRef(targetRef),
     targetProvider: "iris-admin-api",
     readPreState: async plan => {
       const current = await read(plan);
@@ -543,7 +572,7 @@ export function createWebAppOperationProvider({ requestJson, username }) {
   });
 }
 
-export function createIPMPackageOperationProvider({ requestJson, username }) {
+export function createIPMPackageOperationProvider({ requestJson, username, targetRef=getTargetRef() }) {
   const observedUsername = boundedText(username, "observed IRIS username", 128);
   if (typeof requestJson !== "function") throw new Error("A same-identity IRIS request function is required.");
   const installed = async plan => {
@@ -557,7 +586,7 @@ export function createIPMPackageOperationProvider({ requestJson, username }) {
     return matches.length ? boundedText(matches[0].installedVersion, "installed version", 64) : null;
   };
   return Object.freeze({
-    identity: "iris-ipm-operations-v1", targetProvider: "iris-ipm-installed-v1",
+    identity: "iris-ipm-operations-v1", targetProvider: "iris-ipm-installed-v1", targetRef:createTargetRef(targetRef),
     readPreState: async plan => {
       const installedVersion = await installed(plan);
       let availableVersion = null;

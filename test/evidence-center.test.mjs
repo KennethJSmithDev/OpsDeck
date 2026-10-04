@@ -1,6 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createEvidenceCollection, createEvidenceRef, EVIDENCE_LIMITS, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence } from "../public/evidence-center.js";
+import { createEvidenceCollection, createEvidenceRef, EVIDENCE_LIMITS, exportEvidenceJSON, exportEvidenceMarkdown, exportEvidenceCSV, filterEvidence, sessionLedger } from "../public/evidence-center.js";
+
+test('CSV exports the same admitted fields with quoted cells and safe spreadsheet encoding',()=>{
+  const collection=createEvidenceCollection([record({title:'=SUM(1,2)',summary:'Quotes " and comma, retained'})]);
+  const output=exportEvidenceCSV(collection);
+  assert.match(output,/'=SUM\(1,2\)/u);assert.match(output,/Quotes "" and comma,/u);
+  assert.doesNotMatch(output,/Basic private|never export|arbitraryNote/u);
+  assert.match(output,/"source","resource","summary","evidence"/u);
+});
+
+test('Session Ledger is a grouping of admitted Evidence and preserves refusal/confirmation and inferred findings', () => {
+  const collection = createEvidenceCollection([
+    record(), record({ id: 'confirmation:1', kind: 'confirmation', state: 'UNVERIFIED' }),
+    record({ id: 'refusal:1', kind: 'refusal', state: 'DENIED' }),
+    record({ id: 'finding:1', summary: 'INFERRED: bounded finding' }),
+    record({ id: 'plan:1', kind: 'operation-plan', state: 'UNVERIFIED' }),
+    record({ id: 'receipt:1', kind: 'operation-receipt' }),
+  ]);
+  const ledger = sessionLedger(collection);
+  for (const group of Object.values(ledger.categories)) assert.equal(group.length, 1);
+  assert.equal(ledger.categories.observations[0], collection.records[0]);
+  assert.equal(ledger.categories.refusals[0].state, 'DENIED');
+});
 
 const record = (overrides = {}) => ({ id: "read:applications:1", kind: "read-observation", state: "VERIFIED", title: "Applications independent read-back", observedAt: "2026-10-02T12:00:00Z", source: { identity: "iris-admin-api", authorization: "Basic private", note: "benign but not projected" }, resource: { key: "/opsdeck", password: "never export", internalPath: "C:/private" }, summary: "Selected resource matched the independent read.", evidence: { fields: ["Name", "Enabled"], accessToken: "never export", arbitraryNote: "also not projected" }, ...overrides });
 

@@ -1,9 +1,13 @@
 import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.8.0";
-import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence, operationReceiptEvidence } from "./evidence-center.js?v=opsdeck-0.8.0";
+import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, exportEvidenceCSV, filterEvidence, operationReceiptEvidence, sessionLedger, evidenceLabel } from "./evidence-center.js?v=opsdeck-0.8.0";
 import { comparePackageCatalogToInstalled, fixturePackageInventory, livePackageSelection, mapAvailablePackageCatalog, mapInstalledPackageInventory, preparePackagePlan } from "./packages-workspace.js?v=opsdeck-0.8.0-ipm";
 import { mapAuditJob, upsertJob } from "./job-center.js?v=opsdeck-0.8.0";
 import { ProductIdentity } from "./product-identity.js?v=opsdeck-0.8.0-about";
-import { createOperationPlan, createIPMPackageOperationProvider, createWebAppOperationProvider, executeOperationPlan, OPERATION_POLICIES } from "./operation-engine.js?v=opsdeck-0.8.0-ipm";
+import { createOperationPlan, createIPMPackageOperationProvider, createWebAppOperationProvider, executeOperationPlan, OPERATION_POLICIES, setObserveOnly } from "./operation-engine.js?v=opsdeck-0.8.0-ipm";
+import {configureCurrentTarget,targetChoices,readAcrossTargets,compareTargetObservations} from './target-context.js?v=target-1';
+import {relationshipObservations,projectEntityGraph} from './entity-graph.js?v=graph-1';
+import {createWorkflow,createWorkflowRunner} from './workflow-engine.js?v=workflow-1';
+import {INTENT_PROVIDERS,AI_PROFILES,deterministicIntentProvider,reconstructIntentOperation} from './trusted-intelligence.js?v=intent-1';
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -51,7 +55,7 @@ function providerUiEvidence(model, sourceId) {
     const state = model.sourceData[sourceId].status;
     if (state === "denied") return { status: "DENIED", detail: "IRIS denied this fixed-source read." };
     if (state === "unavailable") return { status: "UNAVAILABLE", detail: "The fixed source is unavailable." };
-    if (state === "read-failure") return { status: "FAILED", detail: "The fixed-source read failed." };
+    if (state === "read-failure" || state === "failed") return { status: "FAILED", detail: "The fixed-source read failed." };
     // A valid empty collection is still an observed, available provider result.
     return { status: "SUPPORTED", detail: state === "empty" ? `${READ_ONLY_SOURCES[sourceId].label} returned a valid empty result.` : `${READ_ONLY_SOURCES[sourceId].label} returned a mapped result.` };
   }
@@ -124,12 +128,20 @@ function projectUiNavigation(model, viewportWidth = 1024, compactLayout = viewpo
 }
 const state = {
   route: location.hash.slice(1) || "overview",
+  targetRef:{id:'local',label:'LOCAL',origin:location.origin||'same-origin',environment:'LOCAL'},
+  targetCompareOpen:false,targetComparison:null,targetCompareBusy:false,targetCompareError:'',
   theme: localStorage.getItem("opsdeck.theme") || "dark",
+  observeOnly: true, commandOpen: false, commandQuery: "", commandApi: null, commandError: "", confirmationReview: null,
+  apiExplorer: {parameters:{},body:'{}',preview:null,result:null,operation:null,busy:false},
+  intelligence:{text:'inspect /opsdeck',profileId:'AI_PROFILE_USER',providerId:'deterministic',operation:null,observation:null,busy:false,error:'',revision:0},
+  fxOpen: false, fxReady: false, fxError: "", fxPreference: {}, fxRole: "",
+  capabilitySummary:null,capabilitySummaryBusy:false,capabilitySummaryError:'',
   connected: false,
   busy: false,
   error: "",
   info: null,
   apps: [],
+  appsReadAt: "",
   selected: "",
   lastRead: null,
   verification: null,
@@ -174,8 +186,15 @@ const state = {
 
 const nativeMode = location.pathname === "/opsdeck" || location.pathname?.startsWith("/opsdeck/") === true;
 let nativeAuthorization = null;
+let workflowRunner = null;
 let sessionEpoch = 0;
 let nextSnapshot = 0;
+let fxModule = null;
+let commandModule = null;
+let apiCatalog = [];
+let apiCatalogDocument = null;
+let explorerModule = null;
+try { state.fxPreference = JSON.parse(localStorage.getItem("opsdeck.fx") || "{}"); if (!state.fxPreference || typeof state.fxPreference !== "object") state.fxPreference = {}; } catch { state.fxPreference = {}; }
 const snapshotIds = new WeakMap();
 function recordHandle(data, index) {
   if (!snapshotIds.has(data)) snapshotIds.set(data, ++nextSnapshot);
@@ -218,6 +237,7 @@ const LEARNING_SNIPPETS = Object.freeze([
 
 async function requestJson(path, options = {}) {
   const owner = sessionEpoch;
+  if (state.observeOnly && options.method && options.method !== "GET" && !(options.method==='POST'&&path==='/opsdeck-api/intent-rehearsal')) throw new Error("Observe Only policy blocks dispatch.");
   let response;
   const headers = { Accept: "application/json", ...(options.headers || {}) };
   if (nativeMode && nativeAuthorization) headers.Authorization = nativeAuthorization;
@@ -244,7 +264,7 @@ async function requestJson(path, options = {}) {
       .map((item) => typeof item === "string" ? item : item?.message || item?.error)
       .filter((item) => typeof item === "string" && item.trim()) : [];
     const message = nativeMode && response.status === 401 ? "IRIS authentication failed (HTTP 401)." : (typeof data.error === "string" && data.error.trim()) || messages.join(" ") || `Request failed with HTTP ${response.status}.`;
-    const error = new Error(message);
+    const error = new Error(response.status === 403 ? `Request denied (HTTP 403). ${message}` : message);
     error.status = response.status;
     throw error;
   }
@@ -252,14 +272,221 @@ async function requestJson(path, options = {}) {
 }
 
 function setTheme(theme) {
+  theme = ["dark","light","system","inverse"].includes(theme) ? theme : "system";
   state.theme = theme;
   localStorage.setItem("opsdeck.theme", theme);
   const resolved = theme === "system"
     ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
-    : theme;
+    : theme === "inverse" ? "light" : theme;
   document.documentElement.dataset.theme = resolved;
+  document.documentElement.dataset.base = theme;
 }
 
+async function openCommands() {
+  const owner = sessionEpoch;
+  activateDialog('command'); state.commandError = ''; render();
+  try {
+    commandModule ||= await import('./command-surface.js?v=command-1');
+    if (!apiCatalog.length) {
+      const response = await fetch(`${nativeMode ? '/opsdeck/' : './'}api-catalog.json`, {cache:'force-cache'});
+      if (!response.ok) throw new Error('Declared API metadata unavailable.');
+      const catalog = await response.json();
+      if (catalog.schema !== 'opsdeck-declared-api-catalog-v2' || !Array.isArray(catalog.operations)) throw new Error('API catalog contract invalid.');
+      apiCatalogDocument = catalog;
+      apiCatalog = catalog.operations;
+    }
+  } catch { if (owner === sessionEpoch) state.commandError = 'Some command metadata is unavailable. Existing workspaces remain accessible.'; }
+  if (owner !== sessionEpoch || !state.commandOpen) return;
+  render(); app.querySelector('#command-search')?.focus();
+}
+function activateDialog(kind) {
+  state.commandOpen=kind==='command';state.fxOpen=kind==='fx';state.targetCompareOpen=kind==='targets';
+  if(kind!=='confirmation')state.confirmationReview=null;
+}
+function reviewedOperation(kind,id) {
+  const operation=kind==='workflow'?workflowRunner?.snapshot():kind==='package'?state.livePackageOperation:state.webAppOperation;
+  return operation?.plan?.id===id&&operation.state===(kind==='workflow'?'AWAITING_CONFIRMATION':'REVIEW_REQUIRED')&&!operation.busy?operation:null;
+}
+function openConfirmationReview(kind,id) {
+  const operation=reviewedOperation(kind,id);if(!operation||state.observeOnly)return;
+  const review={kind,id,plan:operation.plan,owner:sessionEpoch,returnToCommands:state.commandOpen};
+  activateDialog('confirmation');state.confirmationReview=review;render();app.querySelector('#confirmation-final')?.focus();
+}
+function closeConfirmationReview() {
+  const review=state.confirmationReview;state.confirmationReview=null;state.commandOpen=review?.returnToCommands===true;render();
+  app.querySelector(review?.kind==='workflow'?'[data-workflow-confirm]':review?.kind==='package'?'[data-live-package-confirm]':'[data-webapp-confirm]')?.focus();
+}
+async function completeConfirmationReview() {
+  const review=state.confirmationReview,operation=review&&reviewedOperation(review.kind,review.id);
+  if(!review)return;
+  if(review.owner!==sessionEpoch||!state.connected||state.observeOnly||operation?.plan!==review.plan){closeConfirmationReview();return;}
+  state.confirmationReview=null;state.commandOpen=review.returnToCommands;render();
+  if(review.kind==='workflow')await confirmAvailabilityWorkflow(review.id);
+  else if(review.kind==='package')await confirmLivePackageOperation(review.id);
+  else await confirmWebAppOperation(review.id);
+}
+function confirmationReviewPanel() {
+  const review=state.confirmationReview;
+  return `<div class="command-backdrop"><section class="panel command-panel confirmation-panel" role="dialog" aria-modal="true" aria-labelledby="confirmation-title"><div class="panel-head"><h2 id="confirmation-title">Plan Review · Exact confirmation</h2></div><div class="confirmation-body"><p>Current identity: <strong>${esc(state.info?.username||'Unavailable')}</strong>. Observe Only ${state.observeOnly?'ON':'OFF'}.</p><h3>${esc(review.plan.intent)}</h3>${planReview(review.plan)}<p>Confirm this exact plan and observed pre-state. Current policy and authority are checked again before dispatch; the outcome belongs in the Session Ledger.</p></div><div class="confirmation-actions"><button class="button secondary" id="confirmation-back">Back to plan</button><button class="button primary" id="confirmation-final" ${state.observeOnly?'disabled':''}>Confirm change</button></div></section></div>`;
+}
+async function openFxStudio() {
+  const owner=sessionEpoch;activateDialog('fx');render();await refreshFx();
+  if(owner!==sessionEpoch||!state.fxOpen)return;
+  render();app.querySelector('#fx-close')?.focus();
+}
+const dialogOutsideElements=new Map();
+function syncDialogScope() {
+  const open=state.commandOpen||state.fxOpen||state.targetCompareOpen||state.confirmationReview;
+  for(const element of document.querySelectorAll?.('body > :not(script):not(style)')||[]){
+    if(element===app||element.contains?.(app))continue;
+    if(open){if(!dialogOutsideElements.has(element))dialogOutsideElements.set(element,element.inert);element.inert=true;}
+  }
+  if(!open){for(const [element,inert] of dialogOutsideElements)element.inert=inert;dialogOutsideElements.clear();}
+}
+function commandResults() {
+  if (!commandModule) return [];
+  const entities = state.apps.slice(0,200).map((item,index)=>({id:`app:${item.namespace}:${item.name}`,label:`${item.name} · ${item.namespace}`,route:'applications',appName:item.name,appHandle:recordHandle(state.apps,index)}));
+  for (const [sourceId, data] of Object.entries(state.sourceData)) for (const [index,item] of (data.items || []).slice(0,100).entries()) {
+    const route = Object.keys(domainSources).find(key=>domainSources[key].includes(sourceId));
+    if (route) entities.push({id:`entity:${sourceId}:${index}`,label:item.ref?.label || item.ref?.key || `${sourceId} ${index+1}`,route,sourceId,handle:recordHandle(data,index)});
+  }
+  const operations = Object.entries(OPERATION_POLICIES).filter(([id])=>!id.includes('fixture')&&!id.startsWith('ipm.package.')).map(([id,policy])=>({id:`operation:${id}`,label:`Operation Rehearsal · ${policy.semanticAction}`,summary:policy.providerOperation,route:'applications',capability:id}));
+  return commandModule.searchCommands(commandModule.commandIndex({workspaces:navItems,entities,operations,apiOperations:apiCatalog,evidence:currentEvidenceCollection().records}),state.commandQuery);
+}
+function commandPanel() {
+  const rows = commandResults();
+  const api = apiCatalog.find(item=>item.id===state.commandApi);
+  return `<div class="command-backdrop"><section class="panel command-panel" role="dialog" aria-modal="true" aria-labelledby="command-title"><div class="panel-head"><h2 id="command-title">Command Palette</h2><button class="button quiet" id="command-close" aria-label="Close command palette">Close</button></div><label class="command-search-label">Search workspace, entity, operation, API operation, Evidence<input id="command-search" type="search" maxlength="128" value="${esc(state.commandQuery)}" autocomplete="off" placeholder="Find an operation or current evidence"></label>${state.commandError ? `<p role="status">${esc(state.commandError)}</p>` : ''}${api ? apiExplorerPanel(api) : `<div class="command-results">${rows.length ? rows.map((row,index)=>`<button class="command-result" data-command-result="${index}"><small>${esc(row.kind)}</small><strong>${esc(row.label)}</strong>${row.summary ? `<span>${esc(row.summary)}</span>` : ''}</button>`).join('') : '<p role="status">No matching current projection. Unobserved entities are not invented.</p>'}</div>`}</section></div>`;
+}
+function apiExplorerPanel(api) {
+  const model=state.apiExplorer, operation=model.operation;
+  const bodySchema=api.body?.$ref ? apiCatalogDocument?.schemas[api.body.$ref.split('/').at(-1)] : api.body;
+  return `<article class="command-api"><div class="panel-kicker">SYSADMIN EXPLORER · DECLARED CONTRACT</div><h3>${esc(api.id)}</h3><p>${esc(api.summary)}</p><p>Required privilege/resource: <code>${esc(api.requiredPrivileges.join(', ')||'Not declared')}</code>. ${api.method==='GET'?'Read':'Mutation'} · IRIS enforces current identity authority.</p><div class="api-parameters">${api.parameters.map(p=>`<label>${esc(p.name)} ${p.required?'(required)':'(optional)'}<input data-api-parameter="${esc(p.name)}" type="${['integer','number'].includes(p.schema.type)?'number':'text'}" maxlength="512" value="${esc(model.parameters[p.name]??(p.name==='maxRows'?20:''))}" ${p.required?'required':''} ${p.name==='maxRows'?'min="1" max="100"':''}><small>${esc(p.description)}</small></label>`).join('')}${api.body?`<details><summary>Declared JSON body fields</summary><pre>${esc(JSON.stringify(bodySchema,null,2))}</pre></details><label>JSON request body<textarea id="api-body" rows="5" maxlength="16384" spellcheck="false">${esc(model.body)}</textarea></label>`:''}</div><div class="projection-exports"><button class="button secondary" id="api-preview">Request preview</button><button class="button primary" id="api-action" ${model.busy?'disabled':''}>${api.method==='GET'?'Observe operation':'Operation Rehearsal'}</button><button class="button quiet" id="api-back">Back to commands</button></div><p>Reads are bounded to 100 projected rows and 64 KiB. Sensitive and undeclared fields are withheld. Rehearsal sends no mutation.</p><div id="api-output">${model.revision&&!model.preview&&!model.result&&!operation?'<p role="status">Draft changed. Preview or rehearse the current request again.</p>':''}${model.preview?`<details open><summary>Request preview</summary><pre>${esc(JSON.stringify(model.preview,null,2))}</pre></details>`:''}${model.result?`<p role="status">${esc(model.result.state)} · ${esc(model.result.reason||model.result.verification||'')}</p>${model.result.value!==undefined?`<details open><summary>Response projection</summary><pre>${esc(JSON.stringify(model.result.value,null,2))}</pre></details><p>${esc(JSON.stringify(model.result.stats))}</p>${projectionExports('api')}`:''}`:''}${operation?`<p role="status">${esc(operation.state)} · ${esc(operation.reason||'')}</p>${operation.plan?`${planReview(operation.plan)}${operation.state==='REVIEW_REQUIRED'?`<button class="button primary" data-webapp-confirm="${esc(operation.plan.id)}" ${state.observeOnly?'disabled title="Observe Only blocks confirmation"':''}>Confirm ${esc(operation.plan.intent)}</button>`:''}`:operation.forecast?`<details open><summary>Impact Forecast · unresolved</summary><pre>${esc(JSON.stringify(operation.forecast,null,2))}</pre></details>`:''}`:''}</div></article>`;
+}
+function apiEvidence(result,kind,api) {
+  const observedAt=new Date().toISOString();
+  state.operationEvidence=[...state.operationEvidence,{id:`sysadmin:evidence:${Date.now()}`,kind,
+    state:['DENIED','UNAVAILABLE','FAILED','BLOCKED'].includes(result.state)?result.state:'PARTIAL',
+    title:`${api.method} ${api.path}`,targetRef:state.targetRef,observedAt,source:{identity:'iris-sysadmin-schema-provider-v1'},resource:{key:api.path},
+    summary:`${result.state}: ${result.reason||'Bounded response observed; no independent verification inferred.'}`,
+    evidence:{providerState:result.state,reason:result.reason||'',truncated:result.stats?.truncated??false}}].slice(-64);
+}
+async function runApiAction(previewOnly=false) {
+  const owner=sessionEpoch,api=apiCatalog.find(item=>item.id===state.commandApi),model=state.apiExplorer;
+  const revision=model.revision||0;
+  if(!api||model.busy)return;
+  model.busy=true;
+  try{
+    explorerModule ||= await import('./sysadmin-explorer.js?v=sysadmin-1');
+    if(owner!==sessionEpoch||state.apiExplorer!==model||(model.revision||0)!==revision)return;
+    const body=api.body?JSON.parse(model.body):undefined;
+    const request=explorerModule.compileRequest(apiCatalogDocument,api.id,{parameters:model.parameters,body});
+    model.preview=explorerModule.requestPreview(request);
+    if(previewOnly)return;
+    const transport=(path,options)=>{if(owner!==sessionEpoch||!state.connected||state.apiExplorer!==model||(model.revision||0)!==revision)throw new Error('Operation context changed.');return requestJson(path,options);};
+    if(api.method==='GET'){
+      const result=nativeMode&&state.info?.systemMode!=='DEMO'?await explorerModule.observeRequest(request,transport):{state:'UNAVAILABLE',reason:'native-iris-provider-required-no-demo-substitute'};
+      if(owner!==sessionEpoch||state.apiExplorer!==model||(model.revision||0)!==revision)return;
+      model.result=result;apiEvidence(result,['OBSERVED','EMPTY'].includes(result.state)?'read-observation':'refusal',api);
+    }else{
+      let operation;
+      if(api.id==='PUT /api/admin/v2/web-app'&&(!nativeMode||state.info?.systemMode==='DEMO'))operation={state:'UNAVAILABLE',reason:'native-canonical-planner-required'};
+      else operation=await explorerModule.rehearseRequest(request,{requestJson:transport,username:state.info?.username,
+        resolveTarget:name=>{const selected=uniqueRecord(state.apps,item=>item.name===name);return selected?{domain:'applications',kind:'web-app',provider:'iris-admin-api',key:name,scope:selected.namespace,label:name,observedAt:new Date().toISOString()}:null;}});
+      if(owner!==sessionEpoch||state.apiExplorer!==model||(model.revision||0)!==revision)return;
+      model.operation=operation;
+      if(operation.plan){state.webAppOperation=operation;state.operationEvidence=[...state.operationEvidence,{id:operation.plan.id,kind:'operation-plan',state:'UNVERIFIED',title:operation.plan.intent,observedAt:operation.plan.createdAt,source:{identity:operation.provider.identity},resource:operation.plan.target,summary:'Canonical rehearsal from schema input. No mutation dispatched.',evidence:{operationId:operation.plan.id,capability:operation.plan.capability.id,requiresConfirmation:true,authorityState:operation.plan.authorityValidation.state}}].slice(-64);}
+      if(!operation.plan||operation.state==='BLOCKED')apiEvidence(operation,'refusal',api);
+    }
+  }catch{if(owner===sessionEpoch&&state.apiExplorer===model&&(model.revision||0)===revision){model.result={state:'BLOCKED',reason:'request-schema-or-provider-contract-invalid'};if(!previewOnly)apiEvidence(model.result,'refusal',api);}}
+  finally{if(owner===sessionEpoch&&state.apiExplorer===model){model.busy=false;if((model.revision||0)===revision){render();app.querySelector('#api-action')?.focus();}else{const action=app.querySelector('#api-action');if(action)action.disabled=false;}}}
+}
+function invalidateApiDraft() {
+  const model=state.apiExplorer;
+  if(model.operation?.plan===state.webAppOperation?.plan)state.webAppOperation=null;
+  model.revision=(model.revision||0)+1;model.preview=null;model.operation=null;model.result=null;
+  const output=app.querySelector('#api-output');
+  if(output)output.innerHTML='<p role="status">Draft changed. Preview or rehearse the current request again.</p>';
+  app.querySelectorAll('[data-webapp-confirm]').forEach(button=>{button.disabled=true;});
+}
+function closeCommands() { state.commandOpen=false; render(); app.querySelector('#command-open')?.focus(); }
+function targetComparisonPanel() {
+  const model=state.targetComparison;
+  return `<div class="command-backdrop"><section class="panel command-panel" role="dialog" aria-modal="true" aria-labelledby="targets-title"><div class="panel-head"><h2 id="targets-title">Compare Targets</h2><button class="button quiet" id="targets-close">Close comparison</button></div>${state.targetCompareBusy?'<p role="status">Observing each configured target independently…</p>':''}${state.targetCompareError?`<p role="status">${esc(state.targetCompareError)}</p>`:''}${model?`<p><code>${esc(model.semanticRef.key)}</code> · ${esc(model.semanticRef.scope||'instance')}</p><div class="target-comparison">${model.observations.map(observation=>`<article class="target-card"><h3>${esc(observation.targetRef.label)} ${badge(observation.state,observation.state==='VERIFIED'?'success':['DENIED','UNAVAILABLE'].includes(observation.state)?'warning':'accent')}</h3><p>${esc(observation.targetRef.environment)} · ${esc(observation.reason||observation.observedAt||'')}</p>${observation.value?`<pre>${esc(JSON.stringify(observation.value,null,2))}</pre>`:''}</article>`).join('')}</div><p>Observed differences: ${esc(model.differences.join(', ')||'None established among comparable observations')}</p><p>${esc(model.basis)}</p>`:'<p>DEV, QA and PROD remain unconfigured. No target or authority is inferred from an environment label.</p>'}</section></div>`;
+}
+async function compareApplicationTargets(name) {
+  const selected=uniqueRecord(state.apps,item=>item.name===name);
+  if(!selected||state.targetCompareBusy)return;
+  const owner=sessionEpoch;
+  activateDialog('targets');state.targetCompareBusy=true;state.targetCompareError='';render();
+  try{
+    const targets=targetChoices(state.targetRef);
+    const reader=async(ref,targetRef)=>{
+      if(!nativeMode||state.info?.systemMode==='DEMO')return {state:'UNAVAILABLE',reason:'native-iris-provider-required-no-demo-substitute',targetRef};
+      const payload=await requestJson(`/api/admin/v2/web-app?${new URLSearchParams({name:ref.key})}`);
+      if(owner!==sessionEpoch)throw new Error('Target session expired.');
+      const detail=mapWebAppDetail(payload,selected);
+      state.webAppDetails[name]=detail;delete state.webAppDetailErrors[name];
+      return {state:'OBSERVED',targetRef,observedAt:detail.ref.observedAt,value:detail.values};
+    };
+    const observations=await readAcrossTargets(targets,selected.ref,{local:reader});
+    if(owner!==sessionEpoch)return;
+    state.targetComparison=compareTargetObservations(observations,selected.ref);
+    for(const observation of observations)state.operationEvidence=[...state.operationEvidence,{id:`target:${observation.targetRef.id}:${Date.now()}`,targetRef:observation.targetRef,kind:['OBSERVED','EMPTY','VERIFIED'].includes(observation.state)?'read-observation':'refusal',state:['DENIED','UNAVAILABLE'].includes(observation.state)?observation.state:'PARTIAL',title:`Compare Targets · ${observation.targetRef.label}`,observedAt:observation.observedAt||new Date().toISOString(),source:{identity:'iris-admin-api'},resource:selected.ref,summary:`${observation.state}: ${observation.reason||'Independent target observation; no global truth inferred.'}`,evidence:{providerState:observation.state}}].slice(-64);
+  }catch{if(owner===sessionEpoch)state.targetCompareError='Comparison unavailable; observations remain separate.';}
+  finally{if(owner===sessionEpoch){state.targetCompareBusy=false;render();if(state.targetCompareOpen)app.querySelector('#targets-close')?.focus();}}
+}
+function bindCommandSurface() {
+  app.querySelector('#command-open')?.addEventListener('click',openCommands);
+  app.querySelector('#command-close')?.addEventListener('click',closeCommands);
+  app.querySelector('#command-search')?.addEventListener('input',event=>{
+    state.commandQuery=event.target.value.slice(0,128); state.commandApi=null; render(); app.querySelector('#command-search')?.focus();
+  });
+  app.querySelectorAll('[data-api-parameter]').forEach(input=>input.addEventListener('input',()=>{state.apiExplorer.parameters[input.dataset.apiParameter]=input.value;invalidateApiDraft();}));
+  app.querySelector('#api-body')?.addEventListener('input',event=>{state.apiExplorer.body=event.target.value;invalidateApiDraft();});
+  app.querySelector('#api-preview')?.addEventListener('click',()=>runApiAction(true));
+  app.querySelector('#api-action')?.addEventListener('click',()=>runApiAction());
+  app.querySelector('#api-back')?.addEventListener('click',()=>{state.commandApi=null;render();app.querySelector('#command-search')?.focus();});
+  app.querySelectorAll('[data-command-result]').forEach(button=>button.addEventListener('click',()=>{
+    const command = commandResults()[Number(button.dataset.commandResult)]; if (!command) return;
+    if (command.kind === 'API operation') { state.commandApi=command.operation;state.apiExplorer={parameters:{},body:'{}',preview:null,result:null,operation:null,busy:false}; render(); app.querySelector('#api-action')?.focus(); return; }
+    state.route = command.route || 'applications';
+    if (command.appName) { state.applicationsTab='web-apps'; state.selected=command.appHandle; }
+    if (command.sourceId) { state.sourceTabs[state.route]=command.sourceId; state.selectedItems[command.sourceId]=command.handle; }
+    if (command.capability) state.applicationsTab = command.capability.startsWith('ipm.') ? 'packages' : 'web-apps';
+    if (command.evidenceId) state.evidenceFilter=command.evidenceId;
+    state.commandOpen=false; location.hash=state.route; render(); ensureRouteSource();
+    if (command.appName) loadWebAppDetail(command.appName);
+  }));
+}
+function presentationRole() {
+  if (state.fxRole || state.fxPreference.role) return state.fxRole || state.fxPreference.role;
+  if (!state.connected) return 'Guest';
+  // Presentation only: observed privileges never gain authority from this label.
+  if (state.info?.privileges?.Secure === true) return 'Admin';
+  if (state.info?.privileges?.Operate === true) return 'Tech / IT';
+  return 'Regular';
+}
+function applyCurrentFx() {
+  if (!fxModule || state.fxPreference.disabled) return;
+  fxModule.applyFx(document.documentElement, fxModule.projectFx(state.fxPreference, {
+    role: presentationRole(), reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+  }));
+}
+async function refreshFx() {
+  const owner = sessionEpoch;
+  try {
+    fxModule ||= await import('./fx-studio.js?v=fx-1');
+    if (owner !== sessionEpoch) return;
+    state.fxReady = true; state.fxError = '';
+    applyCurrentFx();
+  } catch { if (owner === sessionEpoch) state.fxError = 'FX Studio is unavailable. Canonical base themes and operations remain available.'; }
+}
+function fxStudioPanel() {
+  const projection = fxModule?.projectFx(state.fxPreference, { role: presentationRole() });
+  const select = (key, label, values, value) => `<label>${label}<select data-fx-dimension="${key}">${values.map(item => `<option value="${esc(item)}" ${item === value ? 'selected' : ''}>${esc(item)}</option>`).join('')}</select></label>`;
+  return `<div class="fx-backdrop"><section class="panel fx-studio" role="dialog" aria-modal="true" aria-labelledby="fx-title"><div class="panel-head"><h2 id="fx-title">FX Studio</h2><button class="button quiet" id="fx-close" aria-label="Close FX Studio">Close</button></div><p>Project one semantic workspace. Appearance role sets an initial material; it grants no authority. Your choices override it.</p><div class="fx-controls">${select('base','BASE',['system','dark','inverse'],state.theme)}${fxModule ? select('role','Presentation role',Object.keys(fxModule.ROLE_PROJECTIONS),presentationRole()) + select('material','MATERIAL',fxModule.FX_DIMENSIONS.material,projection.material) + select('fx','FX',fxModule.FX_DIMENSIONS.fx,projection.fx) + select('motion','MOTION',fxModule.FX_DIMENSIONS.motion,projection.motion) : ''}</div><p>Semantic state colors stay fixed. System reduced motion is respected. Preferences stay in this browser; no IRIS or Evidence state is changed.</p>${state.fxError ? `<p role="status">${esc(state.fxError)}</p>` : ''}<button class="button secondary" id="fx-remove">Remove FX projection</button>${state.fxPreference.disabled ? '<p role="status">Canonical base only. Choose a dimension to enable FX.</p>' : ''}</section></div>`;
+}
 function badge(label, tone = "neutral") {
   return `<span class="badge ${esc(tone)}">${esc(label)}</span>`;
 }
@@ -280,19 +507,22 @@ function shell(content) {
   const version = state.info ? esc(state.info.serverVersion) : "Local instance not verified";
   const connected = state.connected;
   const demoMode = state.info?.systemMode === "DEMO";
+  const modalInert=state.commandOpen||state.fxOpen||state.targetCompareOpen||state.confirmationReview?' inert':'';
   return `
     <div class="shell">
-      <header class="topbar">
+      <header class="topbar"${modalInert}>
         <a class="brand" href="#overview" aria-label="OpsDeck overview"><span class="brand-mark">OD</span><span>OpsDeck</span></a>
         <div class="instance-line"><span class="instance-label">${demoMode ? "Demo dataset" : "IRIS instance"}</span><span class="instance-value">${version}</span>${connected ? environmentBadge(state.info?.systemMode) : ""}</div>
         <div class="top-actions">
           <span class="connection-state">${badge(connected ? (demoMode ? "Safe demo" : "Live session") : "Disconnected", connected ? (demoMode ? "warning" : "success") : "muted")}</span>
           ${connected ? `<span class="user-chip">${user}</span>` : ""}
+          <label class="target-picker"><span class="sr-only">Operating target</span><select id="target-select" aria-label="Operating target"><option value="local">LOCAL</option><option value="dev" disabled>DEV · unconfigured</option><option value="qa" disabled>QA · unconfigured</option><option value="prod" disabled>PROD · unconfigured</option></select></label>
+          ${connected ? `<button class="button quiet observe-only" id="observe-only" type="button" aria-pressed="${state.observeOnly}" title="Executor policy: observations and rehearsal allowed; confirmation and dispatch blocked when on">Observe Only ${state.observeOnly ? "ON" : "OFF"}</button>` : ""}
           ${connected && !demoMode ? '<button class="button quiet" id="disconnect-button" type="button">Sign out</button>' : ""}
-          <label class="theme-picker"><span class="sr-only">Color theme</span><select id="theme-select" aria-label="Color theme"><option value="dark" ${state.theme === "dark" ? "selected" : ""}>Dark</option><option value="light" ${state.theme === "light" ? "selected" : ""}>Light</option><option value="system" ${state.theme === "system" ? "selected" : ""}>System</option></select></label>
+          <button class="button quiet" id="fx-open" type="button" aria-haspopup="dialog">FX Studio</button><label class="theme-picker"><span class="sr-only">Color theme</span><select id="theme-select" aria-label="Color theme"><option value="dark" ${state.theme === "dark" ? "selected" : ""}>Dark</option><option value="light" ${state.theme === "light" ? "selected" : ""}>Light</option><option value="system" ${state.theme === "system" ? "selected" : ""}>System</option><option value="inverse" ${state.theme === "inverse" ? "selected" : ""}>Inverse IRIS</option></select></label>
         </div>
       </header>
-      <aside class="sidebar ${state.mobileMoreOpen ? "more-open" : ""}" id="mobile-secondary-nav" aria-label="Primary navigation">
+      <aside class="sidebar ${state.mobileMoreOpen ? "more-open" : ""}" id="mobile-secondary-nav" aria-label="Primary navigation"${modalInert}>
         <div class="nav-caption">WORKSPACE</div>
         ${(() => {
           const projection = projectUiNavigation(state, document.documentElement.clientWidth || 1024, compactNavigationQuery.matches);
@@ -304,10 +534,10 @@ function shell(content) {
           }).join("");
         })()}
         ${compactNavigationQuery.matches ? `<button class="nav-item nav-more" id="mobile-more" type="button" aria-expanded="${state.mobileMoreOpen}" aria-controls="mobile-secondary-nav">More</button>` : ""}
-        <div class="sidebar-note"><span class="note-dot"></span><span>${demoMode ? "Safe demo · sanitized" : "Live reads · M1"}</span></div>
+        <div class="sidebar-note"><span class="note-dot"></span><span>${demoMode ? "Safe demo · sanitized" : "Evidence-gated operations"}</span></div>
       </aside>
-      <main class="workspace">${content}</main>
-      <footer class="statusbar"><span><i class="status-dot ${connected ? "online" : ""}"></i>${connected ? (demoMode ? "Safe demo provider active" : "IRIS connection active") : "Connect to your local IRIS instance"}</span><span>${demoMode ? "Sanitized deterministic data · no IRIS connection" : nativeMode ? "Same-origin session · credentials remain in tab memory" : "Loopback session · credentials are not saved"}</span><span>Last read ${fmtTime(state.lastRead)}</span></footer>
+      <main class="workspace"${modalInert}>${content}</main><button class="button command-trigger" id="command-open" type="button" aria-haspopup="dialog" aria-label="Open command palette"${modalInert}>Command <kbd>⌘/Ctrl K</kbd></button>${state.fxOpen ? fxStudioPanel() : ""}${state.commandOpen ? commandPanel() : ""}${state.targetCompareOpen?targetComparisonPanel():''}${state.confirmationReview?confirmationReviewPanel():''}
+      <footer class="statusbar"${modalInert}><span><i class="status-dot ${connected ? "online" : ""}"></i>${connected ? (demoMode ? "Safe demo provider active" : "IRIS connection active") : "Connect to your local IRIS instance"}</span><span>${demoMode ? "Sanitized deterministic data · no IRIS connection" : nativeMode ? "Same-origin session · credentials remain in tab memory" : "Loopback session · credentials are not saved"}</span><span>Last read ${fmtTime(state.lastRead)}</span></footer>
     </div>`;
 }
 
@@ -319,7 +549,7 @@ function connectView() {
         <div class="eyebrow"><span class="eyebrow-rule"></span>LIVE ENVIRONMENT · LOCAL ONLY</div>
         <h1>Operations,<br><span>with evidence.</span></h1>
         <p>Connect to the local IRIS instance to load its identity and web applications from the authoritative SysAdmin API.</p>
-        <div class="promise-list"><div><span class="promise-check">01</span><span>${nativeMode ? "Credentials stay in this tab's memory and are sent directly to same-origin IRIS APIs." : "Credentials remain in this browser request and the local proxy process."}</span></div><div><span class="promise-check">02</span><span>Only fixed read-only IRIS source routes are enabled.</span></div><div><span class="promise-check">03</span><span>A second live read checks the result shown on screen.</span></div></div>
+        <div class="promise-list"><div><span class="promise-check">01</span><span>${nativeMode ? "Credentials stay in this tab's memory and are sent directly to same-origin IRIS APIs." : "Credentials remain in this browser request and the local proxy process."}</span></div><div><span class="promise-check">02</span><span>Observe Only starts ON. Read allowed sources and rehearse canonical operations before considering a change.</span></div><div><span class="promise-check">03</span><span>Confirmed changes require policy, current authority and authoritative read-back for a Verified Receipt.</span></div></div>
       </div>
       <form id="connect-form" class="connect-card" autocomplete="off">
         <div class="card-overline">SECURE LOCAL SESSION</div>
@@ -334,7 +564,7 @@ function connectView() {
         <div class="local-only"><span class="lock-icon" aria-hidden="true">⌑</span> ${nativeMode ? "Direct to same-origin IRIS · HTTP Basic" : "Requests stay on this computer · HTTP Basic · loopback only"}</div>
       </form>
     </section>
-    <section class="gate-strip"><div><span class="gate-kicker">M0 PASSED</span><strong>Live API identity + applications</strong></div><div>${badge("M1 read-only", "accent")}</div><p>Connected sessions can browse verified M1 providers. Mutation workflows remain gated until fixture and read-back qualification.</p></section>`);
+    <section class="gate-strip"><div><span class="gate-kicker">CURRENT AUTHORITY · CURRENT TARGET</span><strong>Observe → rehearse → review → confirm</strong></div><div>${badge("Observe Only ON", "accent")}</div><p>Operation Rehearsal stops before dispatch. Unresolved authority or effects refuse; observations and outcomes stay in the Session Ledger.</p></section>`);
 }
 
 
@@ -411,6 +641,8 @@ function overviewView() {
   }
   const privilegeCount = info.privileges ? Object.values(info.privileges).filter(Boolean).length : null;
   const demoMode = info.systemMode === "DEMO";
+  const inventoryObserved = Boolean(state.appsReadAt);
+  const inventoryStatus = state.error ? (isAuthorityDenial(state.error) ? "DENIED" : "UNAVAILABLE") : state.busy ? "LOADING" : "NOT READ";
   return shell(`
     ${pageHeader("Overview", demoMode ? "Explore the evaluator-safe dataset and OpsDeck evidence semantics." : "A verified view of the connected instance.")}
     <section class="overview-grid">
@@ -428,16 +660,16 @@ function overviewView() {
       </article>
       <article class="panel read-panel">
         <div class="panel-head"><div><div class="panel-kicker">${demoMode ? "DEMO CONTRACT READ" : "AUTHORITATIVE READ"}</div><h2>Web applications</h2></div><button class="button quiet" id="refresh-button" ${state.busy ? "disabled" : ""}>Refresh</button></div>
-        <div class="read-metric"><strong>${state.apps.length}</strong><span>applications returned</span></div>
-        <p class="read-summary">${state.apps.length ? `First resource <code>${esc(state.apps[0].name)}</code> in namespace <code>${esc(state.apps[0].namespace)}</code>.` : "The live API returned an empty collection."}</p>
-        <div class="readback-row">${state.verification ? badge(state.verification.matched ? (demoMode ? "Demo repeat matched" : "Read-back verified") : "Read-back mismatch", state.verification.matched ? "success" : "error") : badge("Read-back pending", "muted")}<span>${state.verification ? `${state.verification.count} entries compared at ${fmtTime(state.verification.at)}` : "A second read follows each refresh."}</span></div>
+        ${inventoryObserved ? `<div class="read-metric"><strong>${state.apps.length}</strong><span>applications returned</span></div>` : `<p class="read-summary" role="status">${badge(inventoryStatus,"warning")} Inventory count not established.</p>`}
+        <p class="read-summary">${!inventoryObserved ? "Application inventory has not been observed in this refresh." : state.apps.length ? `First resource <code>${esc(state.apps[0].name)}</code> in namespace <code>${esc(state.apps[0].namespace)}</code>.` : `${demoMode ? "The demo" : "The live API"} returned an empty collection.`}</p>
+        <div class="readback-row">${state.verification ? badge(state.verification.matched ? (demoMode ? "Demo repeat matched" : "Read-back verified") : "Read-back mismatch", state.verification.matched ? "success" : "error") : badge(state.error ? "Read-back unavailable" : "Read-back pending", "muted")}<span>${state.verification ? `${state.verification.count} entries compared at ${fmtTime(state.verification.at)}` : state.error ? "No independent comparison is available." : "A second read follows each refresh."}</span></div>
         <div class="panel-foot">List source <code>GET /api/admin/v2/web-apps</code></div>
       </article>
     </section>
     ${state.error ? `<div class="notice error" role="alert">${esc(state.error)}</div>` : ""}
     ${safeDemoTour()}
     ${demoPersonaCard()}
-    <section class="panel roadmap-panel"><div class="panel-head"><div><div class="panel-kicker">PRODUCT COVERAGE</div><h2>Operations workspace</h2></div>${badge(demoMode ? "Evaluator-safe surface" : "M0 reproduced · M1 in progress", demoMode ? "accent" : "warning")}</div><div class="roadmap-grid">${navItems.slice(2).map(([, title], i) => `<div class="roadmap-item"><span class="roadmap-index">${String(i + 2).padStart(2, "0")}</span><strong>${title}</strong><span>${["Users, roles and resources", "Credential metadata", "Task inventory", "System and process views", "Audit and journal sources", "Qualification and evidence receipts"][i]}</span></div>`).join("")}</div><p class="roadmap-note">${demoMode ? "Evaluator mode uses a deterministic demo provider. Live OpsDeck uses fixed read-only providers and never substitutes demo records for failed IRIS reads." : "Live values come from fixed read-only providers. OpsDeck does not substitute fixtures for IRIS data."}</p></section>`);
+    <section class="panel roadmap-panel"><div class="panel-head"><div><div class="panel-kicker">PRODUCT COVERAGE</div><h2>Operations workspace</h2></div>${badge(demoMode ? "Evaluator-safe surface" : `Observe Only ${state.observeOnly?'ON':'OFF'}`, "accent")}</div><div class="roadmap-grid">${navItems.slice(2).map(([, title], i) => `<div class="roadmap-item"><span class="roadmap-index">${String(i + 2).padStart(2, "0")}</span><strong>${title}</strong><span>${["Users, roles and resources", "Credential metadata", "Task inventory", "System and process views", "Audit and journal sources", "Session Ledger and Verified Receipts"][i]}</span></div>`).join("")}</div><p class="roadmap-note">${demoMode ? "Evaluator mode uses a deterministic demo provider. Native observations, rehearsal and execution require their actual IRIS providers; failed reads retain their state." : "Observe current provider state, rehearse supported operations, review their Impact Forecast and confirm the exact plan. Policy and current authority govern dispatch; outcomes stay in the Session Ledger."}</p></section>`);
 }
 
 function pageHeader(title, description) {
@@ -457,6 +689,7 @@ function applicationsView() {
       : "Inspect installed packages when a bounded live IPM provider is qualified.";
     return shell(`${pageHeader("Applications", description)}${applicationsTabs()}${packagesWorkspaceView()}`);
   }
+  const inventoryObserved = Boolean(state.appsReadAt);
   const selected = state.apps.find((item, index) => recordHandle(state.apps, index) === state.selected) || state.apps[0] || null;
   const rows = state.apps.map((item, index) => `<tr class="app-row ${selected === item ? "selected" : ""}" tabindex="0" role="button" data-app="${recordHandle(state.apps, index)}" aria-label="Inspect ${esc(item.name)}"><td data-label="Web application"><span class="app-name">${esc(item.name)}</span><span class="app-sub">${esc(item.dispatchClass || item.type)}</span></td><td data-label="Namespace"><code>${esc(item.namespace)}</code></td><td data-label="State">${item.enabled ? badge("Enabled", "success") : badge("Disabled", "muted")}</td><td data-label="Type">${esc(item.type)}</td><td data-label="Authentication">${esc(item.authenticationMethods.join(", ") || "None returned")}</td></tr>`).join("");
   const detail = selected ? state.webAppDetails[selected.name] : null;
@@ -481,22 +714,101 @@ function applicationsView() {
   return shell(`
     ${pageHeader("Applications", "Live web applications from the IRIS management API.")}
     ${applicationsTabs()}
-    <div class="app-toolbar"><div><strong>${state.apps.length}</strong><span> web applications</span><span class="toolbar-divider">·</span><span>Scope <code>All returned namespaces</code></span></div><div>${state.verification ? badge(state.verification.matched ? "Authoritative read-back matched" : "Read-back mismatch", state.verification.matched ? "success" : "error") : badge("Read-back pending", "muted")}</div></div>
+    <div class="app-toolbar"><div>${inventoryObserved?`<strong>${state.apps.length}</strong><span> web applications</span>`:'<span>Current inventory count not established</span>'}<span class="toolbar-divider">·</span><span>Scope <code>All returned namespaces</code></span></div><div>${state.verification ? badge(state.verification.matched ? "Authoritative read-back matched" : "Read-back mismatch", state.verification.matched ? "success" : "error") : badge("Read-back pending", "muted")}</div></div>
     ${state.error ? `<div class="notice error" role="alert">${esc(state.error)}</div>` : ""}
+    ${!inventoryObserved&&state.apps.length?'<p class="source-message">Earlier observed rows are retained below; the current inventory is not established.</p>':''}
     <section class="apps-layout">
-      <article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>Web application</th><th>Namespace</th><th>State</th><th>Type</th><th>Authentication</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="empty-cell">No web applications were returned by IRIS.</td></tr>`}</tbody></table></div><div class="panel-foot">Provider <code>SysAdmin API v2</code> · Updated ${fmtTime(state.lastRead)}</div></article>
+      <article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>Web application</th><th>Namespace</th><th>State</th><th>Type</th><th>Authentication</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="empty-cell">${inventoryObserved?'No web applications were returned by IRIS.':'Application inventory has not been observed in this refresh.'}</td></tr>`}</tbody></table></div><div class="panel-foot">Provider <code>SysAdmin API v2</code> · Updated ${fmtTime(state.lastRead)}</div></article>
       <aside class="panel inspector"><div class="panel-kicker">RESOURCE INSPECTOR</div>${selected ? `<h2 class="inspector-title"><code>${esc(selected.name)}</code></h2><p class="inspector-sub">Provider-owned identity · namespace scoped</p><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(selected.namespace)}</code></dd><dt>Enabled</dt><dd>${selected.enabled ? "Yes" : "No"}</dd><dt>Type</dt><dd>${selected.type === null ? "Not returned" : esc(selected.type)}</dd><dt>Resource</dt><dd>${selected.resource === null ? "Not returned" : selected.resource ? `<code>${esc(selected.resource)}</code>` : "None"}</dd><dt>Authentication</dt><dd>${esc(selected.authenticationMethods.join(", ") || "None returned")}</dd><dt>Default namespace</dt><dd>${selected.namespaceDefault === null ? "Not returned" : selected.namespaceDefault ? "Yes" : "No"}</dd><dt>System application</dt><dd>${selected.isSystemApp === null ? "Not returned" : selected.isSystemApp ? "Yes" : "No"}</dd><dt>Dispatch class</dt><dd>${selected.dispatchClass === null ? "Not returned" : selected.dispatchClass ? `<code>${esc(selected.dispatchClass)}</code>` : "None"}</dd></dl><div class="inspector-foot">Key <code>${esc(selected.ref.key)}</code> · refreshed ${fmtTime(selected.ref.observedAt)}</div><section class="inspector-section"><div class="panel-kicker">AUTHORITATIVE DETAIL</div>${detailContent}</section><section class="inspector-section"><div class="panel-kicker">REST SERVICE RELATIONSHIP</div>${relationshipContent}</section>${webAppOperationPanel(selected)}` : `<div class="empty-inspector">Select an application to inspect its observed fields.</div>`}</aside>
     </section>
-    <section class="verification-banner ${state.verification?.matched ? "verified" : state.verification ? "mismatch" : "pending"}"><div class="verification-symbol">${state.verification?.matched ? "✓" : state.verification ? "!" : "·"}</div><div><strong>${state.verification?.matched ? "Read-back confirmed" : state.verification ? "Read-back requires review" : "Waiting for authoritative read-back"}</strong><p>${state.verification ? `${state.verification.count} web-app records from the rendered list were compared with a second GET response.` : "OpsDeck performs a separate read after the initial list is rendered."}</p></div><code>GET /api/admin/v2/web-apps</code></section>
+    ${projectionExports("webApps")}<section class="verification-banner ${state.verification?.matched ? "verified" : state.verification ? "mismatch" : "pending"}"><div class="verification-symbol">${state.verification?.matched ? "✓" : state.verification ? "!" : "·"}</div><div><strong>${state.verification?.matched ? "Read-back confirmed" : state.verification ? "Read-back requires review" : state.error ? "Read-back not established" : "Waiting for authoritative read-back"}</strong><p>${state.verification ? `${state.verification.count} web-app records from the rendered list were compared with a second GET response.` : state.error ? "No current independent comparison is available." : "OpsDeck performs a separate read after the initial list is rendered."}</p></div><code>GET /api/admin/v2/web-apps</code></section>
     <section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">REST DISCOVERY</div><h2>Namespace REST services</h2></div>${badge("Live source", "accent")}</div>${sourceSelector("applications")}${sourcePanel(state.sourceTabs.applications)}</section>`);
 }
 
+function impactForecast(plan) {
+  if(plan.capability.id==='sysadmin.rehearse')return {target:plan.target.label,preState:'Not observed',expectedTransition:'Not established',authority:'UNVERIFIED · operation-specific privilege required',risk:'HIGH conservative review classification; actual effect not established',reversibility:'Not established',likelyEffect:'Not established',certainty:'UNVERIFIED: schema representation only. Dispatch refused by canonical policy.'};
+  const packageOperation = plan.capability.id.startsWith('ipm.');
+  return {
+    target: `${plan.target.label} · ${plan.target.scope || 'instance'}`,
+    preState: JSON.parse(plan.preStateFingerprint),
+    expectedTransition: plan.expectedReadback,
+    authority: `${plan.authorityValidation.state} · ${plan.capability.requiredPrivileges.join(', ')}`,
+    risk: plan.risk,
+    reversibility: plan.irreversible ? 'Non-reversible' : packageOperation ? 'Not established; lifecycle hooks may have lasting effects' : 'Enabled flag can be restored; interrupted requests cannot be undone',
+    likelyEffect: packageOperation ? 'Package-declared resources and lifecycle hooks may affect dependent services. No dependency closure is inferred.' : plan.parameters.enabled ? 'Application routes become available to authorized users.' : 'Application routes stop accepting requests; active users and dependent services may be interrupted.',
+    certainty: 'INFERRED forecast from observed pre-state and deterministic operation policy. Actual outcome is recorded separately.',
+  };
+}
+function planReview(plan) {
+  const impact = impactForecast(plan);
+  const operatingTarget=plan.targetRef?`${plan.targetRef.label} · ${plan.targetRef.environment} · ${plan.targetRef.origin}`:'Not established';
+  return `<details class="plan-impact" open><summary>Plan Review · Impact Forecast</summary><dl class="detail-grid"><dt>Operating target</dt><dd>${esc(operatingTarget)}</dd><dt>Affected target</dt><dd>${esc(impact.target)}</dd><dt>Observed pre-state</dt><dd><code>${esc(JSON.stringify(impact.preState))}</code></dd><dt>Expected transition</dt><dd>${esc(impact.expectedTransition)}</dd><dt>Authority</dt><dd>${esc(impact.authority)}</dd><dt>Risk</dt><dd>${esc(impact.risk)}</dd><dt>Reversibility</dt><dd>${esc(impact.reversibility)}</dd><dt>Likely service/user effect</dt><dd>${esc(impact.likelyEffect)}</dd><dt>Plan freshness</dt><dd>Expires ${esc(plan.expiresAt)}</dd></dl><p>${esc(impact.certainty)}</p></details>`;
+}
+function operationEvent(operation, kind, result = {}) {
+  const plan = operation.plan;
+  const classification = ['DENIED','UNAVAILABLE','FAILED','BLOCKED'].includes(result.state) ? result.state : 'UNVERIFIED';
+  state.operationEvidence = [...state.operationEvidence, {
+    id: `${plan.id}:${kind}:${Date.now()}`, targetRef:plan.targetRef, kind, state: classification,
+    title: kind === 'confirmation' ? `Confirmation · ${plan.intent}` : `Refusal / unresolved outcome · ${plan.intent}`,
+    observedAt: new Date().toISOString(), source: { identity: operation.provider.identity }, resource: plan.target,
+    summary: kind === 'confirmation' ? 'Human confirmation bound to this exact plan and observed pre-state. Dispatch outcome is recorded separately.' : `${result.state}: ${result.reason || 'No verified receipt; no automatic retry.'}`,
+    evidence: { operationId: plan.id, capability: plan.capability.id, risk: plan.risk, authorityState: plan.authorityValidation.state, providerState: result.state || 'UNVERIFIED', reason: result.reason || 'no-verified-receipt' },
+  }].slice(-64);
+}
 function webAppOperationPanel(selected) {
-  if (!nativeMode || !state.connected || state.info?.systemMode === "DEMO") return "";
+  const comparison=`<section class="inspector-section"><button class="button secondary" data-compare-targets="${esc(selected.name)}">Compare Targets</button><p>Same semantic application reference; separate observations and authority per configured target.</p></section><section class="inspector-section"><div class="panel-kicker">CANONICAL WORKFLOW</div><button class="button secondary" data-workflow-start="${esc(selected.name)}" ${!nativeMode||state.info?.systemMode==='DEMO'?'disabled title="Live IRIS provider required"':''}>Rehearse availability workflow</button><p>Observe → rehearse → confirm → execute → verify. Rehearsal stops for exact human confirmation.</p>${workflowPanel(selected.name)}</section>`;
+  if (!nativeMode || !state.connected || state.info?.systemMode === "DEMO") return comparison;
   const operation = state.webAppOperation;
   const current = operation?.plan?.target.key === selected.name ? operation : null;
   const unique = Boolean(uniqueRecord(state.apps, item => item.name === selected.name));
-  return `<section class="inspector-section"><div class="panel-kicker">REVIEWED OPERATION</div><p>Change only this application's Enabled flag. Disabling it can interrupt requests to its routes.</p><button class="button secondary" data-webapp-plan="${esc(selected.name)}" ${!unique || operation?.busy ? "disabled" : ""}>Prepare ${selected.enabled ? "disable" : "enable"} plan</button>${current ? `<p role="status">${esc(current.state)}</p>${current.plan ? `<p><strong>Target</strong> <code>${esc(current.plan.target.key)}</code> · ${esc(current.plan.target.scope)}</p><p><strong>Impact</strong> Enabled ${current.plan.parameters.enabled ? "true" : "false"}; ${esc(current.plan.risk)} risk. Authority is checked again before dispatch.</p><p><strong>Freshness</strong> Expires ${esc(current.plan.expiresAt)}</p><p>UNVERIFIED: a reviewed plan predicts a change; only authoritative read-back can verify it.</p>${current.state === "REVIEW_REQUIRED" ? `<button class="button primary" data-webapp-confirm="${esc(current.plan.id)}">Confirm ${current.plan.parameters.enabled ? "enable" : "disable"} ${esc(current.plan.target.key)}</button>` : ""}` : ""}${current.reason ? `<p>${esc(current.reason)}</p>` : ""}` : operation && !operation.plan ? `<p role="status">${esc(operation.state)} · ${esc(operation.reason || "")}</p>` : ""}</section>`;
+  return `${comparison}<section class="inspector-section"><div class="panel-kicker">OPERATION REHEARSAL</div><p>Change only this application's Enabled flag. Disabling it can interrupt requests to its routes.</p><button class="button secondary" data-webapp-plan="${esc(selected.name)}" ${!unique || operation?.busy ? "disabled" : ""}>Operation Rehearsal · ${selected.enabled ? "disable" : "enable"}</button>${current ? `<p role="status">${esc(current.state)}</p>${current.plan ? `${planReview(current.plan)}<p><strong>Target</strong> <code>${esc(current.plan.target.key)}</code> · ${esc(current.plan.target.scope)}</p><p><strong>Impact</strong> Enabled ${current.plan.parameters.enabled ? "true" : "false"}; ${esc(current.plan.risk)} risk. Authority is checked again before dispatch.</p><p><strong>Freshness</strong> Expires ${esc(current.plan.expiresAt)}</p><p>Planned effect; authoritative read-back determines the outcome.</p>${current.state === "REVIEW_REQUIRED" ? `<button class="button primary" data-webapp-confirm="${esc(current.plan.id)}" ${state.observeOnly ? "disabled title='Observe Only blocks confirmation'" : ""}>Confirm ${current.plan.parameters.enabled ? "enable" : "disable"} ${esc(current.plan.target.key)}</button>` : ""}` : ""}${current.reason ? `<p>${esc(current.reason)}</p>` : ""}` : operation && !operation.plan ? `<p role="status">${esc(operation.state)} · ${esc(operation.reason || "")}</p>` : ""}</section>`;
+}
+
+function workflowPanel(name){
+  const run=workflowRunner?.snapshot();
+  if(!run||run.workflow.target.key!==name)return '';
+  return `<div class="workflow-review"><p role="status"><strong>${esc(run.state)}</strong> · ${esc(run.step)}</p><p>${esc(run.workflow.targetRef.label)} · <code>${esc(run.workflow.target.key)}</code></p>${run.plan?planReview(run.plan):''}${run.reason?`<p>${esc(run.reason)}</p>`:''}${run.state==='AWAITING_CONFIRMATION'?`<button class="button primary" data-workflow-confirm="${esc(run.plan.id)}" ${state.observeOnly?'disabled title="Observe Only blocks confirmation"':''}>Confirm workflow · ${esc(run.workflow.operationId)}</button>`:''}${run.receipt?`<p>${run.receipt.verification==='VERIFIED'?'Verified Receipt':'Operation receipt'} · ${esc(run.receipt.verification)}. Inspect the Session Ledger for its evidence.</p>`:''}</div>`;
+}
+
+async function startAvailabilityWorkflow(name){
+  if(!nativeMode||!state.connected||state.info?.systemMode==='DEMO')return;
+  const selected=uniqueRecord(state.apps,item=>item.name===name);
+  if(!selected||workflowRunner&&['OBSERVING','REHEARSING','EXECUTING'].includes(workflowRunner.snapshot()?.state))return;
+  const owner=sessionEpoch;
+  const provider=createWebAppOperationProvider({username:state.info.username,requestJson:(path,options)=>{
+    if(owner!==sessionEpoch||!state.connected)throw new Error('Workflow session expired.');
+    return requestJson(path,options);
+  }});
+  const target={domain:'applications',kind:'web-app',provider:'iris-admin-api',key:selected.name,scope:selected.namespace,label:selected.name,targetRef:provider.targetRef,observedAt:new Date().toISOString()};
+  const workflow=createWorkflow({id:`availability:${Date.now()}`,operationId:selected.enabled?'webapp.disable':'webapp.enable',target});
+  workflowRunner=createWorkflowRunner({isCurrent:()=>owner===sessionEpoch&&state.connected,
+    observe:async()=>({state:'OBSERVED',targetRef:provider.targetRef,observedAt:new Date().toISOString(),value:await provider.readPreState({target,capability:{id:workflow.operationId}})}),
+    rehearse:async(wf,observation)=>{
+      const authority=await provider.checkAuthority();
+      if(authority.state!=='SUPPORTED')return {state:authority.state,reason:'existing-authority-required'};
+      const enabled=wf.operationId==='webapp.enable';
+      return {state:'REVIEW_REQUIRED',provider,plan:createOperationPlan({id:`${wf.id}:plan`,intent:`Workflow ${enabled?'enable':'disable'} ${target.key}`,target,
+        capability:{id:wf.operationId,state:'SUPPORTED',...OPERATION_POLICIES[wf.operationId]},parameters:{enabled},preState:observation.value,
+        preStateEvidence:`workflow:${wf.id}:observation`,authorityValidation:authority,expectedReadback:`Enabled is ${enabled}`,expiresAt:Date.now()+120000})};
+    },
+    onEvidence:({workflow:wf,kind,plan,result})=>{
+      if(owner!==sessionEpoch)return;
+      if(kind==='operation-receipt'){state.operationEvidence=[...state.operationEvidence,operationReceiptEvidence(result.receipt)].slice(-64);return;}
+      const observedAt=new Date().toISOString();
+      state.operationEvidence=[...state.operationEvidence,{id:kind==='read-observation'?`workflow:${wf.id}:observation`:`workflow:${wf.id}:${kind}:${Date.now()}`,targetRef:wf.targetRef,kind,
+        state:kind==='read-observation'?'PARTIAL':kind==='refusal'?['DENIED','BLOCKED','UNAVAILABLE'].includes(result?.state)?result.state:'UNVERIFIED':'UNVERIFIED',
+        title:`Workflow ${kind} · ${wf.target.key}`,observedAt,source:{identity:provider.identity},resource:wf.target,
+        summary:kind==='read-observation'?'Fresh provider pre-state observed. No dispatch or independent verification inferred.':kind==='operation-plan'?'Canonical workflow rehearsal stops before dispatch for exact confirmation.':kind==='confirmation'?'Human confirmation bound to the exact plan and pre-state.':`${result?.state||'UNRESOLVED'}: ${result?.reason||'No verified receipt; no automatic retry.'}`,
+        evidence:kind==='read-observation'?{providerState:'OBSERVED',fields:['enabled']}:kind==='operation-plan'?{operationId:plan.id,capability:plan.capability.id,risk:plan.risk,preStateEvidence:plan.preStateEvidence,authorityState:plan.authorityValidation.state}:kind==='confirmation'?{operationId:plan.id,capability:plan.capability.id,risk:plan.risk,authorityState:plan.authorityValidation.state}:{operationId:plan?.id||wf.id,reason:result?.reason||'workflow-unresolved',providerState:result?.state||'UNRESOLVED'}}].slice(-64);
+    },
+  });
+  const pending=workflowRunner.start(workflow);render();await pending;if(owner===sessionEpoch)render();
+}
+
+async function confirmAvailabilityWorkflow(id){
+  const run=workflowRunner?.snapshot();if(run?.state!=='AWAITING_CONFIRMATION'||run.plan.id!==id)return;
+  const owner=sessionEpoch;
+  const pending=workflowRunner.confirm({confirmed:true,planId:run.plan.id,preStateFingerprint:run.plan.preStateFingerprint});render();await pending;if(owner===sessionEpoch)render();
 }
 
 async function prepareWebAppOperation(name) {
@@ -509,7 +821,7 @@ async function prepareWebAppOperation(name) {
     if (owner !== sessionEpoch || !state.connected) throw new Error("Operation session expired.");
     return requestJson(path, options);
   } });
-  const target = { domain: "applications", kind: "web-app", provider: "iris-admin-api", key: selected.name, scope: selected.namespace, label: selected.name, observedAt: new Date().toISOString() };
+  const target = { domain: "applications", kind: "web-app", provider: "iris-admin-api", key: selected.name, scope: selected.namespace, label: selected.name, targetRef:provider.targetRef, observedAt: new Date().toISOString() };
   state.webAppOperation = { busy: true, state: "PREFLIGHT" };
   render();
   try {
@@ -527,37 +839,46 @@ async function prepareWebAppOperation(name) {
       expectedReadback: `Enabled is ${!preState.enabled}`, expiresAt: Date.now() + 120000,
     });
     state.webAppOperation = { plan, provider, state: "REVIEW_REQUIRED", busy: false };
-    state.operationEvidence = [...state.operationEvidence, { id: plan.id, kind: "operation-plan", state: "UNVERIFIED", title: plan.intent, observedAt: plan.createdAt, source: { identity: provider.identity }, resource: plan.target, summary: `UNVERIFIED: planned Enabled=${plan.parameters.enabled}; changing application availability can interrupt requests. No mutation has occurred.`, evidence: { operationId: plan.id, risk: plan.risk, capability: id, authorityState: authority.state, requiresConfirmation: true, preStateEvidence: plan.preStateEvidence, expectedReadback: plan.expectedReadback } }].slice(-32);
+    state.operationEvidence = [...state.operationEvidence, { id: plan.id, targetRef:plan.targetRef, kind: "operation-plan", state: "UNVERIFIED", title: plan.intent, observedAt: plan.createdAt, source: { identity: provider.identity }, resource: plan.target, summary: `UNVERIFIED: planned Enabled=${plan.parameters.enabled}; changing application availability can interrupt requests. No mutation has occurred.`, evidence: { operationId: plan.id, risk: plan.risk, capability: id, authorityState: authority.state, requiresConfirmation: true, preStateEvidence: plan.preStateEvidence, expectedReadback: plan.expectedReadback } }].slice(-32);
   } catch (error) {
     if (owner === sessionEpoch) state.webAppOperation = { state: "UNAVAILABLE", reason: error.message };
   } finally { if (owner === sessionEpoch) render(); }
 }
 
+function operationOutcome(result) {
+  if (result.reason) return result.reason;
+  if (!result.receipt) return "No verified receipt. No automatic retry.";
+  return `Authoritative read-back ${result.receipt.verification}. ${result.receipt.verification === "VERIFIED" ? "Verified Receipt" : "Operation receipt"} is available in the Session Ledger.`;
+}
+
 async function confirmWebAppOperation(id) {
   const operation = state.webAppOperation;
   if (!operation || operation.state !== "REVIEW_REQUIRED" || operation.plan?.id !== id || operation.busy) return;
+  if (state.observeOnly) { operationEvent(operation,"refusal",{state:"BLOCKED",reason:"observe-only-policy"}); render(); return; }
   const owner = sessionEpoch;
+  operationEvent(operation, "confirmation");
   operation.busy = true;
   operation.state = "IN_FLIGHT";
   render();
-  const result = await executeOperationPlan(operation.plan, operation.provider, { providerIdentity: operation.provider.identity, confirmation: { planId: id, preStateFingerprint: operation.plan.preStateFingerprint, confirmed: true } });
+  const result = await executeOperationPlan(operation.plan, operation.provider, { providerIdentity: operation.provider.identity, isCurrent:()=>owner===sessionEpoch&&state.connected&&state.webAppOperation===operation, confirmation: { planId: id, preStateFingerprint: operation.plan.preStateFingerprint, confirmed: true } });
   if (owner !== sessionEpoch) return;
   operation.state = result.state;
-  operation.reason = result.reason || (result.receipt ? `KNOWN: authoritative read-back ${result.receipt.verification}. Receipt is available in Evidence.` : "No verified receipt. No automatic retry.");
+  operation.reason = operationOutcome(result);
   operation.busy = false;
-  if (result.receipt) state.operationEvidence = [...state.operationEvidence, operationReceiptEvidence(result.receipt)].slice(-32);
+  if (result.receipt) state.operationEvidence = [...state.operationEvidence, operationReceiptEvidence(result.receipt)].slice(-64);
+  else operationEvent(operation, "refusal", result);
   render();
 }
 
 function applicationsTabs() {
-  return `<div class="source-tabs application-tabs" role="tablist" aria-label="Applications workspace"><button class="source-tab ${state.applicationsTab === "web-apps" ? "active" : ""}" role="tab" aria-selected="${state.applicationsTab === "web-apps"}" data-application-tab="web-apps">Web applications</button><button class="source-tab ${state.applicationsTab === "packages" ? "active" : ""}" role="tab" aria-selected="${state.applicationsTab === "packages"}" data-application-tab="packages">Packages</button></div>`;
+  return `${state.applicationsTab === "packages" && state.packageInventory ? projectionExports("packages") : ""}<div class="source-tabs application-tabs" role="tablist" aria-label="Applications workspace"><button class="source-tab ${state.applicationsTab === "web-apps" ? "active" : ""}" role="tab" aria-selected="${state.applicationsTab === "web-apps"}" data-application-tab="web-apps">Web applications</button><button class="source-tab ${state.applicationsTab === "packages" ? "active" : ""}" role="tab" aria-selected="${state.applicationsTab === "packages"}" data-application-tab="packages">Packages</button></div>`;
 }
 
 function packageOperationPanel() {
   const operation = state.livePackageOperation;
   if (!operation) return "";
   const plan = operation.plan;
-  return `<section class="panel package-plan-review"><div class="panel-kicker">REVIEWED PACKAGE OPERATION</div><p role="status">${esc(operation.state)}</p>${plan ? `<h3>${esc(plan.intent)}</h3><p><strong>Target</strong> ${esc(plan.target.key)} · ${esc(plan.target.scope)}</p><p><strong>Version</strong> ${esc(plan.parameters.requestedVersion)} · repository ${esc(plan.parameters.sourceIdentity)}</p><p><strong>Impact</strong> ${plan.parameters.installedVersion ? "Removes package-owned resources." : "Installs package-declared resources and lifecycle hooks."} HIGH risk. Authority is checked again before dispatch.</p><p><strong>Freshness</strong> Expires ${esc(plan.expiresAt)}</p><p>UNVERIFIED: only authoritative installed inventory can verify this plan.</p>${operation.state === "REVIEW_REQUIRED" ? `<button class="button primary" data-live-package-confirm="${esc(plan.id)}">Confirm ${plan.capability.id.endsWith("remove") ? "remove" : "install"} ${esc(plan.target.key)}</button>` : ""}` : ""}${operation.reason ? `<p>${esc(operation.reason)}</p>` : ""}</section>`;
+  return `<section class="panel package-plan-review"><div class="panel-kicker">OPERATION REHEARSAL · PACKAGE</div><p role="status">${esc(operation.state)}</p>${plan ? `${planReview(plan)}<h3>${esc(plan.intent)}</h3><p><strong>Target</strong> ${esc(plan.target.key)} · ${esc(plan.target.scope)}</p><p><strong>Version</strong> ${esc(plan.parameters.requestedVersion)} · repository ${esc(plan.parameters.sourceIdentity)}</p><p><strong>Impact</strong> ${plan.parameters.installedVersion ? "Removes package-owned resources." : "Installs package-declared resources and lifecycle hooks."} HIGH risk. Authority is checked again before dispatch.</p><p><strong>Freshness</strong> Expires ${esc(plan.expiresAt)}</p><p>Planned effect; authoritative installed inventory determines the outcome.</p>${operation.state === "REVIEW_REQUIRED" ? `<button class="button primary" data-live-package-confirm="${esc(plan.id)}" ${state.observeOnly ? "disabled title='Observe Only blocks confirmation'" : ""}>Confirm ${plan.capability.id.endsWith("remove") ? "remove" : "install"} ${esc(plan.target.key)}</button>` : ""}` : ""}${operation.reason ? `<p>${esc(operation.reason)}</p>` : ""}</section>`;
 }
 
 async function prepareLivePackageOperation(index) {
@@ -572,7 +893,7 @@ async function prepareLivePackageOperation(index) {
     return requestJson(path, options);
   } });
   const id = `ipm.live.${action}`;
-  const target = { domain: "applications", kind: "package", provider: "iris-ipm-installed-v1", key: row.name, scope: row.namespace, label: row.name, observedAt: new Date().toISOString() };
+  const target = { domain: "applications", kind: "package", provider: "iris-ipm-installed-v1", key: row.name, scope: row.namespace, label: row.name, targetRef:provider.targetRef, observedAt: new Date().toISOString() };
   state.livePackageOperation = { busy: true, state: "PREFLIGHT" };
   render();
   try {
@@ -586,7 +907,7 @@ async function prepareLivePackageOperation(index) {
       preconditions: [{ claim: "Exact selected package version/source and fresh inventory", observed: true, evidence: "iris-ipm:selected-package-prestate" }],
       expectedReadback: action === "install" ? "Exact installed package/version" : "Exact package absent", expiresAt: Date.now() + 120000 });
     state.livePackageOperation = { plan, provider, state: "REVIEW_REQUIRED", busy: false };
-    state.operationEvidence = [...state.operationEvidence, { id: plan.id, kind: "operation-plan", state: "UNVERIFIED", title: plan.intent, observedAt: plan.createdAt, source: { identity: provider.identity }, resource: plan.target, summary: "Reviewed package lifecycle impact; no mutation has occurred.", evidence: { risk: plan.risk, capability: id, authorityState: authority.state, requiresConfirmation: true, preStateEvidence: plan.preStateEvidence, expectedReadback: plan.expectedReadback } }].slice(-32);
+    state.operationEvidence = [...state.operationEvidence, { id: plan.id, targetRef:plan.targetRef, kind: "operation-plan", state: "UNVERIFIED", title: plan.intent, observedAt: plan.createdAt, source: { identity: provider.identity }, resource: plan.target, summary: "Reviewed package lifecycle impact; no mutation has occurred.", evidence: { risk: plan.risk, capability: id, authorityState: authority.state, requiresConfirmation: true, preStateEvidence: plan.preStateEvidence, expectedReadback: plan.expectedReadback } }].slice(-32);
   } catch (error) { if (owner === sessionEpoch) state.livePackageOperation = { state: "UNAVAILABLE", reason: error.message }; }
   finally { if (owner === sessionEpoch) render(); }
 }
@@ -594,14 +915,17 @@ async function prepareLivePackageOperation(index) {
 async function confirmLivePackageOperation(id) {
   const operation = state.livePackageOperation;
   if (!operation || operation.state !== "REVIEW_REQUIRED" || operation.plan?.id !== id || operation.busy) return;
+  if (state.observeOnly) { operationEvent(operation,"refusal",{state:"BLOCKED",reason:"observe-only-policy"}); render(); return; }
   const owner = sessionEpoch;
+  operationEvent(operation, "confirmation");
   operation.busy = true; operation.state = "IN_FLIGHT"; render();
   const result = await executeOperationPlan(operation.plan, operation.provider, { providerIdentity: operation.provider.identity,
     confirmation: { planId: id, preStateFingerprint: operation.plan.preStateFingerprint, confirmed: true } });
   if (owner !== sessionEpoch) return;
   operation.busy = false; operation.state = result.state;
-  operation.reason = result.reason || (result.receipt ? "KNOWN: authoritative inventory verified the result. Receipt is available in Evidence." : "No verified receipt. No automatic retry.");
-  if (result.receipt) state.operationEvidence = [...state.operationEvidence, operationReceiptEvidence(result.receipt)].slice(-32);
+  operation.reason = operationOutcome(result);
+  if (result.receipt) state.operationEvidence = [...state.operationEvidence, operationReceiptEvidence(result.receipt)].slice(-64);
+  else operationEvent(operation, "refusal", result);
   render();
   if (result.state === "VERIFIED") await loadPackageInventory(true);
 }
@@ -627,7 +951,7 @@ function packagesWorkspaceView() {
         : catalog?.state === "FAILED" ? `<p class="source-message source-error" role="alert">The IPM catalog query failed. No available version is inferred.</p>`
           : catalog?.state === "UNAVAILABLE" ? `<p class="source-message" role="status">Configured catalog coverage is unavailable${catalog.reason ? ` (${esc(catalog.reason)}).` : "."}</p>`
             : catalog?.state === "EMPTY" ? `<p class="source-message" role="status">No matching package was returned by all observed enabled repositories.</p>`
-              : catalogRows.length ? `<div class="package-list">${catalogRows.map((item, index) => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>${esc(item.description)}</small></div>${badge((item.relationship || item.state).replaceAll("_", " ").replaceAll("-", " "), ["INSTALLED_OLDER", "INSTALLED_NEWER"].includes(item.relationship) ? "warning" : item.relationship === "INSTALLED_VERSION_UNCOMPARABLE" || item.relationship === "INSTALLED_STATE_UNKNOWN" ? "muted" : "accent")}</div><dl class="detail-grid"><dt>Available</dt><dd>${esc(item.availableVersion)}</dd><dt>Installed</dt><dd>${esc(item.installedVersion || (item.installedStateKnown ? "Not installed in this namespace" : "Not observed"))}</dd><dt>Repository</dt><dd><code>${esc(item.repository)}</code></dd>${item.origin ? `<dt>Origin</dt><dd>${esc(item.origin)}</dd>` : ""}</dl>${nativeMode && livePackageSelection(item) ? `<button class="button secondary" data-live-package-plan="${index}" ${state.livePackageOperation?.busy ? "disabled" : ""}>Prepare ${livePackageSelection(item).action} plan</button>` : `<p class="source-message">No qualified operation is available for this identity/version. Update remains unqualified.</p>`}</article>`).join("")}</div>`
+              : catalogRows.length ? `<div class="package-list">${catalogRows.map((item, index) => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>${esc(item.description)}</small></div>${badge((item.relationship || item.state).replaceAll("_", " ").replaceAll("-", " "), ["INSTALLED_OLDER", "INSTALLED_NEWER"].includes(item.relationship) ? "warning" : item.relationship === "INSTALLED_VERSION_UNCOMPARABLE" || item.relationship === "INSTALLED_STATE_UNKNOWN" ? "muted" : "accent")}</div><dl class="detail-grid"><dt>Available</dt><dd>${esc(item.availableVersion)}</dd><dt>Installed</dt><dd>${esc(item.installedVersion || (item.installedStateKnown ? "Not installed in this namespace" : "Not observed"))}</dd><dt>Repository</dt><dd><code>${esc(item.repository)}</code></dd>${item.origin ? `<dt>Origin</dt><dd>${esc(item.origin)}</dd>` : ""}</dl>${nativeMode && livePackageSelection(item) ? `<button class="button secondary" data-live-package-plan="${index}" ${state.livePackageOperation?.busy ? "disabled" : ""}>Operation Rehearsal · ${livePackageSelection(item).action}</button>` : `<p class="source-message">No qualified operation is available for this identity/version. Update remains unqualified.</p>`}</article>`).join("")}</div>`
                 : `<p class="source-message">Enter one exact package identity to query configured repositories.</p>`;
     return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Installed package inventory</h2></div>${badge(stateLabel, stateStyle)}</div><p class="source-message">Installed rows come from IPM registrations in the current namespace. Catalog lookup is a separate bounded exact-name query through configured repositories.</p><div class="evidence-toolbar"><label>Inventory <select id="package-filter"><option value="all" ${state.packageFilter === "all" ? "selected" : ""}>All installed</option><option value="installed" ${state.packageFilter === "installed" ? "selected" : ""}>Installed</option></select></label><span class="package-source">Source identity <code>${esc(inventory?.sourceIdentity || "iris-ipm-installed-v1")}</code>${inventory?.namespace ? ` · Namespace <code>${esc(inventory.namespace)}</code>` : ""}</span><button class="button secondary" data-refresh-packages ${state.packageInventoryLoading ? "disabled" : ""}>Refresh</button></div>${state.packageInventoryError ? `<p class="source-message source-error" role="alert">${esc(state.packageInventoryError)}</p>` : ""}${inventory?.state === "DENIED" ? `<p class="source-message source-error" role="status">The current IRIS identity is not authorized to read installed IPM registrations.</p>` : ""}${inventory?.state === "FAILED" ? `<p class="source-message source-error" role="alert">The installed package provider could not return inventory.</p>` : ""}<div class="package-list">${rows.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>Installed IPM registration</small></div>${badge("INSTALLED", "accent")}</div><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(item.namespace)}</code></dd><dt>Installed</dt><dd>${esc(item.installedVersion)}</dd><dt>Available</dt><dd>Not queried for this package</dd><dt>Source</dt><dd>${esc(item.source)}</dd></dl></article>`).join("") || `<p class="source-message">${inventory?.state === "EMPTY" ? "No installed package registrations were returned." : state.packageInventoryLoading ? "Reading installed package registrations…" : "No package rows are available."}</p>`}</div>${inventory?.truncated ? `<p class="source-message">Showing the first 250 registrations. Inventory is truncated.</p>` : ""}</section><section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">CONFIGURED REPOSITORIES</div><h2>Available package lookup</h2></div>${badge(catalogBadge, catalog?.state === "AVAILABLE" || catalog?.state === "TRUNCATED" ? "accent" : "warning")}</div><form class="evidence-toolbar" data-available-package-form><label>Exact package name <input id="available-package-name" name="name" maxlength="128" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,127}" value="${esc(state.availablePackageName)}" autocomplete="off" required></label><button class="button secondary" type="submit" ${state.availablePackageLoading ? "disabled" : ""}>${state.availablePackageLoading ? "Searching…" : "Search configured repositories"}</button><span class="package-source">Provider <code>iris-ipm-available-v1</code>${catalog ? ` · ${catalog.availableRepositoryCount}/${catalog.repositoryCount} repositories reachable` : ""}</span></form>${catalogBody}${packageOperationPanel()}${catalog?.coverage === "partial" && !["UNAVAILABLE", "DENIED", "FAILED"].includes(catalog.state) ? `<p class="source-message">Only ${catalog.availableRepositoryCount} of ${catalog.repositoryCount} configured repositories responded. Results are partial; absence is not established.</p>` : ""}${catalog?.truncated ? `<p class="source-message">Catalog rows reached the 50-row cap.</p>` : ""}</section>`;
   }
@@ -635,7 +959,7 @@ function packagesWorkspaceView() {
   const items = inventory.packages.filter(item => state.packageFilter === "all" || (state.packageFilter === "installed" ? Boolean(item.installedVersion) : !item.installedVersion));
   const review = state.packagePlan;
   const plan = review?.plan;
-  return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Package inventory preview</h2></div>${badge("SYNTHETIC FIXTURE", "warning")}</div><p class="source-message">These package rows are synthetic development fixtures. No configured registry, installed IPM inventory, or Open Exchange availability was queried.</p><div class="evidence-toolbar"><label>Inventory <select id="package-filter"><option value="all" ${state.packageFilter === "all" ? "selected" : ""}>Installed and available</option><option value="installed" ${state.packageFilter === "installed" ? "selected" : ""}>Installed</option><option value="available" ${state.packageFilter === "available" ? "selected" : ""}>Available</option></select></label><span class="package-source">Source identity <code>${esc(inventory.sourceIdentity)}</code></span></div><div class="package-list">${items.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>${esc(item.description)}</small></div>${badge(item.state.toUpperCase(), item.state === "update-available" ? "warning" : "accent")}</div><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(item.namespace)}</code></dd><dt>Installed</dt><dd>${esc(item.installedVersion || "Not installed")}</dd><dt>Available</dt><dd>${esc(item.availableVersion || "Not observed")}</dd><dt>Source</dt><dd>${esc(item.source)}</dd></dl><div class="package-actions">${item.installedVersion ? `<button class="button secondary" data-package-plan="update" data-package-name="${esc(item.name)}" ${item.availableVersion ? "" : "disabled"}>Prepare update plan</button><button class="button quiet" data-package-plan="remove" data-package-name="${esc(item.name)}">Prepare removal plan</button>` : `<button class="button secondary" data-package-plan="install" data-package-name="${esc(item.name)}">Prepare installation plan</button>`}</div></article>`).join("") || `<p class="source-message">No synthetic package rows match this filter.</p>`}</div><section class="panel package-catalog-example"><div class="panel-head"><div><div class="panel-kicker">CATALOG COMPARISON · SYNTHETIC</div><h3>opsdeck</h3></div>${badge("INSTALLED NEWER", "warning")}</div><p class="source-message">Demo scenario only: installed 0.2.1 is newer than the synthetic configured-catalog version 0.2.0. This is not a live registry observation or update recommendation.</p><dl class="detail-grid"><dt>Installed</dt><dd>0.2.1</dd><dt>Available example</dt><dd>0.2.0</dd><dt>Source</dt><dd>synthetic safe-demo fixture</dd></dl></section>${plan ? `<section class="package-plan-review"><div class="panel-kicker">OPERATION PLAN · REVIEW ONLY</div><h3>${esc(plan.intent)}</h3><div class="package-plan-facts"><p><strong>Risk</strong> ${esc(plan.risk)} · explicit confirmation required</p><p><strong>Target</strong> ${esc(plan.target.key)} · namespace <code>${esc(plan.target.scope)}</code></p><p><strong>Operation</strong> ${esc(plan.capability.providerOperation)}</p><p><strong>Source</strong> ${esc(plan.parameters.sourceIdentity)} · requested version ${esc(plan.parameters.requestedVersion || "current")}</p><p><strong>Current version</strong> ${esc(plan.parameters.installedVersion || "not installed")}</p><p><strong>Pre-state</strong> ${esc(plan.preStateEvidence)} · plan expires ${esc(plan.expiresAt)}</p><p><strong>Authority</strong> ${esc(plan.authorityValidation.state)} · ${esc(plan.authorityValidation.evidence)}</p><p><strong>Expected read-back</strong> ${esc(plan.expectedReadback)}</p></div><div class="notice warning"><strong>Executor unavailable.</strong> The plan is synthetic and review-only. Real IPM execution requires a qualified 0.6 executor and disposable package fixture.</div><button class="button secondary" disabled aria-disabled="true">Confirm package operation · unavailable</button></section>` : ""}</section>`;
+  return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Package inventory preview</h2></div>${badge("SYNTHETIC FIXTURE", "warning")}</div><p class="source-message">These package rows are synthetic development fixtures. No configured registry, installed IPM inventory, or Open Exchange availability was queried.</p><div class="evidence-toolbar"><label>Inventory <select id="package-filter"><option value="all" ${state.packageFilter === "all" ? "selected" : ""}>Installed and available</option><option value="installed" ${state.packageFilter === "installed" ? "selected" : ""}>Installed</option><option value="available" ${state.packageFilter === "available" ? "selected" : ""}>Available</option></select></label><span class="package-source">Source identity <code>${esc(inventory.sourceIdentity)}</code></span></div><div class="package-list">${items.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>${esc(item.description)}</small></div>${badge(item.state.toUpperCase(), item.state === "update-available" ? "warning" : "accent")}</div><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(item.namespace)}</code></dd><dt>Installed</dt><dd>${esc(item.installedVersion || "Not installed")}</dd><dt>Available</dt><dd>${esc(item.availableVersion || "Not observed")}</dd><dt>Source</dt><dd>${esc(item.source)}</dd></dl><div class="package-actions">${item.installedVersion ? `<button class="button secondary" data-package-plan="update" data-package-name="${esc(item.name)}" ${item.availableVersion ? "" : "disabled"}>Operation Rehearsal · update</button><button class="button quiet" data-package-plan="remove" data-package-name="${esc(item.name)}">Operation Rehearsal · remove</button>` : `<button class="button secondary" data-package-plan="install" data-package-name="${esc(item.name)}">Operation Rehearsal · install</button>`}</div></article>`).join("") || `<p class="source-message">No synthetic package rows match this filter.</p>`}</div><section class="panel package-catalog-example"><div class="panel-head"><div><div class="panel-kicker">CATALOG COMPARISON · SYNTHETIC</div><h3>opsdeck</h3></div>${badge("INSTALLED NEWER", "warning")}</div><p class="source-message">Demo scenario only: installed 0.2.1 is newer than the synthetic configured-catalog version 0.2.0. This is not a live registry observation or update recommendation.</p><dl class="detail-grid"><dt>Installed</dt><dd>0.2.1</dd><dt>Available example</dt><dd>0.2.0</dd><dt>Source</dt><dd>synthetic safe-demo fixture</dd></dl></section>${plan ? `<section class="package-plan-review"><div class="panel-kicker">OPERATION PLAN · REVIEW ONLY</div><h3>${esc(plan.intent)}</h3>${planReview(plan)}<div class="package-plan-facts"><p><strong>Risk</strong> ${esc(plan.risk)} · explicit confirmation required</p><p><strong>Target</strong> ${esc(plan.target.key)} · namespace <code>${esc(plan.target.scope)}</code></p><p><strong>Operation</strong> ${esc(plan.capability.providerOperation)}</p><p><strong>Source</strong> ${esc(plan.parameters.sourceIdentity)} · requested version ${esc(plan.parameters.requestedVersion || "current")}</p><p><strong>Current version</strong> ${esc(plan.parameters.installedVersion || "not installed")}</p><p><strong>Pre-state</strong> ${esc(plan.preStateEvidence)} · plan expires ${esc(plan.expiresAt)}</p><p><strong>Authority</strong> ${esc(plan.authorityValidation.state)} · ${esc(plan.authorityValidation.evidence)}</p><p><strong>Expected read-back</strong> ${esc(plan.expectedReadback)}</p></div><div class="notice warning"><strong>Executor unavailable.</strong> The plan is synthetic and review-only. Real IPM execution requires a qualified 0.6 executor and disposable package fixture.</div><button class="button secondary" disabled aria-disabled="true">Confirm package operation · unavailable</button></section>` : ""}</section>`;
 }
 
 function restServiceMatches(webApp) {
@@ -670,7 +994,14 @@ function cellValue(value) {
   return esc(value);
 }
 
+function projectionExports(sourceId) {
+  if(sourceId==='webApps'&&!state.appsReadAt)return '';
+  return `<div class="projection-exports" aria-label="Export existing observation"><button class="button quiet" data-export-projection="${esc(sourceId)}" data-format="copy">Copy JSON</button><button class="button quiet" data-export-projection="${esc(sourceId)}" data-format="json">Download JSON</button><button class="button quiet" data-export-projection="${esc(sourceId)}" data-format="csv">Download CSV</button></div>`;
+}
 function sourcePanel(sourceId) {
+  return `${state.sourceData[sourceId] ? projectionExports(sourceId) : ''}${sourcePanelBody(sourceId)}`;
+}
+function sourcePanelBody(sourceId) {
   const isRotation = /^messagesRotation:[0-9A-F]{64}$/u.test(sourceId);
   const source = READ_ONLY_SOURCES[sourceId] || (isRotation ? { label: "messages.log rotation", path: "/opsdeck-api/message-rotation" } : null);
   const data = state.sourceData[sourceId];
@@ -690,7 +1021,8 @@ function sourcePanel(sourceId) {
     const labels = { available: "Observed", empty: "No rotations", truncated: "Partial coverage", denied: "Denied", unavailable: "Unavailable", failed: "Failed" };
     const items = data.rotations.map((item) => `<li class="owner-row"><span><strong>${esc(item.sourceTimestamp)}</strong><span class="app-sub">${item.size} bytes · <code>${esc(item.sourceIdentity)}</code></span></span><button class="button quiet" data-read-rotation="${esc(item.sourceIdentity)}" ${state.rotationLoading ? "disabled" : ""}>Read bounded observation</button></li>`).join("");
     const selected = state.selectedRotation ? sourcePanel(state.selectedRotation) : "";
-    return `<div class="source-toolbar"><div>${badge(labels[data.status] || "Unresolved", data.status === "available" ? "success" : data.status === "denied" || data.status === "failed" ? "error" : "warning")} <strong>${data.count}</strong><span> fixed-family files · ${data.scannedCount} entries scanned</span></div><button class="button quiet" data-refresh-source="messageRotations">Rescan fixed family</button></div>${data.coverage === "partial" || data.truncated ? `<p class="source-caveat">Coverage is partial. The bounded scan may omit family members.</p>` : ""}${items ? `<ul class="relationship-list">${items}</ul>` : `<div class="source-message" role="status">${data.status === "empty" ? "No approved messages.log rotations were observed." : data.status === "denied" ? "IRIS denied fixed-family enumeration for this identity." : "The fixed-family inventory is unavailable; it is not treated as an empty catalog."}</div>`}${selected}<div class="panel-foot">GET <code>${esc(source.path)}</code> · nonrecursive · max 250 entries / 20 identities · no paths returned · ${fmtTime(data.observedAt)}</div>`;
+    const inventoryMetrics = ["available", "empty", "truncated"].includes(data.status) ? `<strong>${data.count}</strong><span> fixed-family files · ${data.scannedCount} entries scanned</span>` : "<span>Inventory count not established</span>";
+    return `<div class="source-toolbar"><div>${badge(labels[data.status] || "Unresolved", data.status === "available" ? "success" : data.status === "denied" || data.status === "failed" ? "error" : "warning")} ${inventoryMetrics}</div><button class="button quiet" data-refresh-source="messageRotations">Rescan fixed family</button></div>${data.coverage === "partial" || data.truncated ? `<p class="source-caveat">Coverage is partial. The bounded scan may omit family members.</p>` : ""}${items ? `<ul class="relationship-list">${items}</ul>` : `<div class="source-message" role="status">${data.status === "empty" ? "No approved messages.log rotations were observed." : data.status === "denied" ? "IRIS denied fixed-family enumeration for this identity." : "The fixed-family inventory is unavailable; it is not treated as an empty catalog."}</div>`}${selected}<div class="panel-foot">GET <code>${esc(source.path)}</code> · nonrecursive · max 250 entries / 20 identities · no paths returned · ${fmtTime(data.observedAt)}</div>`;
   }
   if (sourceId === "messagesLog" || sourceId === "systemMonitorLog" || isRotation) {
     if (!data) return `<div class="source-message">Select the fixed source to read its bounded recent observation.</div>`;
@@ -874,6 +1206,23 @@ function auditQueryPanel() {
   return `<section class="panel provider-panel audit-query-panel"><div class="panel-head"><div><div class="panel-kicker">READ ONLY · BOUNDED</div><h2>Audit records</h2></div><button class="button quiet" data-run-audit-query ${state.auditQueryBusy ? "disabled" : ""}>${state.auditQueryBusy ? "Reading…" : "Read recent records · max 1"}</button></div><p class="source-message">Reads one record at most for the signed-in user over the last 10 minutes. Only reviewed audit fields are displayed.</p>${query ? `<p class="source-message"><strong>${badge(query.state.toUpperCase(), tone)}</strong> ${esc(query.message)}</p>${task}${result}` : ""}</section>`;
 }
 
+async function loadCapabilitySummary(){
+  if(state.capabilitySummaryBusy)return;
+  const owner=sessionEpoch;state.capabilitySummaryBusy=true;state.capabilitySummaryError='';render();
+  try{
+    const value=await requestJson(nativeMode?'/opsdeck/capability-summary.json':'./capability-summary.json');
+    const keys=['declared','exposed','observed','reproduced','independentlyVerified','mutable','qualifiedMutationWorkflows','exposedMutableOperations'];
+    if(value.schema!=='opsdeck-capability-summary-v1'||!value.counts||keys.some(key=>!Number.isInteger(value.counts[key])||value.counts[key]<0||value.counts[key]>100000)||typeof value.unit!=='string'||value.unit.length>256||typeof value.qualificationBoundary!=='string'||value.qualificationBoundary.length>512)throw new Error('Qualification summary contract unavailable.');
+    if(owner!==sessionEpoch)return;
+    state.capabilitySummary={counts:Object.fromEntries(keys.map(key=>[key,value.counts[key]])),unit:value.unit,qualificationBoundary:value.qualificationBoundary};
+  }catch{if(owner===sessionEpoch)state.capabilitySummaryError='Qualification snapshot unavailable. Current-session Evidence remains available.';}
+  finally{if(owner===sessionEpoch){state.capabilitySummaryBusy=false;render();}}
+}
+function capabilitySummaryPanel(){
+  const summary=state.capabilitySummary;
+  const metrics=[['exposed','IRIS operations exposed'],['observed','Runtime-observed'],['independentlyVerified','Independently verified'],['qualifiedMutationWorkflows','Qualified mutation workflows']];
+  return `<section class="panel capability-summary"><div class="panel-head"><div><div class="panel-kicker">PRODUCT QUALIFICATION · SOURCE-GENERATED</div><h2>Capability accounting</h2></div><button class="button secondary" id="capability-summary-load" ${state.capabilitySummaryBusy?'disabled':''}>${state.capabilitySummaryBusy?'Loading…':summary?'Refresh qualification snapshot':'Show qualification snapshot'}</button></div><p class="source-message">Recorded qualification across its named identities and targets. Current-session access still depends on the signed-in identity and operating target.</p>${state.capabilitySummaryError?`<p role="status">${esc(state.capabilitySummaryError)}</p>`:''}${summary?`<div class="capability-metrics">${metrics.map(([key,label])=>`<div><strong>${summary.counts[key]}</strong><span>${esc(label)}</span></div>`).join('')}</div><details><summary>Counting unit and qualification scope</summary><p>${esc(summary.unit)}</p><p>${esc(summary.qualificationBoundary)}</p><p>${summary.counts.declared} declared · ${summary.counts.reproduced} reproduced · ${summary.counts.mutable} mutation-shaped contracts · ${summary.counts.exposedMutableOperations} exposed mutation operations.</p><p>Independent verification is scoped to its recorded read-back or effect evidence. Historical workflow variants do not increase the discrete operation count.</p></details>`:''}</section>`;
+}
 function evidenceView() {
   const isDemo = state.info?.systemMode === "DEMO";
   const productIdentity = ProductIdentity.resolve({
@@ -891,7 +1240,7 @@ function evidenceView() {
   const auditDetail = audit?.state === "finished"
     ? `A bounded audit task finished with ${auditCount}. The response remains partial evidence; full result-schema and pagination behavior are not established.`
     : audit ? `The bounded audit task is ${audit.state}. Its state is retained in this session without raw task identifiers or unreviewed result values.`
-      : "IRIS 2026.2 returned one finished empty result through the exact same-origin v1 async-result resource. Full result-schema and pagination behavior remain unverified.";
+      : "No bounded audit query has been observed in this session. Historical native qualification covers one finished empty v1 async result; full result-schema and pagination behavior remain unverified.";
   const auditTone = ["FAILED", "DENIED"].includes(auditState) ? "error" : ["PENDING", "UNVERIFIED", "PARTIAL", "BLOCKED", "UNAVAILABLE"].includes(auditState) ? "warning" : "muted";
   const cards = [
     { title: "Web application read-back", state: readback.label, tone: readback.tone, detail: readback.detail, note: isDemo ? "Demo semantics only · live IRIS verification is separately qualified." : "Current session evidence." },
@@ -900,8 +1249,10 @@ function evidenceView() {
     { title: "IPM / ZPM lifecycle", state: "QUALIFIED", tone: "success", detail: "Local-source load, uninstall, and clean same-source reload were reproduced for OpsDeck 0.2.0. Registration, /opsdeck, deployed asset hashes, operational HTTP behavior, cleanup, and unrelated-state preservation were verified.", note: "Scope: tested local-source lifecycle only. Exact core IPM version and public-registry installation remain unverified." }
   ];
   const evidenceCollection = currentEvidenceCollection();
+  const ledger = sessionLedger(evidenceCollection);
+  const ledgerCounts = Object.entries(ledger.categories).map(([kind, records]) => `${records.length} ${kind}`).join(" · ");
   const visibleEvidence = filterEvidence(evidenceCollection, state.evidenceFilter || "", state.evidenceStateFilter || "ALL");
-  const evidencePanel = `<section class="panel durable-evidence-panel"><div class="panel-head"><div><div class="panel-kicker">BOUNDED EVIDENCE CENTER</div><h2>${isDemo ? "Fixture receipt preview" : "Current-session evidence"}</h2></div>${badge(isDemo ? "SYNTHETIC FIXTURE" : "SESSION ONLY", "warning")}</div><p class="source-message">${isDemo ? "Synthetic fixture data only. It demonstrates redacted receipt browsing and export, not IRIS execution." : "Evidence is held in session memory. No persistent IRIS evidence provider is attached; exports are explicit and bounded."}</p><div class="evidence-toolbar"><label>Filter <input id="evidence-filter" type="search" value="${esc(state.evidenceFilter || "")}" maxlength="128" placeholder="Find evidence"></label><label>State <select id="evidence-state-filter">${["ALL", "VERIFIED", "PARTIAL", "FAILED", "UNVERIFIED", "BLOCKED", "UNAVAILABLE", "DENIED"].map(item => `<option value="${item}" ${(state.evidenceStateFilter || "ALL") === item ? "selected" : ""}>${item}</option>`).join("")}</select></label><button class="button secondary" data-export-evidence="json" ${visibleEvidence.length ? "" : "disabled"}>Export JSON</button><button class="button secondary" data-export-evidence="markdown" ${visibleEvidence.length ? "" : "disabled"}>Export Markdown</button></div>${visibleEvidence.length ? `<div class="evidence-record-list">${visibleEvidence.map(item => `<article class="evidence-record"><div><strong>${esc(item.title)}</strong>${badge(item.state, item.state === "VERIFIED" ? "success" : "warning")}</div><small>${esc(item.kind)} · ${esc(item.observedAt)} · source ${esc(item.source?.identity || "unknown")} · resource ${esc(item.resource?.key || "unknown")}</small><p>${esc(item.summary)}</p></article>`).join("")}</div>` : `<p class="source-message">${evidenceCollection.state === "EMPTY" ? "No evidence records are available in this session." : `No records match the selected filter · ${evidenceCollection.state}.`}</p>`}</section>`;
+  const evidencePanel = `<section class="panel durable-evidence-panel"><div class="panel-head"><div><div class="panel-kicker">BOUNDED EVIDENCE CENTER</div><h2>${isDemo ? "Session Ledger · synthetic preview" : "Session Ledger"}</h2></div>${badge(isDemo ? "SYNTHETIC FIXTURE" : "SESSION ONLY", "warning")}</div><p class="source-message">${esc(ledgerCounts)}${ledger.truncated ? " · bounded collection truncated" : ""}</p><p class="source-message">${isDemo ? "Synthetic fixture data only. It demonstrates redacted receipt browsing and export, not IRIS execution." : "Evidence is held in session memory. No persistent IRIS evidence provider is attached; exports are explicit and bounded."}</p><div class="evidence-toolbar"><label>Filter <input id="evidence-filter" type="search" value="${esc(state.evidenceFilter || "")}" maxlength="128" placeholder="Find evidence"></label><label>State <select id="evidence-state-filter">${["ALL", "VERIFIED", "PARTIAL", "FAILED", "UNVERIFIED", "BLOCKED", "UNAVAILABLE", "DENIED"].map(item => `<option value="${item}" ${(state.evidenceStateFilter || "ALL") === item ? "selected" : ""}>${item}</option>`).join("")}</select></label><button class="button secondary" data-export-evidence="json" ${visibleEvidence.length ? "" : "disabled"}>Download JSON</button><button class="button secondary" data-export-evidence="copy" ${visibleEvidence.length ? "" : "disabled"}>Copy JSON</button><button class="button secondary" data-export-evidence="csv" ${visibleEvidence.length ? "" : "disabled"}>Download CSV</button><button class="button secondary" data-export-evidence="markdown" ${visibleEvidence.length ? "" : "disabled"}>Download Markdown</button></div>${visibleEvidence.length ? `<div class="evidence-record-list">${visibleEvidence.map(item => `<article class="evidence-record"><div><strong>${esc(evidenceLabel(item))}</strong>${badge(item.state, item.state === "VERIFIED" ? "success" : "warning")}</div><small>${esc(item.kind)} · ${esc(item.observedAt)} · source ${esc(item.source?.identity || "unknown")} · resource ${esc(item.resource?.key || "unknown")}</small><small>Operating target ${esc(item.targetRef.label)} · ${esc(item.targetRef.environment)} · ${esc(item.targetRef.origin)}</small><p>${esc(item.summary)}</p></article>`).join("")}</div>` : `<p class="source-message">${evidenceCollection.state === "EMPTY" ? "No evidence records are available in this session." : `No records match the selected filter · ${evidenceCollection.state}.`}</p>`}</section>`;
   const cardHtml = cards.map((item) => `<article class="evidence-card"><div class="evidence-card-head"><strong>${esc(item.title)}</strong>${badge(item.state, item.tone)}</div><p>${esc(item.detail)}</p><small>${esc(item.note)}</small></article>`).join("");
   return shell(`
     ${pageHeader("Evidence", "What OpsDeck can prove, what it cannot, and where qualification deliberately stops.")}
@@ -911,7 +1262,10 @@ function evidenceView() {
       <div class="evidence-flow" aria-label="OpsDeck evidence flow"><div><span>01</span><strong>Request</strong><small>Known operation</small></div><b>→</b><div><span>02</span><strong>Bounded provider</strong><small>Allowlisted route</small></div><b>→</b><div><span>03</span><strong>IRIS authority</strong><small>Source of truth</small></div><b>→</b><div><span>04</span><strong>Rendered state</strong><small>Safe projection</small></div><b>→</b><div><span>05</span><strong>Read-back</strong><small>Where qualified</small></div></div>
     </section>
     <section class="evidence-grid">${cardHtml}</section>
+    ${capabilitySummaryPanel()}
     ${evidencePanel}
+    ${intelligencePanel()}
+    ${entityGraphPanel(evidenceCollection)}
     ${semanticSearchPanel()}
     <section class="panel evidence-legend"><div class="panel-head"><div><div class="panel-kicker">STATE SEMANTICS</div><h2>Absence is not failure, and failure is not absence</h2></div></div>
       <div class="state-legend-grid"><div>${badge("VERIFIED", "success")}<p>Independent evidence agrees with the displayed state.</p></div><div>${badge("EMPTY", "accent")}<p>The authoritative provider returned a valid empty collection.</p></div><div>${badge("UNAVAILABLE", "warning")}<p>The source could not provide a usable result. OpsDeck does not invent one.</p></div><div>${badge("DENIED", "error")}<p>The current identity lacks authority for the source.</p></div><div>${badge("UNVERIFIED", "muted")}<p>The behavior has not crossed its required qualification boundary.</p></div></div>
@@ -969,6 +1323,25 @@ async function interpretSemanticResult() {
 function currentEvidenceCollection() {
   const isDemo = state.info?.systemMode === "DEMO";
   const records = isDemo ? [{ id: "fixture:operation:application-enable", kind: "operation-receipt", state: "VERIFIED", title: "Fixture application enable", observedAt: "2026-10-02T12:00:00Z", source: { identity: "opsdeck-fixture-v1" }, resource: { key: "/opsdeck-fixture", scope: "%SYS" }, summary: "Synthetic fixture plan completed with fixture read-back; this does not qualify a live IRIS operation.", evidence: { operationId: "fixture-op-001", verification: "fixture-readback" } }] : state.verification ? [{ id: "session:applications-readback", kind: "read-observation", state: state.verification.matched ? "VERIFIED" : "FAILED", title: "Applications independent read-back", observedAt: state.verification.at, source: { identity: "iris-admin-api" }, resource: { key: "web-app-inventory", scope: "%SYS" }, summary: state.verification.matched ? `${state.verification.count} web-application identities matched the independent second read.` : "The independent second read differed from the current web-application inventory.", evidence: { matched: state.verification.matched, count: state.verification.count } }] : [];
+  for (const [sourceId, observation] of Object.entries(state.sourceData)) {
+    if (!observation?.observedAt) continue;
+    const verification = state.sourceVerification[sourceId];
+    const label = READ_ONLY_SOURCES[sourceId]?.label || 'Bounded source';
+    records.push({ id: `session:source:${sourceId}`, kind: 'read-observation',
+      state: verification?.matched ? 'VERIFIED' : verification ? 'FAILED' : 'PARTIAL',
+      title: `${label} observation`, observedAt: observation.observedAt,
+      source: { identity: observation.provider || 'iris-admin-api' }, resource: { key: sourceId },
+      summary: `Observed provider state ${observation.state || 'available'}. ${verification ? 'Compared with another read.' : 'No independent verification inferred.'}`,
+      evidence: { providerState: observation.state || 'available', matched: verification?.matched ?? null },
+    });
+  }
+  for (const [sourceId, error] of Object.entries(state.sourceErrors)) records.push({
+    id: `session:refusal:${sourceId}`, kind: 'refusal', state: isAuthorityDenial(error) ? 'DENIED' : 'UNAVAILABLE',
+    title: `${READ_ONLY_SOURCES[sourceId]?.label || 'Source'} refused / unavailable`,
+    observedAt: state.lastRead || new Date().toISOString(), source: { identity: 'iris-admin-api' }, resource: { key: sourceId },
+    summary: 'The provider did not yield a usable observation. No synthetic fallback or authority inference.',
+    evidence: { providerState: isAuthorityDenial(error) ? 'DENIED' : 'UNAVAILABLE' },
+  });
   const audit = isDemo ? null : state.auditQuery;
   if (audit?.observedAt) {
     const states = { accepted: "UNVERIFIED", queued: "PARTIAL", running: "PARTIAL", finished: "PARTIAL", failed: "FAILED", canceled: "BLOCKED", denied: "DENIED", unavailable: "UNAVAILABLE" };
@@ -1028,17 +1401,107 @@ function currentEvidenceCollection() {
     const plan = state.packagePlan.plan;
     records.push({ id: plan.id, kind: "operation-plan", state: "UNVERIFIED", title: plan.intent, observedAt: plan.createdAt, source: { identity: state.packagePlan.executorIdentity || "not-attached" }, resource: { key: plan.target.key, scope: plan.target.scope }, summary: "Synthetic package plan preview. No package operation was executed; live IPM execution remains unavailable.", evidence: { risk: plan.risk, capability: plan.capability.id, preStateEvidence: plan.preStateEvidence } });
   }
+  for(const observation of relationshipObservations(state))records.push({id:observation.id,targetRef:observation.targetRef,kind:'read-observation',state:'PARTIAL',title:`${observation.ref.label||observation.ref.key} relationships`,observedAt:observation.observedAt,source:{identity:observation.ref.provider},resource:observation.ref,summary:`${isDemo?'Synthetic demonstration. ':''}${observation.links.length} observed relationship references; referenced entities and effective authority are not independently inferred.`,evidence:{count:observation.links.length,providerState:'observed-relationships'}});
   records.push(...state.operationEvidence);
+  records.sort((a, b) => b.observedAt.localeCompare(a.observedAt));
   return createEvidenceCollection(records, records.length ? "AVAILABLE" : "EMPTY");
+}
+
+function entityGraphPanel(collection){
+  const graph=projectEntityGraph(relationshipObservations(state),collection);
+  return `<section class="panel entity-graph-panel"><div class="panel-head"><div><div class="panel-kicker">CURRENT SESSION · RELATIONSHIP PROJECTION</div><h2>Entity Graph</h2></div>${badge(`${graph.edges.length} EDGE${graph.edges.length===1?'':'S'}`,'accent')}</div><p class="source-message">${esc(graph.basis)}</p>${graph.edges.length?`<div class="graph-edges">${graph.edges.map(edge=>`<article class="graph-edge"><code>${esc(edge.fromRef.label||edge.fromRef.key)}</code><strong>${esc(edge.relationship)}</strong><code>${esc(edge.toRef.label||edge.toRef.key)}</code><button class="button quiet" data-graph-evidence="${esc(edge.evidenceRef)}">Inspect Evidence · ${esc(edge.evidenceState)}</button></article>`).join('')}</div>`:'<p class="source-message">No admitted relationship edges are available. Observe application dispatch, user/role detail or task namespace relationships to expand this projection.</p>'}${graph.withheld||graph.truncated?`<p class="source-caveat">${graph.withheld} relationship inputs withheld. ${graph.truncated?'Projection bound reached; coverage is partial.':''}</p>`:''}</section>`;
+}
+
+function intelligencePanel(){
+  const model=state.intelligence,operation=model.operation;
+  const live=nativeMode&&state.connected&&state.info?.systemMode!=='DEMO';
+  return `<section class="panel intelligence-panel"><div class="panel-head"><div><div class="panel-kicker">UNTRUSTED PROPOSAL → AUTHORITATIVE REHEARSAL</div><h2>Trusted intelligence</h2></div>${badge(live?'RECONSTRUCTION AVAILABLE':'NATIVE PROVIDER REQUIRED',live?'accent':'muted')}</div><p class="source-message">A proposal grants no authority. Current human authority, the selected AI profile and operation policy intersect before a plan can execute.</p><div class="intelligence-controls"><label>Provider<select id="intent-provider">${INTENT_PROVIDERS.map(provider=>`<option value="${esc(provider.id)}" ${model.providerId===provider.id?'selected':''} ${provider.state!=='AVAILABLE'?'disabled':''}>${esc(provider.label)}${provider.state==='UNCONFIGURED'?' · not configured':''}</option>`).join('')}</select></label><label>AI profile<select id="intent-profile">${AI_PROFILES.map(profile=>`<option value="${esc(profile)}" ${model.profileId===profile?'selected':''}>${esc(profile.replace('AI_PROFILE_','').replaceAll('_',' '))}</option>`).join('')}</select></label><label class="intent-text">Intent<input id="intent-text" maxlength="512" value="${esc(model.text)}" placeholder="inspect /app, enable /app or disable /app" /></label></div><button class="button secondary" id="intent-rehearse" ${!live||model.busy?'disabled':''}>${model.busy?'Reconstructing intent…':'Observe / Operation Rehearsal'}</button><div id="intent-output">${model.revision&&!model.busy&&!model.error&&!model.observation&&!operation?'<p role="status">Intent changed. Reconstruct the current intent again.</p>':''}${model.error?`<p role="status">${esc(model.error)}</p>`:''}${model.observation?`<p role="status">OBSERVED · ${esc(model.observation.target.key)} · ${esc(model.profileId)}</p><pre>${esc(JSON.stringify(model.observation.value,null,2))}</pre>`:''}${operation?.plan?`<p role="status">${esc(operation.state)} · ${esc(operation.profileId)}</p>${planReview(operation.plan)}${operation.state==='REVIEW_REQUIRED'?`<button class="button primary" data-webapp-confirm="${esc(operation.plan.id)}" ${state.observeOnly?'disabled title="Observe Only blocks confirmation"':''}>Confirm AI rehearsal · ${esc(operation.plan.capability.id)}</button>`:''}${operation.reason?`<p>${esc(operation.reason)}</p>`:''}`:''}</div></section>`;
+}
+
+function invalidateIntentDraft(){
+  const model=state.intelligence;
+  if(model.operation?.plan===state.webAppOperation?.plan)state.webAppOperation=null;
+  model.revision++;model.operation=null;model.observation=null;model.error='';
+  const output=app.querySelector('#intent-output');
+  if(output)output.innerHTML='<p role="status">Intent changed. Reconstruct the current intent again.</p>';
+  app.querySelectorAll('[data-webapp-confirm]').forEach(button=>{button.disabled=true;});
+}
+
+async function rehearseIntent(){
+  const model=state.intelligence;
+  if(!nativeMode||!state.connected||state.info?.systemMode==='DEMO'||model.busy||model.providerId!=='deterministic')return;
+  const owner=sessionEpoch,revision=model.revision,profileId=model.profileId;
+  model.busy=true;model.error='';render();
+  try{
+    const candidate=await deterministicIntentProvider.propose(model.text);
+    if(owner!==sessionEpoch||model!==state.intelligence||revision!==model.revision)return;
+    const transport=(path,options)=>{
+      if(owner!==sessionEpoch||!state.connected||state.intelligence!==model||model.revision!==revision)throw new Error('Intent operation context changed.');
+      return requestJson(path,options);
+    };
+    const operation=await reconstructIntentOperation(candidate,{profileId,username:state.info.username,targetRef:state.targetRef,requestJson:transport});
+    if(owner!==sessionEpoch||model!==state.intelligence||revision!==model.revision)return;
+    const observedAt=new Date().toISOString();
+    if(operation.state==='OBSERVED'){
+      model.observation=operation;model.operation=null;
+      state.operationEvidence=[...state.operationEvidence,{id:`intent:observation:${Date.now()}`,targetRef:operation.targetRef,kind:'read-observation',state:'PARTIAL',title:`Intent observation · ${operation.target.key}`,observedAt:operation.observedAt,source:{identity:'opsdeck-intent-rehearsal-v1'},resource:operation.target,summary:`${profileId}: fresh authoritative pre-state observed; no dispatch or independent verification inferred.`,evidence:{providerState:'OBSERVED',fields:['enabled'],identityBasis:'server-reconstructed-current-iris-state'}}].slice(-64);
+    }else if(operation.state==='REVIEW_REQUIRED'){
+      model.operation={...operation,busy:false};model.observation=null;state.webAppOperation=model.operation;
+      state.operationEvidence=[...state.operationEvidence,{id:operation.plan.id,targetRef:operation.plan.targetRef,kind:'operation-plan',state:'UNVERIFIED',title:operation.plan.intent,observedAt:operation.plan.createdAt,source:{identity:operation.provider.identity},resource:operation.plan.target,summary:`${profileId}: server-reconstructed rehearsal. Current human, profile and operation authority must be revalidated before dispatch.`,evidence:{operationId:operation.plan.id,capability:operation.plan.capability.id,risk:operation.plan.risk,authorityState:operation.plan.authorityValidation.state,preStateEvidence:operation.plan.preStateEvidence,requiresConfirmation:true,expectedReadback:operation.plan.expectedReadback}}].slice(-64);
+    }else{model.error=`${operation.state}: ${operation.reason||'No executable plan admitted.'}`;}
+  }catch(error){
+    if(owner===sessionEpoch&&model===state.intelligence&&revision===model.revision){model.error=error.message;state.operationEvidence=[...state.operationEvidence,{id:`intent:refusal:${Date.now()}`,targetRef:state.targetRef,kind:'refusal',state:error.status===401||error.status===403?'DENIED':'UNAVAILABLE',title:'Intent reconstruction refused',observedAt:new Date().toISOString(),source:{identity:'opsdeck-intent-rehearsal-v1'},resource:{key:'intent-rehearsal'},summary:'No executable intent was admitted. No dispatch or authority expansion.',evidence:{reason:'intent-reconstruction-refused',providerState:error.status===403?'DENIED':'UNAVAILABLE'}}].slice(-64);}
+  }finally{if(owner===sessionEpoch&&model===state.intelligence){model.busy=false;if(revision===model.revision)render();else{const action=app.querySelector('#intent-rehearse');if(action){action.disabled=!nativeMode||!state.connected||state.info?.systemMode==='DEMO'||model.providerId!=='deterministic';action.textContent='Observe / Operation Rehearsal';}}}}
 }
 
 function render() {
   setTheme(state.theme);
+  if (fxModule && !state.fxPreference.disabled) applyCurrentFx();
   if (!state.connected) app.innerHTML = connectView();
   else if (state.route === "applications") app.innerHTML = applicationsView();
   else if (state.route === "overview") app.innerHTML = overviewView();
   else if (state.route === "evidence") app.innerHTML = evidenceView();
   else app.innerHTML = providerDomainView(state.route);
+  syncDialogScope();
+  bindCommandSurface();
+  app.querySelector('#capability-summary-load')?.addEventListener('click',loadCapabilitySummary);
+  app.querySelector('#confirmation-back')?.addEventListener('click',closeConfirmationReview);
+  app.querySelector('#confirmation-final')?.addEventListener('click',completeConfirmationReview);
+  app.querySelector('#intent-rehearse')?.addEventListener('click',rehearseIntent);
+  app.querySelector('#intent-text')?.addEventListener('input',event=>{state.intelligence.text=event.target.value.slice(0,512);invalidateIntentDraft();});
+  app.querySelector('#intent-profile')?.addEventListener('change',event=>{state.intelligence.profileId=event.target.value;invalidateIntentDraft();render();});
+  app.querySelector('#intent-provider')?.addEventListener('change',event=>{state.intelligence.providerId=event.target.value;invalidateIntentDraft();render();});
+  app.querySelectorAll('[data-workflow-start]').forEach(button=>button.addEventListener('click',()=>startAvailabilityWorkflow(button.dataset.workflowStart)));
+  app.querySelectorAll('[data-workflow-confirm]').forEach(button=>button.addEventListener('click',()=>openConfirmationReview('workflow',button.dataset.workflowConfirm)));
+  app.querySelectorAll('[data-graph-evidence]').forEach(button=>button.addEventListener('click',()=>{state.evidenceFilter=button.dataset.graphEvidence;state.route='evidence';render();}));
+  app.querySelectorAll('[data-compare-targets]').forEach(button=>button.addEventListener('click',()=>compareApplicationTargets(button.dataset.compareTargets)));
+  app.querySelector('#targets-close')?.addEventListener('click',()=>{state.targetCompareOpen=false;render();app.querySelector('[data-compare-targets]')?.focus();});
+  app.querySelector('#target-select')?.addEventListener('change',event=>{if(event.target.value!=='local'){event.target.value='local';return;}});
+  app.querySelectorAll('[data-export-projection]').forEach(button=>button.addEventListener('click',async()=>{
+    const id=button.dataset.exportProjection;
+    const value=id==='api'?state.apiExplorer.result?.value:id==='webApps'?state.apps:id==='packages'?state.packageInventory:state.sourceData[id];
+    if (value === undefined || value === null) return;
+    try {
+      const {exportProjection}=await import('./export-projection.js?v=export-1');
+      const format=button.dataset.format;
+      const content=exportProjection(value,format==='csv'?'csv':'json');
+      if(format==='copy'){await navigator.clipboard.writeText(content);button.textContent='JSON copied';return;}
+      const blob=new Blob([content],{type:format==='csv'?'text/csv;charset=utf-8':'application/json'});
+      const url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`opsdeck-${id}.${format}`;anchor.click();URL.revokeObjectURL(url);
+    }catch{button.textContent='Export unavailable or exceeds 64 KiB';}
+  }));
+  app.querySelector("#observe-only")?.addEventListener("click", () => { state.observeOnly = !state.observeOnly; if (typeof setObserveOnly === "function") setObserveOnly(state.observeOnly); render(); });
+  app.querySelector("#fx-open")?.addEventListener("click", openFxStudio);
+  app.querySelector("#fx-close")?.addEventListener("click", () => { state.fxOpen = false; render(); app.querySelector("#fx-open")?.focus(); });
+  app.querySelector("#fx-remove")?.addEventListener("click", () => { fxModule?.removeFx(document.documentElement); state.fxPreference = {disabled:true}; localStorage.setItem("opsdeck.fx", JSON.stringify(state.fxPreference)); render(); });
+  app.querySelectorAll("[data-fx-dimension]").forEach(control => control.addEventListener("change", async event => {
+    const dimension = control.dataset.fxDimension;
+    if (dimension === "base") setTheme(event.target.value);
+    else if (dimension === "role") { state.fxRole = event.target.value; state.fxPreference.role = event.target.value; delete state.fxPreference.material; }
+    else state.fxPreference[dimension] = event.target.value;
+    state.fxPreference.disabled = false;
+    localStorage.setItem("opsdeck.fx", JSON.stringify(state.fxPreference)); await refreshFx(); render(); app.querySelector(`[data-fx-dimension="${dimension}"]`)?.focus();
+  }));
   app.querySelector("#theme-select")?.addEventListener("change", (event) => setTheme(event.target.value));
   app.querySelector("#mobile-more")?.addEventListener("click", () => {
     state.mobileMoreOpen = !state.mobileMoreOpen;
@@ -1114,24 +1577,28 @@ function render() {
     state.packagePlan = preparePackagePlan(fixturePackageInventory(), button.dataset.packageName, button.dataset.packagePlan);
     render();
   }));
-  app.querySelector("#evidence-filter")?.addEventListener("change", (event) => { state.evidenceFilter = event.target.value.slice(0, 128); render(); });
+  app.querySelector("#evidence-filter")?.addEventListener("input", (event) => {
+    const input=event.target,focused=document.activeElement===input,start=input.selectionStart,end=input.selectionEnd;
+    state.evidenceFilter=input.value.slice(0,128);render();
+    if(focused){const replacement=app.querySelector('#evidence-filter');replacement?.focus();if(Number.isInteger(start)&&Number.isInteger(end))replacement?.setSelectionRange(start,end);}
+  });
   app.querySelector("#evidence-state-filter")?.addEventListener("change", (event) => { state.evidenceStateFilter = event.target.value; render(); });
   app.querySelector("[data-semantic-form]")?.addEventListener("submit", (event) => { event.preventDefault(); runSemanticSearch(event.currentTarget.elements.query.value); });
   app.querySelector("[data-semantic-refresh]")?.addEventListener("click", () => runSemanticSearch(state.semanticQuery || "error", true));
   app.querySelector("[data-semantic-interpret]")?.addEventListener("click", interpretSemanticResult);
   app.querySelectorAll("[data-semantic-source]").forEach(button => button.addEventListener("click", () => { state.route = "logs"; state.sourceTabs.logs = button.dataset.semanticSource; location.hash = "logs"; render(); loadSource(button.dataset.semanticSource); }));
-  app.querySelectorAll("[data-export-evidence]").forEach((button) => button.addEventListener("click", () => {
+  app.querySelectorAll("[data-export-evidence]").forEach(button => button.addEventListener("click", async () => {
     const collection = currentEvidenceCollection();
-    const records = filterEvidence(collection, state.evidenceFilter, state.evidenceStateFilter);
-    const markdown = button.dataset.exportEvidence === "markdown";
-    const content = markdown ? exportEvidenceMarkdown(collection, records) : exportEvidenceJSON(collection, records);
-    const blob = new Blob([content], { type: markdown ? "text/markdown;charset=utf-8" : "application/json;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = markdown ? "opsdeck-evidence.md" : "opsdeck-evidence.json";
-    anchor.click();
-    URL.revokeObjectURL(url);
+    const records = filterEvidence(collection, state.evidenceFilter || "", state.evidenceStateFilter || "ALL");
+    const format = button.dataset.exportEvidence;
+    try {
+      const content = format === "csv" ? exportEvidenceCSV(collection, records) : format === "markdown" ? exportEvidenceMarkdown(collection, records) : exportEvidenceJSON(collection, records);
+      if (format === "copy") { await navigator.clipboard.writeText(content); button.textContent = "JSON copied"; return; }
+      const blob = new Blob([content], {type: format === "csv" ? "text/csv;charset=utf-8" : format === "markdown" ? "text/markdown;charset=utf-8" : "application/json"});
+      const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = format === "csv" ? "opsdeck-evidence.csv" : format === "markdown" ? "opsdeck-evidence.md" : "opsdeck-evidence.json";
+      anchor.click(); URL.revokeObjectURL(url);
+    } catch { button.textContent = "Export unavailable"; }
   }));
   app.querySelectorAll("[data-item]").forEach((row) => row.addEventListener("click", () => {
     const [sourceId, key] = row.dataset.item.split("::");
@@ -1168,9 +1635,9 @@ function render() {
   app.querySelectorAll("[data-load-webapp-detail]").forEach((button) => button.addEventListener("click", () => loadWebAppDetail(button.dataset.loadWebappDetail, true)));
   app.querySelectorAll("[data-load-rest-spec]").forEach((button) => button.addEventListener("click", () => loadRestSpec(button.dataset.loadRestSpec, true)));
   app.querySelectorAll("[data-webapp-plan]").forEach(button => button.addEventListener("click", () => prepareWebAppOperation(button.dataset.webappPlan)));
-  app.querySelectorAll("[data-webapp-confirm]").forEach(button => button.addEventListener("click", () => confirmWebAppOperation(button.dataset.webappConfirm)));
+  app.querySelectorAll("[data-webapp-confirm]").forEach(button => button.addEventListener("click", () => openConfirmationReview('webapp',button.dataset.webappConfirm)));
   app.querySelectorAll("[data-live-package-plan]").forEach(button => button.addEventListener("click", () => prepareLivePackageOperation(Number(button.dataset.livePackagePlan))));
-  app.querySelectorAll("[data-live-package-confirm]").forEach(button => button.addEventListener("click", () => confirmLivePackageOperation(button.dataset.livePackageConfirm)));
+  app.querySelectorAll("[data-live-package-confirm]").forEach(button => button.addEventListener("click", () => openConfirmationReview('package',button.dataset.livePackageConfirm)));
   app.querySelector("#connect-form")?.addEventListener("submit", connect);
   app.querySelector("#disconnect-button")?.addEventListener("click", disconnect);
   app.querySelector("#refresh-button")?.addEventListener("click", () => refreshLive(true));
@@ -1178,8 +1645,10 @@ function render() {
 
 function clearSession() {
   sessionEpoch += 1;
+  workflowRunner?.cancel();workflowRunner=null;
   nativeAuthorization = null;
   state.connected = false;
+  state.capabilitySummaryBusy=false;state.capabilitySummaryError='';
   state.auditQuery = null;
   state.jobs = [];
   state.auditQueryBusy = false;
@@ -1187,12 +1656,18 @@ function clearSession() {
   state.error = "";
   state.info = null;
   state.apps = [];
+  state.appsReadAt = "";
   state.selected = "";
   state.lastRead = null;
   state.verification = null;
   state.webAppOperation = null;
   state.livePackageOperation = null;
   state.operationEvidence = [];
+  state.commandOpen=false; state.commandQuery=""; state.commandApi=null; state.commandError=""; state.confirmationReview=null;
+  state.apiExplorer={parameters:{},body:'{}',preview:null,result:null,operation:null,busy:false};
+  state.intelligence={text:'inspect /opsdeck',profileId:'AI_PROFILE_USER',providerId:'deterministic',operation:null,observation:null,busy:false,error:'',revision:0};
+  state.targetCompareOpen=false;state.targetComparison=null;state.targetCompareBusy=false;state.targetCompareError='';
+  state.observeOnly=true; if (typeof setObserveOnly === "function") setObserveOnly(true);
   for (const key of [
     "sourceData", "sourceErrors", "sourceVerification", "selectedItems", "webAppDetails", "webAppDetailErrors",
     "userDetails", "userDetailErrors", "userDetailVerification", "roleDetails", "roleDetailErrors",
@@ -1361,6 +1836,7 @@ async function refreshLive(compareReadback) {
   state.error = "";
   state.verification = null;
   try {
+    state.appsReadAt = "";
     render();
     const infoPayload = await apiPayload("/api/admin/info");
     if (owner !== sessionEpoch) return;
@@ -1368,7 +1844,8 @@ async function refreshLive(compareReadback) {
     const listPayload = await apiPayload("/api/admin/v2/web-apps");
     if (owner !== sessionEpoch) return;
     state.apps = mapWebApps(listPayload);
-    state.lastRead = new Date().toISOString();
+    state.appsReadAt = new Date().toISOString();
+    state.lastRead = state.appsReadAt;
     if (!state.selected || !state.apps.some((item, index) => recordHandle(state.apps, index) === state.selected)) {
       state.selected = state.apps.length ? recordHandle(state.apps, 0) : "";
     }
@@ -1860,7 +2337,36 @@ compactNavigationQuery.addEventListener("change", (event) => {
   if (!event.matches) state.mobileMoreOpen = false;
   render();
 });
-if (state.theme === "system") matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => setTheme("system"));
+matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { if (state.theme === "system") setTheme("system"); });
+matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", () => { if (fxModule) applyCurrentFx(); });
+
+if (typeof setObserveOnly === "function") setObserveOnly(state.observeOnly);
+if (typeof configureCurrentTarget === 'function') configureCurrentTarget(state.targetRef);
+if (!state.fxPreference.disabled) refreshFx();
+
+addEventListener('keydown', event => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); state.commandOpen ? closeCommands() : openCommands(); return; }
+  const dialog=app.querySelector('[role="dialog"]');
+  if(!dialog)return;
+  if(event.key==='Escape'){
+    event.preventDefault();
+    if(state.confirmationReview){closeConfirmationReview();return;}
+    const trigger=state.commandOpen?'#command-open':state.fxOpen?'#fx-open':'[data-compare-targets]';
+    activateDialog(null);render();app.querySelector(trigger)?.focus();return;
+  }
+  const controls=[...dialog.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],summary')].filter(element=>element.getClientRects().length);
+  if(state.commandOpen&&!state.commandApi&&(event.key==='ArrowDown'||event.key==='ArrowUp')){
+    const buttons=controls.filter(item=>item.dataset?.commandResult!==undefined);
+    if(buttons.length){event.preventDefault();const step=event.key==='ArrowDown'?1:-1,index=buttons.indexOf(document.activeElement);buttons[(index+step+buttons.length)%buttons.length]?.focus();}return;
+  }
+  if(event.key==='Tab'){
+    const first=controls[0],last=controls.at(-1);
+    if(!controls.includes(document.activeElement)){event.preventDefault();(event.shiftKey?last:first)?.focus();}
+    else if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}
+    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}
+  }
+});
+
 setTheme(state.theme);
 render();
 restoreSession();

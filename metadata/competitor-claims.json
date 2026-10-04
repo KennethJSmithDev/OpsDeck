@@ -1,0 +1,19 @@
+[
+  {
+    "product": "Aperture", "asOf": "2026-10-04", "classification": "competitor-reported; not independently verified by OpsDeck",
+    "source": "https://github.com/MxSalata/aperture/blob/main/docs/COVERAGE.md",
+    "unit": "HTTP method + SysAdmin v2 path", "declared": 273, "exposedClaim": 273,
+    "handcraftedClaim": 139, "runtimeVerifiedClaim": 139, "demoClaim": 173,
+    "reproduced": null, "independentlyVerifiedByOpsDeck": 0, "qualifiedMutationWorkflows": null,
+    "comparisonLimit": "139 includes 101 GET, 11 POST, 16 PUT, 11 DELETE. Their answer/read-back definition differs from a separately asserted independent effect verification."
+  },
+  {
+    "product": "iris-flightdeck", "asOf": "2026-10-04", "classification": "competitor-reported; not independently verified by OpsDeck",
+    "source": "https://github.com/kcedd34/iris-flightdeck/blob/001-foundation-shell/verification/functional-coverage.md",
+    "unit": "HTTP method + SysAdmin operation across six domains", "declared": null, "exposedClaim": 268,
+    "runtimeVerifiedClaim": 138, "exemptClaim": 91, "untestedClaim": 39,
+    "reproducedClaim": "138 on both 2026.2 Community and Health; no v1 independent effect count",
+    "independentlyVerifiedByOpsDeck": 0, "qualifiedMutationWorkflows": null,
+    "comparisonLimit": "268 domain operations excludes general authentication scope; 11 declined operations are included in exemptions. Count does not establish equivalent mutation authority."
+  }
+]

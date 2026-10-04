@@ -7,23 +7,171 @@ import * as evidence from "../public/evidence-center.js";
 import * as packages from "../public/packages-workspace.js";
 import * as jobs from "../public/job-center.js";
 import { ProductIdentity } from "../public/product-identity.js";
+import * as targetContext from '../public/target-context.js?v=target-1';
+import * as graph from '../public/entity-graph.js';
 
 const source = (await readFile(new URL("../public/app.js", import.meta.url), "utf8")).replace(/^import[^\n]+\n/gm, "");
-const operationSource = (await readFile(new URL("../public/operation-engine.js", import.meta.url), "utf8")).replace(/^export /gm, "");
+const operationSource = (await readFile(new URL("../public/operation-engine.js", import.meta.url), "utf8")).replace(/^import[^\n]+\n/gm,'').replace(/^export /gm, "");
+const workflowSource = (await readFile(new URL('../public/workflow-engine.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/gm,'').replace(/^export /gm,'');
+const intelligenceSource = (await readFile(new URL('../public/trusted-intelligence.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/gm,'').replace(/^export /gm,'');
+const explorerSource = (await readFile(new URL('../public/sysadmin-explorer.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/gm,'').replace(/^export /gm,'');
 function contextFor(pathname = "/opsdeck/index.html", fetch = async () => { throw new Error("Unexpected request"); }) {
+  let keyDown;
   const element = { innerHTML: "", querySelector: () => null, querySelectorAll: () => [] };
   const context = vm.createContext({
-    ...provider, ...evidence, ...packages, ...jobs, ProductIdentity, AbortSignal, TextEncoder, URL, URLSearchParams, btoa,
+    ...provider, ...evidence, ...packages, ...jobs, ...targetContext, ...graph, ProductIdentity, AbortSignal, TextEncoder, URL, URLSearchParams, btoa,
     document: { querySelector: () => element, documentElement: { dataset: {} } },
     location: { pathname, hash: "", origin: "http://fixture.test" },
     localStorage: { getItem: () => "dark", setItem() {} },
     history: { replaceState() {} }, matchMedia: () => ({ matches: false, addEventListener() {} }),
-    addEventListener() {}, fetch,
+    addEventListener(type,handler) {if(type==='keydown')keyDown=handler;}, fetch,
   });
   vm.runInContext(operationSource, context);
+  vm.runInContext(workflowSource, context);
+  vm.runInContext(intelligenceSource, context);
   vm.runInContext(source, context);
-  return { context, element };
+  vm.runInContext('state.observeOnly=false; setObserveOnly(false);', context);
+  return { context, element, keyDown:event=>keyDown(event) };
 }
+
+test('integrated dialogs are exclusive, make background inert, and keep textareas in the keyboard scope',()=>{
+  const {context,element,keyDown}=contextFor();
+  const outside={inert:false},alreadyInert={inert:true};context.document.querySelectorAll=()=>[element,outside,alreadyInert];
+  vm.runInContext('state.connected=true;state.info={username:"fixture",systemMode:"DEMO"};activateDialog("targets");activateDialog("command");render()',context);
+  assert.equal(vm.runInContext('state.targetCompareOpen||state.fxOpen',context),false);
+  assert.match(element.innerHTML,/<main class="workspace" inert>/u);assert.equal(outside.inert,true);
+  const controls=['close','input','textarea','back'].map(id=>({id,dataset:{},getClientRects:()=>[{}],focus(){context.document.activeElement=this;}}));
+  let selector;const dialog={querySelectorAll:value=>{selector=value;return controls;}};
+  element.querySelector=value=>value==='[role="dialog"]'?dialog:null;
+  context.document.activeElement=controls[3];let prevented=0;
+  keyDown({key:'Tab',preventDefault(){prevented++;}});assert.equal(context.document.activeElement,controls[0]);assert.equal(prevented,1);
+  assert.match(selector,/textarea:not\(\[disabled\]\)/u);
+  context.document.activeElement=controls[2];keyDown({key:'Tab',preventDefault(){prevented++;}});assert.equal(prevented,1,'native textarea tab order remains usable');
+  keyDown({key:'Escape',preventDefault(){prevented++;}});assert.equal(outside.inert,false);assert.equal(alreadyInert.inert,true);
+  assert.doesNotMatch(element.innerHTML,/<main class="workspace" inert>/u);
+});
+
+test('delayed command metadata cannot replace a different active dialog or steal focus',async()=>{
+  let finish;const {context,element}=contextFor('/opsdeck/index.html',()=>new Promise(resolve=>{finish=resolve;}));
+  vm.runInContext('state.connected=true;state.info={username:"fixture",systemMode:"DEMO"};commandModule={searchCommands:()=>[],commandIndex:()=>[]}',context);
+  const opening=vm.runInContext('openCommands()',context);
+  vm.runInContext('activateDialog("fx");render()',context);let focus=0;
+  element.querySelector=()=>({focus(){focus++;}});
+  finish({ok:true,json:async()=>({schema:'opsdeck-declared-api-catalog-v2',operations:[]})});await opening;
+  assert.equal(vm.runInContext('state.fxOpen&&!state.commandOpen',context),true);assert.equal(focus,0);
+});
+
+test('generated capability accounting stays separate from session authority and rejects invalid counts',async()=>{
+  const summary=JSON.parse(await readFile(new URL('../public/capability-summary.json',import.meta.url)));
+  let malformed=false;
+  const {context,element}=contextFor('/opsdeck/index.html',async path=>{
+    assert.equal(path,'/opsdeck/capability-summary.json');
+    return {ok:true,status:200,json:async()=>malformed?{...summary,counts:{...summary.counts,exposed:-1}}:summary};
+  });
+  vm.runInContext('state.connected=true;state.route="evidence";state.info={username:"ReadOnly",privileges:{}};state.observeOnly=true;setObserveOnly(true)',context);
+  await vm.runInContext('loadCapabilitySummary()',context);
+  assert.match(element.innerHTML,/PRODUCT QUALIFICATION · SOURCE-GENERATED/u);
+  assert.match(element.innerHTML,new RegExp(`<strong>${summary.counts.exposed}</strong><span>IRIS operations exposed</span>`,'u'));
+  assert.match(element.innerHTML,/Current-session access still depends/u);
+  assert.equal(vm.runInContext('state.observeOnly&&Object.keys(state.info.privileges).length===0&&state.operationEvidence.length===0',context),true);
+  vm.runInContext('state.capabilitySummary=null',context);malformed=true;
+  await vm.runInContext('loadCapabilitySummary()',context);
+  assert.equal(vm.runInContext('state.capabilitySummary',context),null);
+  assert.match(element.innerHTML,/Qualification snapshot unavailable/u);
+  assert.match(element.innerHTML,/Session Ledger/u);
+});
+
+test('a structured HTTP 403 stays denied without relying on provider message wording',async()=>{
+  const {context,element}=contextFor('/opsdeck/index.html',async path=>{
+    assert.equal(path,'/api/admin/v2/security/audit/enabled');
+    return {ok:false,status:403,json:async()=>({error:'The requested view is outside the current policy.'})};
+  });
+  vm.runInContext('state.connected=true;state.info={username:"Observer"};state.route="logs";state.observeOnly=true;setObserveOnly(true)',context);
+  await vm.runInContext('loadSource("auditEnabled")',context);
+  assert.equal(vm.runInContext('providerUiEvidence(state,"auditEnabled").status',context),'DENIED');
+  assert.match(element.innerHTML,/Access denied by IRIS/u);
+  assert.equal(vm.runInContext('state.connected&&state.observeOnly&&!state.sourceData.auditEnabled',context),true);
+});
+
+test('a denied first application inventory never claims a valid empty collection or a zero count',async()=>{
+  const {context,element}=contextFor('/opsdeck/index.html',async path=>path==='/api/admin/info'
+    ?{ok:true,status:200,json:async()=>vm.runInContext('({status:{errors:[]},result:{username:"Observer",serverVersion:"Fixture IRIS",apiVersion:2}})',context)}
+    :{ok:false,status:403,json:async()=>({error:'Outside the current policy.'})});
+  vm.runInContext('state.connected=true;state.observeOnly=true;setObserveOnly(true)',context);
+  await vm.runInContext('refreshLive(true)',context);
+  assert.equal(vm.runInContext('state.connected&&state.info.username==="Observer"',context),true);
+  assert.equal(vm.runInContext('providerUiEvidence(state,"webApps").status',context),'DENIED');
+  assert.match(element.innerHTML,/Inventory count not established/u);
+  assert.doesNotMatch(element.innerHTML,/The live API returned an empty collection|<strong>0<\/strong><span>applications returned/u);
+  const applications=vm.runInContext('applicationsView()',context);
+  assert.match(applications,/Current inventory count not established/u);
+  assert.doesNotMatch(applications,/No web applications were returned by IRIS|data-export-projection="webApps/u);
+});
+
+test('an actually mapped empty application inventory retains its zero count and separate read-back',async()=>{
+  const {context,element}=contextFor('/opsdeck/index.html',async path=>({ok:true,status:200,json:async()=>vm.runInContext(path==='/api/admin/info'
+    ?'({status:{errors:[]},result:{username:"Observer",serverVersion:"Fixture IRIS",apiVersion:2}})'
+    :'({status:{errors:[]},result:[]})',context)}));
+  vm.runInContext('state.connected=true;state.observeOnly=true;setObserveOnly(true)',context);
+  await vm.runInContext('refreshLive(true)',context);
+  assert.equal(vm.runInContext('Boolean(state.appsReadAt)&&state.verification.matched&&state.apps.length===0',context),true);
+  assert.match(element.innerHTML,/<strong>0<\/strong><span>applications returned/u);
+  assert.match(element.innerHTML,/The live API returned an empty collection/u);
+  assert.doesNotMatch(element.innerHTML,/Inventory count not established/u);
+  vm.runInContext('clearSession()',context);
+  assert.equal(vm.runInContext('state.appsReadAt',context),'');
+});
+
+test('a schema-only rehearsal stays renderable in commands and existing Evidence without provider access',async()=>{
+  let requests=0;const {context,element}=contextFor('/opsdeck/index.html',()=>{requests++;throw Error('No provider call expected');});
+  // Load the same module into this browser-like realm, preserving its branded requests/plans.
+  vm.runInContext(`explorerModule=(()=>{${explorerSource};return {compileRequest,requestPreview,rehearseRequest};})()`,context);
+  const catalog=JSON.parse(await readFile(new URL('../public/api-catalog.json',import.meta.url)));
+  context.fixtureCatalog=vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify(catalog))})`,context);
+  vm.runInContext('apiCatalogDocument=fixtureCatalog;apiCatalog=fixtureCatalog.operations;commandModule={searchCommands:()=>[],commandIndex:()=>[]};state.connected=true;state.info={username:"Observer"};state.commandOpen=true;state.commandApi="POST /api/admin/v2/namespace/enable-interop";state.apiExplorer={parameters:{name:"%SYS"},body:"{}",revision:0}',context);
+  await vm.runInContext('runApiAction()',context);
+  assert.equal(requests,0);
+  assert.equal(vm.runInContext('state.apiExplorer.operation.state',context),'BLOCKED');
+  assert.match(element.innerHTML,/unqualified-mutation-policy-and-readback/u);
+  assert.match(element.innerHTML,/Impact Forecast/u);
+  assert.doesNotMatch(element.innerHTML,/data-webapp-confirm=/u);
+  assert.equal(vm.runInContext('currentEvidenceCollection().records.filter(r=>r.kind==="operation-plan").length',context),1);
+  assert.equal(vm.runInContext('currentEvidenceCollection().records.filter(r=>r.kind==="refusal"&&r.state==="BLOCKED").length',context),1);
+  vm.runInContext('state.apiExplorer.result={state:"OBSERVED",value:{priorDraft:true}};state.apiExplorer.parameters.name="USER";invalidateApiDraft();render()',context);
+  assert.equal(vm.runInContext('state.webAppOperation',context),null);
+  assert.match(element.innerHTML,/Draft changed\. Preview or rehearse the current request again/u);
+  assert.doesNotMatch(vm.runInContext('apiExplorerPanel(apiCatalog.find(api=>api.id===state.commandApi))',context),/priorDraft|Impact Forecast|data-webapp-confirm=/u);
+  assert.equal(vm.runInContext('currentEvidenceCollection().records.filter(r=>r.kind==="operation-plan"||r.kind==="refusal").length',context),2,'historical evidence is retained');
+});
+
+test('an obsolete API rehearsal cannot resume authority reads, attribute a late failure or steal editor focus',async()=>{
+  const catalog=JSON.parse(await readFile(new URL('../public/api-catalog.json',import.meta.url)));
+  for(const enabled of [true,'invalid']){
+    let release;const calls=[];
+    const {context,element}=contextFor('/opsdeck/index.html',async path=>{
+      calls.push(path);
+      const response=value=>({ok:true,status:200,json:async()=>vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify({status:{errors:[]},result:value}))})`,context)});
+      if(path.startsWith('/api/admin/v2/web-app?'))return new Promise(resolve=>{release=()=>resolve(response({Enabled:enabled,NameSpace:'%SYS'}));});
+      return response({username:'Qualification',privileges:{Secure:{use:true}}});
+    });
+    vm.runInContext(`explorerModule=(()=>{${explorerSource};return {compileRequest,requestPreview,rehearseRequest};})()`,context);
+    context.fixtureCatalog=vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify(catalog))})`,context);
+    vm.runInContext('apiCatalogDocument=fixtureCatalog;apiCatalog=fixtureCatalog.operations;state.connected=true;state.info={username:"Qualification"};state.apps=mapWebApps({status:{errors:[]},result:[{Name:"/app",Namespace:"%SYS",Enabled:true,AuthenticationMethods:[]}]});state.commandOpen=true;state.commandApi="PUT /api/admin/v2/web-app";state.apiExplorer={parameters:{name:"/app"},body:"{\\"Enabled\\":false}",preview:null,result:null,operation:null,busy:false,revision:0};',context);
+    const output={innerHTML:''},editor={id:'api-body'},action={disabled:true,addEventListener(){},focus(){context.document.activeElement=this;}};
+    element.querySelector=selector=>selector==='#api-output'?output:selector==='#api-action'?action:null;
+    const pending=vm.runInContext('runApiAction()',context);
+    for(let attempt=0;attempt<20&&!release;attempt++)await new Promise(resolve=>setTimeout(resolve,0));
+    assert.equal(typeof release,'function');
+    context.document.activeElement=editor;
+    vm.runInContext('state.apiExplorer.body="{\\"Enabled\\":true}";invalidateApiDraft()',context);
+    release();await pending;
+    assert.equal(calls.length,1,'changed draft cannot continue the old rehearsal authority read');
+    assert.equal(vm.runInContext('state.apiExplorer.result',context),null,'late failure cannot describe the current draft');
+    assert.equal(vm.runInContext('state.apiExplorer.operation===null&&!state.apiExplorer.busy&&state.operationEvidence.length===0',context),true);
+    assert.equal(context.document.activeElement,editor);assert.equal(action.disabled,false);
+    assert.match(output.innerHTML,/Draft changed/u);
+  }
+});
 
 test("integrated native shell and Evidence view report only qualified lifecycle scope", () => {
   const { context } = contextFor();
@@ -44,9 +192,9 @@ test("integrated native shell and Evidence view report only qualified lifecycle 
   assert.match(evidence, /Local-source load, uninstall, and clean same-source reload were reproduced for OpsDeck 0\.2\.0/u);
   assert.match(evidence, /Scope: tested local-source lifecycle only[\s\S]*?Exact core IPM version and public-registry installation remain unverified/u);
   assert.doesNotMatch(evidence, /No package load, install, uninstall, or clean-reinstall claim is admitted yet/u);
-  assert.match(evidence, /Fixture receipt preview/u);
+  assert.match(evidence, /Session Ledger · synthetic preview/u);
   assert.match(evidence, /SYNTHETIC FIXTURE/u);
-  assert.match(evidence, /Export JSON/u);
+  assert.match(evidence, /Download JSON/u);
 
   const packages = vm.runInContext('state.applicationsTab="packages"; applicationsView()', context);
   assert.match(packages, /APPLICATIONS → PACKAGES/u);
@@ -348,7 +496,7 @@ test("live operation review requires confirmation and renders its verified recei
   const review = vm.runInContext('applicationsView()', context);
   assert.match(review, /Confirm enable \/opsdeck-fixture/u);
   assert.match(review, /Impact[\s\S]*Enabled true/u);
-  assert.match(review, /UNVERIFIED/u);
+  assert.match(review, /Planned effect; authoritative read-back determines the outcome/u);
   await vm.runInContext('confirmWebAppOperation(state.webAppOperation.plan.id)', context);
   const write = calls.filter(call => call.options.method === "PUT");
   assert.equal(write.length, 1);
@@ -359,9 +507,44 @@ test("live operation review requires confirmation and renders its verified recei
   const rendered = vm.runInContext('evidenceView()', context);
   assert.match(rendered, /Enable \/opsdeck-fixture/u);
   assert.match(rendered, /operation-receipt/u);
+  assert.match(rendered, /Verified Receipt/u);
+  assert.equal(vm.runInContext('sessionLedger(currentEvidenceCollection()).categories.confirmations.length', context), 1);
   assert.match(rendered, /authoritative|Authoritative/u);
   vm.runInContext('clearSession()', context);
   assert.equal(vm.runInContext('state.operationEvidence.length', context), 0);
+});
+
+test('focused confirmation reviews the same plan, returns without dispatch, and refuses an invalidated review',async()=>{
+  let enabled=false;
+  const writes=[];
+  const {context,element}=contextFor('/opsdeck/index.html',async(path,options)=>{
+    if(options.method==='PUT'){writes.push(JSON.parse(options.body));enabled=JSON.parse(options.body).Enabled;}
+    const result=path==='/api/admin/info'?{username:'Qualification',privileges:{Secure:{use:true}}}:{Enabled:enabled,NameSpace:'%SYS'};
+    return {ok:true,status:200,json:async()=>vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify({status:{errors:[]},result}))})`,context)};
+  });
+  vm.runInContext('state.connected=true;state.info={username:"Qualification"};state.apps=mapWebApps({status:{errors:[]},result:[{Name:"/opsdeck-fixture",Namespace:"%SYS",Enabled:false,Type:"CSP",AuthenticationMethods:["Password"]}]});',context);
+  await vm.runInContext('prepareWebAppOperation("/opsdeck-fixture")',context);
+  vm.runInContext('state.commandOpen=true;openConfirmationReview("webapp",state.webAppOperation.plan.id)',context);
+  assert.equal(vm.runInContext('state.confirmationReview.plan===state.webAppOperation.plan&&!state.commandOpen',context),true);
+  assert.match(element.innerHTML,/Plan Review · Exact confirmation/u);
+  assert.match(element.innerHTML,/<main class="workspace" inert>/u);
+  assert.equal(writes.length,0);
+  vm.runInContext('closeConfirmationReview()',context);
+  assert.equal(vm.runInContext('state.confirmationReview===null&&state.commandOpen',context),true);
+  assert.equal(writes.length,0);
+  vm.runInContext('openConfirmationReview("webapp",state.webAppOperation.plan.id);state.observeOnly=true;setObserveOnly(true)',context);
+  await vm.runInContext('completeConfirmationReview()',context);
+  assert.equal(writes.length,0,'Observe Only blocks a review already open');
+  vm.runInContext('state.observeOnly=false;setObserveOnly(false);openConfirmationReview("webapp",state.webAppOperation.plan.id);state.webAppOperation={...state.webAppOperation,plan:{...state.webAppOperation.plan}}',context);
+  await vm.runInContext('completeConfirmationReview()',context);
+  assert.equal(writes.length,0,'replacement with the same id cannot inherit confirmation');
+  await vm.runInContext('prepareWebAppOperation("/opsdeck-fixture")',context);
+  vm.runInContext('openConfirmationReview("webapp",state.webAppOperation.plan.id)',context);
+  await vm.runInContext('completeConfirmationReview()',context);
+  assert.deepEqual(writes,[{Enabled:true}]);
+  assert.equal(vm.runInContext('state.webAppOperation.state',context),'VERIFIED');
+  vm.runInContext('clearSession()',context);
+  assert.equal(vm.runInContext('state.confirmationReview',context),null);
 });
 
 test("logout during operation preflight prevents further authority requests or dispatch", async () => {
@@ -417,4 +600,147 @@ test("live Packages reviews pinned intent, confirms once and projects install/re
   assert.match(vm.runInContext('evidenceView()', context), /operation-receipt/u);
   vm.runInContext('clearSession()', context);
   assert.equal(vm.runInContext('state.livePackageOperation', context), null);
+});
+
+test('an accepted package call with unchanged inventory remains a failed receipt throughout the UI',async()=>{
+  const name='qualification-package';let dispatches=0;
+  const {context}=contextFor('/opsdeck/index.html',async(path,options)=>{
+    let value;
+    if(path==='/opsdeck-api/packages')value={provider:'iris-ipm-installed-v1',namespace:'%SYS',status:'empty',packages:[]};
+    else if(path==='/opsdeck-api/package-authority')value={provider:'iris-ipm-operations-v1',username:'Qualification',namespace:'%SYS',state:'SUPPORTED'};
+    else if(path.startsWith('/opsdeck-api/available-packages?'))value=catalog;
+    else if(path==='/opsdeck-api/package-operation'){dispatches++;value={provider:'iris-ipm-operations-v1',username:'Qualification',namespace:'%SYS',state:'ACCEPTED'};}
+    else throw Error('Unexpected request');
+    return {ok:true,status:200,json:async()=>vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify(value))})`,context)};
+  });
+  const catalog={provider:'iris-ipm-available-v1',namespace:'%SYS',name,status:'available',coverage:'complete',repositoryCount:1,availableRepositoryCount:1,truncated:false,packages:[{name,availableVersion:'0.0.1',repository:'qualification-repo'}]};
+  context.fixtureCatalog=vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify(catalog))})`,context);
+  vm.runInContext('state.connected=true;state.info={username:"Qualification"};state.applicationsTab="packages";state.availablePackageCatalog=mapAvailablePackageCatalog(fixtureCatalog)',context);
+  await vm.runInContext('loadPackageInventory(true);',context);
+  await vm.runInContext('prepareLivePackageOperation(0)',context);
+  await vm.runInContext('confirmLivePackageOperation(state.livePackageOperation.plan.id)',context);
+  assert.equal(dispatches,1);
+  assert.equal(vm.runInContext('state.livePackageOperation.state',context),'MISMATCH');
+  const review=vm.runInContext('packagesWorkspaceView()',context);
+  assert.match(review,/read-back FAILED/u);
+  assert.doesNotMatch(review,/verified the result|Verified Receipt is available/u);
+  const ledger=vm.runInContext('evidenceView()',context);
+  assert.match(ledger,/install qualification-package[\s\S]*?FAILED/u);
+  assert.doesNotMatch(ledger,/Verified Receipt · install/u);
+  assert.equal(vm.runInContext('currentEvidenceCollection().records.find(r=>r.kind==="operation-receipt").state',context),'FAILED');
+  assert.match(vm.runInContext('operationOutcome({receipt:{verification:"FAILED"}})',context),/Operation receipt/u);
+  const workflowReview=vm.runInContext('workflowRunner={snapshot:()=>({state:"MISMATCH",step:"verify",workflow:{target:{key:"/fixture"},targetRef:{label:"LOCAL"}},receipt:{verification:"FAILED"}})};workflowPanel("/fixture")',context);
+  assert.match(workflowReview,/Operation receipt · FAILED/u);
+  assert.doesNotMatch(workflowReview,/Verified Receipt/u);
+});
+
+test('native availability workflow stops at confirmation, dispatches once, and projects its receipt into the existing ledger',async()=>{
+  let enabled=false;const calls=[];
+  const {context}=contextFor('/opsdeck/index.html',async(path,options)=>{
+    calls.push({path,method:options.method||'GET'});
+    if(options.method==='PUT')enabled=JSON.parse(options.body).Enabled;
+    const value=path==='/api/admin/info'?{username:'Qualification',privileges:{Secure:{use:true}}}:{Enabled:enabled,NameSpace:'%SYS'};
+    return {ok:true,status:200,json:async()=>vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify({status:{errors:[]},result:value}))})`,context)};
+  });
+  vm.runInContext('state.connected=true;state.info={username:"Qualification"};state.apps=mapWebApps({status:{errors:[]},result:[{Name:"/opsdeck-fixture",Namespace:"%SYS",Enabled:false,Type:"CSP",AuthenticationMethods:["Password"]}]});',context);
+  await vm.runInContext('startAvailabilityWorkflow("/opsdeck-fixture")',context);
+  assert.equal(vm.runInContext('workflowRunner.snapshot().state',context),'AWAITING_CONFIRMATION');assert.equal(calls.filter(c=>c.method==='PUT').length,0);
+  assert.match(vm.runInContext('applicationsView()',context),/Confirm workflow/u);
+  await vm.runInContext('confirmAvailabilityWorkflow(workflowRunner.snapshot().plan.id)',context);
+  assert.equal(vm.runInContext('workflowRunner.snapshot().state',context),'VERIFIED');assert.equal(calls.filter(c=>c.method==='PUT').length,1);
+  assert.equal(vm.runInContext('sessionLedger(currentEvidenceCollection()).categories.receipts.length',context),1);
+  assert.equal(vm.runInContext('sessionLedger(currentEvidenceCollection()).categories.confirmations.length',context),1);
+  await vm.runInContext('confirmAvailabilityWorkflow(workflowRunner.snapshot().plan.id)',context);assert.equal(calls.filter(c=>c.method==='PUT').length,1);
+  vm.runInContext('clearSession()',context);assert.equal(vm.runInContext('workflowRunner',context),null);assert.equal(vm.runInContext('state.operationEvidence.length',context),0);
+});
+
+test('Entity Graph uses detail observation Evidence from the existing session projection',()=>{
+  const {context}=contextFor();
+  vm.runInContext('state.connected=true;state.info={username:"Qualification"};const user=mapReadOnlySource("users",{status:{errors:[]},result:[{Name:"operator"}]}).items[0];state.userDetails.operator=mapSecurityUserDetail({status:{errors:[]},result:{Name:"operator",Roles:["reader"]}},user);',context);
+  const output=vm.runInContext('evidenceView()',context);assert.match(output,/Entity Graph/u);assert.match(output,/has-role/u);assert.match(output,/Inspect Evidence · PARTIAL/u);
+  const collection=vm.runInContext('currentEvidenceCollection()',context);assert.ok(collection.records.some(record=>record.id.startsWith('session:relationships:user:')));
+});
+
+test('target comparison retains the local typed detail for the existing Evidence graph with one read',async()=>{
+  const calls=[];const {context}=contextFor('/opsdeck/index.html',async path=>{
+    calls.push(path);
+    return {ok:true,status:200,json:async()=>vm.runInContext('({status:{errors:[]},result:{Name:"/opsdeck-fixture",NameSpace:"%SYS",Enabled:true,DispatchClass:"Fixture.Dispatch"}})',context)};
+  });
+  vm.runInContext('state.connected=true;state.info={username:"Qualification"};state.apps=mapWebApps({status:{errors:[]},result:[{Name:"/opsdeck-fixture",Namespace:"%SYS",Enabled:true,AuthenticationMethods:[]}]});',context);
+  await vm.runInContext('compareApplicationTargets("/opsdeck-fixture")',context);
+  assert.equal(calls.length,1);
+  assert.equal(vm.runInContext('state.webAppDetails["/opsdeck-fixture"]?.values.DispatchClass',context),'Fixture.Dispatch');
+  assert.equal(vm.runInContext('state.targetComparison.observations.filter(o=>o.state==="UNAVAILABLE").length',context),3);
+  const output=vm.runInContext('evidenceView()',context);
+  assert.match(output,/dispatches-to/u);assert.match(output,/Fixture.Dispatch/u);assert.match(output,/Inspect Evidence · PARTIAL/u);
+  assert.equal(vm.runInContext('projectEntityGraph(relationshipObservations(state),currentEvidenceCollection()).edges.length',context),1);
+});
+
+test('native intelligence rehearsal is allowed in Observe Only, requires confirmation, rechecks profile and records its receipt',async()=>{
+  let enabled=true,holdProfileRead=false,releaseProfileRead;const calls=[];
+  const {context}=contextFor('/opsdeck/index.html',async(path,options)=>{
+    calls.push({path,method:options.method||'GET'});
+    let value;
+    if(path==='/opsdeck-api/intent-rehearsal'){
+      value=vm.runInContext('({provider:"opsdeck-intent-rehearsal-v1",username:"Qualification",namespace:"%SYS",profileId:"AI_PROFILE_ADMIN",dispatchAllowed:0,trust:"server-reconstructed-current-iris-state",state:"REVIEW_REQUIRED",planInput:{id:"intent:integration",intent:"AI rehearsal disable /opsdeck-fixture",target:{domain:"applications",kind:"web-app",provider:"iris-admin-api",key:"/opsdeck-fixture",scope:"%SYS",label:"/opsdeck-fixture",observedAt:new Date().toISOString()},targetRef:state.targetRef,capability:{id:"webapp.disable",state:"SUPPORTED",...OPERATION_POLICIES["webapp.disable"]},parameters:{enabled:false},preState:{enabled:true},createdAt:new Date().toISOString(),ttlSeconds:120,preStateEvidence:"native:observed",authorityValidation:{state:"SUPPORTED",evidence:"native:profile-human-policy"},expectedReadback:"Enabled is false"}})',context);
+    }else{
+      if(options.method==='PUT')enabled=JSON.parse(options.body).Enabled;
+      value={status:{errors:[]},result:{Enabled:enabled,NameSpace:'%SYS'}};
+    }
+    const response={ok:true,status:200,json:async()=>vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify(value))})`,context)};
+    if(holdProfileRead&&path==='/opsdeck-api/intent-rehearsal')return new Promise(resolve=>{releaseProfileRead=()=>resolve(response);});
+    return response;
+  });
+  vm.runInContext('state.connected=true;state.info={username:"Qualification"};state.route="evidence";state.observeOnly=true;setObserveOnly(true);state.intelligence.text="disable /opsdeck-fixture";state.intelligence.profileId="AI_PROFILE_ADMIN";',context);
+  await vm.runInContext('rehearseIntent()',context);
+  assert.equal(vm.runInContext('state.intelligence.operation.state',context),'REVIEW_REQUIRED');assert.equal(calls.filter(c=>c.method==='PUT').length,0);
+  assert.match(vm.runInContext('intelligencePanel()',context),/Confirm AI rehearsal/u);
+  await vm.runInContext('confirmWebAppOperation(state.webAppOperation.plan.id)',context);assert.equal(calls.filter(c=>c.method==='PUT').length,0);
+  vm.runInContext('state.observeOnly=false;setObserveOnly(false);',context);
+  await vm.runInContext('confirmWebAppOperation(state.webAppOperation.plan.id)',context);
+  assert.equal(vm.runInContext('state.intelligence.operation.state',context),'VERIFIED');assert.equal(calls.filter(c=>c.method==='PUT').length,1);
+  assert.equal(calls.filter(c=>c.path==='/opsdeck-api/intent-rehearsal').length,2);
+  assert.match(vm.runInContext('currentEvidenceCollection().records.find(r=>r.kind==="operation-receipt").evidence.warnings.join(" ")',context),/AI_PROFILE_ADMIN/u);
+  vm.runInContext('invalidateIntentDraft()',context);assert.equal(vm.runInContext('state.webAppOperation',context),null);
+  enabled=true;await vm.runInContext('rehearseIntent()',context);holdProfileRead=true;
+  const confirming=vm.runInContext('const cancelledIntent=state.webAppOperation;confirmWebAppOperation(state.webAppOperation.plan.id)',context);
+  for(let attempt=0;attempt<20&&!releaseProfileRead;attempt++)await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(typeof releaseProfileRead,'function');
+  vm.runInContext('state.intelligence.profileId="AI_PROFILE_USER";invalidateIntentDraft()',context);releaseProfileRead();await confirming;
+  assert.equal(vm.runInContext('cancelledIntent.state',context),'CANCELLED');assert.equal(calls.filter(c=>c.method==='PUT').length,1,'changed profile cancels the old confirmation before another PUT');
+  vm.runInContext('clearSession()',context);assert.equal(vm.runInContext('state.intelligence.operation',context),null);
+});
+
+test('editing intent removes its current output without rebuilding the editor or deleting historical Evidence',()=>{
+  let requests=0;const {context,element}=contextFor('/opsdeck/index.html',()=>{requests++;throw Error('No request expected');});
+  vm.runInContext('state.connected=true;state.info={username:"Qualification"};state.intelligence.observation={target:{key:"/app"},value:{enabled:true}};state.operationEvidence=[{id:"historical:intent",kind:"read-observation",state:"PARTIAL",title:"Earlier intent observation",observedAt:new Date().toISOString(),source:{identity:"fixture"},resource:{key:"/app"},summary:"Historical observation remains in the session."}];',context);
+  const output={innerHTML:vm.runInContext('intelligencePanel()',context)},editor={id:'intent-text'};
+  context.document.activeElement=editor;let selectors=[];
+  element.querySelector=selector=>{selectors.push(selector);return selector==='#intent-output'?output:null;};
+  vm.runInContext('state.intelligence.text="disable /app";invalidateIntentDraft()',context);
+  assert.match(output.innerHTML,/Intent changed\. Reconstruct the current intent again/u);
+  assert.doesNotMatch(output.innerHTML,/OBSERVED|Impact Forecast|data-webapp-confirm=/u);
+  assert.equal(context.document.activeElement,editor);assert.deepEqual(selectors,['#intent-output']);assert.equal(requests,0);
+  assert.match(vm.runInContext('intelligencePanel()',context),/Intent changed\. Reconstruct the current intent again/u);
+  assert.equal(vm.runInContext('currentEvidenceCollection().records.filter(r=>r.id==="historical:intent").length',context),1);
+});
+
+test('an obsolete intelligence completion releases busy state without rebuilding the edited intent',async()=>{
+  let release;const calls=[];const {context,element}=contextFor('/opsdeck/index.html',async path=>{
+    calls.push(path);return new Promise(resolve=>{release=()=>resolve({ok:true,status:200,json:async()=>vm.runInContext('({provider:"opsdeck-intent-rehearsal-v1",username:"Qualification",namespace:"%SYS",profileId:"AI_PROFILE_USER",dispatchAllowed:0,trust:"server-reconstructed-current-iris-state",state:"OBSERVED",target:{key:"/app"},value:{enabled:true},observedAt:new Date().toISOString()})',context)});});
+  });
+  vm.runInContext('state.connected=true;state.info={username:"Qualification"};state.route="evidence";state.intelligence.text="inspect /app";',context);
+  const output={innerHTML:''},editor={id:'intent-text'},action={disabled:true,addEventListener(){}};
+  element.querySelector=selector=>selector==='#intent-output'?output:selector==='#intent-rehearse'?action:null;
+  let rendered=element.innerHTML;
+  Object.defineProperty(element,'innerHTML',{get:()=>rendered,set:value=>{rendered=value;context.document.activeElement={id:'body'};}});
+  const pending=vm.runInContext('rehearseIntent()',context);
+  for(let attempt=0;attempt<20&&!release;attempt++)await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(typeof release,'function');context.document.activeElement=editor;
+  vm.runInContext('state.intelligence.text="disable /app";invalidateIntentDraft()',context);
+  release();await pending;
+  assert.equal(context.document.activeElement,editor);assert.equal(action.disabled,false);
+  assert.equal(action.textContent,'Observe / Operation Rehearsal');
+  assert.match(output.innerHTML,/Intent changed/u);assert.equal(calls.length,1);
+  assert.equal(vm.runInContext('!state.intelligence.busy&&state.intelligence.observation===null&&state.intelligence.operation===null&&state.operationEvidence.length===0',context),true);
 });

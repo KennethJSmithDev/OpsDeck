@@ -1,0 +1,276 @@
+{
+  "schema": "opsdeck-qualification-witnesses-v1",
+  "method": "Positive bounded projections of preserved qualification artifacts; totals generated, no global pass inferred",
+  "operations": [
+    {
+      "operation": "GET /api/admin/v2/security/users",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/roles",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/resources",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/wallet/collections",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED_EMPTY_COLLECTION; ITEM SHAPE UNVERIFIED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/x509-credentials",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED_EMPTY_COLLECTION; ITEM SHAPE UNVERIFIED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/oauth2/resource-servers",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED_EMPTY_COLLECTION; ITEM SHAPE UNVERIFIED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/oauth2/client/server-definitions",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED_EMPTY_COLLECTION; ITEM SHAPE UNVERIFIED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/oauth2/server",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED_ERROR",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/tasks",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/task/history",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/system-usage",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/processes",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/database-dirs",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/devices",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/audit/enabled",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/audit/events",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/v2/journal/files",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Historical 2026.2 Community; recorded identity; OBSERVED",
+      "artifactSha256": "3c5e452b07245b5faef62069bf3dc917902291f40eea4add6c56ee31c2867a3d"
+    },
+    {
+      "operation": "GET /api/admin/info",
+      "observed": true,
+      "reproduced": true,
+      "independentlyVerified": false,
+      "scope": "OPSDECK_08_TEST_TARGET; OpsDeckQualify; fixture-only mutation",
+      "source": "docs/VERSION_GATE_LEDGER.md#v07--pass-2026-10-03",
+      "artifactSha256": "b5ce3d880482e9af53659a9c635435c83bc598d0381d9ff6c0c703748112c778",
+      "limit": "Own read-back and browser proof; independent effect not inferred from receipt"
+    },
+    {
+      "operation": "GET /api/admin/v2/web-apps",
+      "observed": true,
+      "reproduced": true,
+      "independentlyVerified": true,
+      "scope": "OPSDECK_08_TEST_TARGET; OpsDeckQualify; fixture-only mutation",
+      "source": "docs/VERSION_GATE_LEDGER.md#v07--pass-2026-10-03",
+      "artifactSha256": "b5ce3d880482e9af53659a9c635435c83bc598d0381d9ff6c0c703748112c778",
+      "limit": "Own read-back and browser proof; independent effect not inferred from receipt"
+    },
+    {
+      "operation": "GET /api/admin/v2/web-app",
+      "observed": true,
+      "reproduced": true,
+      "independentlyVerified": false,
+      "scope": "OPSDECK_08_TEST_TARGET; OpsDeckQualify; fixture-only mutation",
+      "source": "docs/VERSION_GATE_LEDGER.md#v07--pass-2026-10-03",
+      "artifactSha256": "b5ce3d880482e9af53659a9c635435c83bc598d0381d9ff6c0c703748112c778",
+      "limit": "Own read-back and browser proof; independent effect not inferred from receipt"
+    },
+    {
+      "operation": "PUT /api/admin/v2/web-app",
+      "observed": true,
+      "reproduced": true,
+      "independentlyVerified": false,
+      "scope": "OPSDECK_08_TEST_TARGET; OpsDeckQualify; fixture-only mutation",
+      "source": "docs/VERSION_GATE_LEDGER.md#v07--pass-2026-10-03",
+      "artifactSha256": "b5ce3d880482e9af53659a9c635435c83bc598d0381d9ff6c0c703748112c778",
+      "limit": "Own read-back and browser proof; independent effect not inferred from receipt"
+    },
+    {
+      "operation": "DELETE /api/admin/v2/web-app",
+      "observed": true,
+      "reproduced": true,
+      "independentlyVerified": true,
+      "scope": "OPSDECK_08_TEST_TARGET; OpsDeckQualify; fixture-only mutation",
+      "source": "docs/VERSION_GATE_LEDGER.md#v07--pass-2026-10-03",
+      "artifactSha256": "b5ce3d880482e9af53659a9c635435c83bc598d0381d9ff6c0c703748112c778",
+      "limit": "Independent HTTP 404 absence; exact fixture only"
+    },
+    {
+      "operation": "GET /opsdeck-api/packages",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Exact v0.8 qualified fixture/identity; independent effect not inferred",
+      "source": "docs/VERSION_GATE_LEDGER.md",
+      "artifactSha256": "2c5e04af9ecb9903d94a68286e992669b8f2d1187a7bc6333527d327f57d687c"
+    },
+    {
+      "operation": "GET /opsdeck-api/available-packages",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Exact v0.8 qualified fixture/identity; independent effect not inferred",
+      "source": "docs/VERSION_GATE_LEDGER.md",
+      "artifactSha256": "2c5e04af9ecb9903d94a68286e992669b8f2d1187a7bc6333527d327f57d687c"
+    },
+    {
+      "operation": "GET /opsdeck-api/package-authority",
+      "observed": true,
+      "reproduced": false,
+      "independentlyVerified": false,
+      "scope": "Exact v0.8 qualified fixture/identity; independent effect not inferred",
+      "source": "docs/VERSION_GATE_LEDGER.md",
+      "artifactSha256": "2c5e04af9ecb9903d94a68286e992669b8f2d1187a7bc6333527d327f57d687c"
+    },
+    {
+      "operation": "POST /opsdeck-api/package-operation",
+      "observed": true,
+      "reproduced": true,
+      "independentlyVerified": false,
+      "scope": "Exact v0.8 qualified fixture/identity; independent effect not inferred",
+      "source": "docs/VERSION_GATE_LEDGER.md",
+      "artifactSha256": "2c5e04af9ecb9903d94a68286e992669b8f2d1187a7bc6333527d327f57d687c"
+    }
+  ],
+  "workflows": [
+    {
+      "capability": "webapp.fixture.create",
+      "verified": true,
+      "receiptId": "iris-admin-webapp-provider-v1:receipt:fixture_create_1791077104080",
+      "completedAt": "2026-10-04T01:25:04.148Z",
+      "scope": "Exact disposable fixture only; previous temporary authority revoked",
+      "artifactSha256": "74f9e2d87c8da730aceac686090a7b2979608bc78c2be7f96bbdca1ff8924a13"
+    },
+    {
+      "capability": "webapp.fixture.delete",
+      "verified": true,
+      "receiptId": "iris-admin-webapp-provider-v1:receipt:fixture_delete_1791077104163",
+      "completedAt": "2026-10-04T01:25:04.196Z",
+      "scope": "Exact disposable fixture only; previous temporary authority revoked",
+      "artifactSha256": "74f9e2d87c8da730aceac686090a7b2979608bc78c2be7f96bbdca1ff8924a13"
+    },
+    {
+      "capability": "ipm.live.install",
+      "verified": true,
+      "receiptId": "iris-ipm-operations-v1:receipt:package:install:1791078962384",
+      "completedAt": "2026-10-04T01:56:03.783Z",
+      "scope": "Exact disposable fixture only; previous temporary authority revoked",
+      "artifactSha256": "24b14ce9dced2a0d5dc852d30b5a830f1e1c9223993d4603b83ac8cf8c0c6c72"
+    },
+    {
+      "capability": "ipm.live.remove",
+      "verified": true,
+      "receiptId": "iris-ipm-operations-v1:receipt:package:remove:1791078963796",
+      "completedAt": "2026-10-04T01:56:03.826Z",
+      "scope": "Exact disposable fixture only; previous temporary authority revoked",
+      "artifactSha256": "24b14ce9dced2a0d5dc852d30b5a830f1e1c9223993d4603b83ac8cf8c0c6c72"
+    },
+    {
+      "capability": "webapp.enable",
+      "verified": true,
+      "completedAt": "2026-10-04T01:32:32.474Z",
+      "scope": "Exact /opsdeck-fixture in isolated Docker; OpsDeckQualify",
+      "artifactSha256": "b5ce3d880482e9af53659a9c635435c83bc598d0381d9ff6c0c703748112c778"
+    },
+    {
+      "capability": "webapp.disable",
+      "verified": true,
+      "completedAt": "2026-10-04T01:33:00.213Z",
+      "scope": "Exact /opsdeck-fixture in isolated Docker; OpsDeckQualify",
+      "artifactSha256": "b5ce3d880482e9af53659a9c635435c83bc598d0381d9ff6c0c703748112c778"
+    }
+  ]
+}

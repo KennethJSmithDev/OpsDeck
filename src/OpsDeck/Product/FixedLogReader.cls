@@ -39,7 +39,8 @@ ClassMethod ListMessageRotations(ByRef result As %DynamicObject) As %Status
     set result=##class(%DynamicObject).%New()
     set result.provider="opsdeck-rotated-messages-log-v1"
     set result.rotations=##class(%DynamicArray).%New()
-    set result.truncated=0,result.scannedCount=0
+    set result.scannedCount=0
+    do result.%Set("truncated",0,"boolean")
     if '$SYSTEM.Security.Check("%Admin_Operate","USE") {
         set result.status="denied",result.reason="admin-operate-required"
         quit $$$OK
@@ -49,9 +50,10 @@ ClassMethod ListMessageRotations(ByRef result As %DynamicObject) As %Status
         if state'="available" {
             set result.status=state,result.reason="rotation-enumeration-"_state
         } else {
-            set result.scannedCount=scanned,result.truncated=truncated
+            set result.scannedCount=scanned
+            do result.%Set("truncated",truncated,"boolean")
             set limit=$select(count>20:20,1:count)
-            if count>20 set result.truncated=1
+            if count>20 do result.%Set("truncated",1,"boolean")
             for index=1:1:limit {
                 set item=##class(%DynamicObject).%New()
                 set item.sourceIdentity=records(index,"identity")

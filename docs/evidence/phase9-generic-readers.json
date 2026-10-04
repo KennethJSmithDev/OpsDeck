@@ -1,0 +1,616 @@
+{
+  "schema": "opsdeck-generic-reader-runtime-v1",
+  "target": "OPSDECK_08_TEST_TARGET",
+  "targetRef": {
+    "id": "local",
+    "label": "LOCAL Docker",
+    "origin": "http://127.0.0.1:52774",
+    "environment": "LOCAL"
+  },
+  "identity": "OpsDeckQualify",
+  "observedAt": "2026-10-04T08:50:26.039Z",
+  "records": [
+    {
+      "operation": "GET /api/admin/v2/databases",
+      "method": "GET",
+      "path": "/api/admin/v2/databases",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 36.05,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/device/settings",
+      "method": "GET",
+      "path": "/api/admin/v2/device/settings",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 9.19,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/device/subtypes",
+      "method": "GET",
+      "path": "/api/admin/v2/device/subtypes",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 8.72,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/doc-dbs",
+      "method": "GET",
+      "path": "/api/admin/v2/doc-dbs",
+      "status": 200,
+      "responseBytes": 62,
+      "state": "EMPTY",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 56.9,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 0
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/ecp/application-server-ssl-connections",
+      "method": "GET",
+      "path": "/api/admin/v2/ecp/application-server-ssl-connections",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 9.62,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/ecp/application-servers",
+      "method": "GET",
+      "path": "/api/admin/v2/ecp/application-servers",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 8.6,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/ecp/data-servers",
+      "method": "GET",
+      "path": "/api/admin/v2/ecp/data-servers",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 8.19,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/ecp/settings",
+      "method": "GET",
+      "path": "/api/admin/v2/ecp/settings",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 8.39,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/ext-lang-servers",
+      "method": "GET",
+      "path": "/api/admin/v2/ext-lang-servers",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 8.19,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/fs-access-purposes",
+      "method": "GET",
+      "path": "/api/admin/v2/fs-access-purposes",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 8.64,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/journal/settings",
+      "method": "GET",
+      "path": "/api/admin/v2/journal/settings",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 8.43,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/license/servers",
+      "method": "GET",
+      "path": "/api/admin/v2/license/servers",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 7.96,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/locks",
+      "method": "GET",
+      "path": "/api/admin/v2/locks",
+      "status": 200,
+      "responseBytes": 2078,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 45.77,
+      "stats": {
+        "redacted": 0,
+        "withheld": 7,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 7
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/dashboard/ecp",
+      "method": "GET",
+      "path": "/api/admin/v2/monitor/dashboard/ecp",
+      "status": 200,
+      "responseBytes": 615,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 10.15,
+      "stats": {
+        "redacted": 0,
+        "withheld": 1,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 2
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/dashboard/globals-and-routines",
+      "method": "GET",
+      "path": "/api/admin/v2/monitor/dashboard/globals-and-routines",
+      "status": 200,
+      "responseBytes": 465,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 10.52,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 2
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/dashboard/main",
+      "method": "GET",
+      "path": "/api/admin/v2/monitor/dashboard/main",
+      "status": 200,
+      "responseBytes": 1412,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 62.86,
+      "stats": {
+        "redacted": 0,
+        "withheld": 13,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 7
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/dashboard/system-resources",
+      "method": "GET",
+      "path": "/api/admin/v2/monitor/dashboard/system-resources",
+      "status": 200,
+      "responseBytes": 4336,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 19.48,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 56
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/license-usage",
+      "method": "GET",
+      "path": "/api/admin/v2/monitor/license-usage",
+      "status": 200,
+      "responseBytes": 4071,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 43.06,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 4
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/system-usage/shared-memory",
+      "method": "GET",
+      "path": "/api/admin/v2/monitor/system-usage/shared-memory",
+      "status": 200,
+      "responseBytes": 3593,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 18.07,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 28
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/namespaces",
+      "method": "GET",
+      "path": "/api/admin/v2/namespaces",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 8.3,
+      "stats": null,
+      "projectedShape": null
+    },
+    {
+      "operation": "GET /api/admin/v2/security/privileged-routines",
+      "method": "GET",
+      "path": "/api/admin/v2/security/privileged-routines",
+      "status": 200,
+      "responseBytes": 62,
+      "state": "EMPTY",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 9.03,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 0
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/security/services",
+      "method": "GET",
+      "path": "/api/admin/v2/security/services",
+      "status": 200,
+      "responseBytes": 3381,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 41.65,
+      "stats": {
+        "redacted": 15,
+        "withheld": 15,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 15
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/security/superservers",
+      "method": "GET",
+      "path": "/api/admin/v2/security/superservers",
+      "status": 200,
+      "responseBytes": 135,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 33.6,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 1
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/security/web-auth",
+      "method": "GET",
+      "path": "/api/admin/v2/security/web-auth",
+      "status": 200,
+      "responseBytes": 507,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 9.34,
+      "stats": {
+        "redacted": 2,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 19
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/task/manager",
+      "method": "GET",
+      "path": "/api/admin/v2/task/manager",
+      "status": 200,
+      "responseBytes": 80,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 1009.12,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 1
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/task/upcoming",
+      "method": "GET",
+      "path": "/api/admin/v2/task/upcoming",
+      "status": 200,
+      "responseBytes": 1368,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 17.7,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 12
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/web-app/pct-accesses",
+      "method": "GET",
+      "path": "/api/admin/v2/web-app/pct-accesses",
+      "status": 200,
+      "responseBytes": 1126,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 16.64,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 10
+      }
+    },
+    {
+      "operation": "GET /api/admin/v2/wqm-categories",
+      "method": "GET",
+      "path": "/api/admin/v2/wqm-categories",
+      "status": 403,
+      "state": "DENIED",
+      "reason": "http-403",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 8.21,
+      "stats": null,
+      "projectedShape": null
+    }
+  ],
+  "specSha256": "1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee5898596650",
+  "readerSha256": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153",
+  "dispatchCount": 0,
+  "permissionChanges": 0,
+  "result": "PASS",
+  "boundary": "One actual GET per missing no-required-query socket. Sensitive configuration/session/license families excluded. Values withheld from artifact; OBSERVED/EMPTY prove bounded operation response only, not item behavior, reproduction or independent verification. Denials and unresolved schemas stay separate."
+}

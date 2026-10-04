@@ -44,6 +44,29 @@ test("denial, unavailable, unknown, and valid-empty provider results remain dist
   assert.equal(run(`providerUiEvidence({sourceErrors:{users:"Socket closed"}}, "users")`).status, "UNAVAILABLE");
 });
 
+test("native rotation failure stays failed through navigation while a valid empty inventory stays supported", () => {
+  const failure = provider.mapReadOnlySource("messageRotations", {
+    provider: "opsdeck-rotated-messages-log-v1", status: "failed", reason: "rotation-enumeration-failed",
+    rotations: [], scannedCount: 0, truncated: false,
+  });
+  const empty = provider.mapReadOnlySource("messageRotations", {
+    provider: "opsdeck-rotated-messages-log-v1", status: "empty", rotations: [],
+    scannedCount: 0, truncated: false, coverage: "complete", count: 0,
+  });
+  const failedEvidence = run(`providerUiEvidence({sourceData:{messageRotations:${JSON.stringify(failure)}}}, "messageRotations")`);
+  assert.equal(failedEvidence.status, "FAILED");
+  assert.match(failedEvidence.detail, /failed/i);
+  assert.equal(run(`providerUiEvidence({sourceData:{messageRotations:${JSON.stringify(empty)}}}, "messageRotations")`).status, "SUPPORTED");
+  const route = run(`routeUiEvidence({sourceData:{messageRotations:${JSON.stringify(failure)}}}, "logs")`);
+  assert.equal(route.sources.find(item => item.id === "messageRotations").status, "FAILED");
+  assert.notEqual(route.status, "SUPPORTED");
+  const failedPanel = run(`state.sourceData={messageRotations:${JSON.stringify(failure)}}; sourcePanelBody("messageRotations")`);
+  assert.match(failedPanel, /Inventory count not established/);
+  assert.doesNotMatch(failedPanel, /<strong>0<\/strong><span> fixed-family files/);
+  const emptyPanel = run(`state.sourceData={messageRotations:${JSON.stringify(empty)}}; sourcePanelBody("messageRotations")`);
+  assert.match(emptyPanel, /<strong>0<\/strong><span> fixed-family files/);
+});
+
 test("broad and restricted profiles reflect provider evidence, while visible denied routes stay enabled", () => {
   const broad = { route: "access", sourceData: { users: [], roles: [], resources: [] }, sourceErrors: {}, sourceLoading: "", selectedItems: {}, sourceTabs: { access: "users" } };
   const restricted = { route: "access", sourceData: { users: [] }, sourceErrors: { roles: "HTTP 403", resources: "HTTP 403" }, sourceLoading: "", selectedItems: {}, sourceTabs: { access: "users" } };

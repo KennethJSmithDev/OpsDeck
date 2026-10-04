@@ -1,0 +1,24 @@
+# Phase 9 bounded acceptance â€” October 4, 2026
+
+**PASS within the recorded qualification scope.** This closes the lowest incomplete roadmap phase. The durable roadmap remains [OPSDECK_DREAM_1_0_EXECUTION_PLAN.md](OPSDECK_DREAM_1_0_EXECUTION_PLAN.md); the detailed chronological socket evidence is preserved privately. Its artifact hashes are recorded in [QUALIFICATION_EVIDENCE_INDEX_20261004.json](QUALIFICATION_EVIDENCE_INDEX_20261004.json). Public aggregate read/read-back witnesses remain available for reproducible capability accounting.
+
+The product now composes identity, selected target, current authority, observations, canonical rehearsal, impact, exact confirmation, executor outcome and Session Ledger. Qualification states stay distinct across availability, errors, device representation and draft/context changes. No second history, global target truth or arbitrary mutation transport was introduced.
+
+| Acceptance facet | Admitted scope | Evidence |
+|---|---|---|
+| Identity, target and authority | Native info/seven-profile HTTP reads; selected LOCAL; unconfigured targets unavailable. Native trust/fixture effect evidence retained. | `phase9-native-http.json` (private; hash indexed) |
+| Current evidence, forecast and outcome | Canonical web-app/package/API/intent rehearsal, exact review, executor receipts, failed read-back wording, retained session Ledger. | `phase9-package-ui.json` (private; hash indexed) |
+| Context and async freshness | Draft edits remove current outputs, retain historical Evidence, reject obsolete reads/results and preserve editor focus. | `phase9-api-race-ui.json` (private; hash indexed) |
+| Graph/comparison integration | One observed LOCAL detail projects one PARTIAL dispatch relationship through admitted Evidence; no class-existence or multi-live-target inference. | `phase9-comparison-graph-ui.json` (private; hash indexed) |
+| Device/width/height morphology | Desktop, 320px portrait, 780x320 landscape and 320x360 compact review; independently scrolling forecast, visible 48px actions and keyboard containment. | `phase9-short-height-review-ui.json` (private; hash indexed) |
+| Failure semantics | Denied application list has no fabricated zero or absence claim; failed rotations/read-back retain failure and scoped counts. | `phase9-inventory-denial-ui.json` (private; hash indexed) |
+| Export delivery | Actual completed files match current admitted/filtered Evidence serializers; independent CSV parsing retained. | `phase9-browser-export-files.json` (private; hash indexed) |
+| Representation and native delivery | Source/metadata bytes measured, all manifest assets match native HTTP, local browser measurements retain their exact source snapshot. | [representation-measurement.json](evidence/representation-measurement.json) |
+
+Current source-generated totals: **113 IRIS operations exposed; 51 runtime-observed; 28 independently verified; 6 historically qualified mutation workflows.** There are 276 declared contracts, 31 reproduced operations, 161 mutation-shaped contracts and 3 exposed mutation operations. The unit is HTTP method plus canonical SysAdmin v2 path; workflow variants remain separate. Verification is limited to named positive projections/effects, not complete endpoint schemas, item behavior from empty collections or effective authority.
+
+Full source suite: **238/238 PASS**, zero failures/cancellations/skips. Browser JS/CSS/HTML: **417,697 uncompressed bytes**; lazy JSON: **233,377**; all 23 manifest files: **651,812**. Current native HTTP source hash agreement passes 23/23 with zero dispatch. Previous mutation milestones and cleanup evidence remain accepted; UI-only changes did not rerun accepted native effects.
+
+Retained boundaries: authenticated native browser qualification remains blocked by the protected credential handoff; additional live targets and external model providers remain unconfigured; Manage/private database access remains denied; FileSet rotation enumeration and native process failures remain recorded rather than replaced by invented results. The reader blocker was revisited after independent UX sockets; retained diagnostics rule out a class-alias preparation failure in the diagnostic context and a REST application namespace mismatch, but do not establish the failed caller resource/execution context. No permission expansion, elevated substitute, credential bridge or vendor-class change was introduced. Additional qualification across those boundaries needs authority/access outside this completed ordinary-work scope.
+
+All nine numbered phases are PASS at their stated bounded acceptance scopes. This is not a blanket runtime, full CRUD, multi-live-target or external-model qualification claim. IRISTesting remains untouched. Public release identity remains Beta Release 0.2; this is an integration checkpoint, not a release. Public-safe source and aggregate witnesses are committed; detailed qualification evidence remains private.

@@ -7,6 +7,7 @@ import * as evidence from "../public/evidence-center.js";
 import * as packages from "../public/packages-workspace.js";
 import * as jobs from "../public/job-center.js";
 import { ProductIdentity } from "../public/product-identity.js";
+import * as graph from '../public/entity-graph.js';
 
 const appSource = (await readFile(new URL("../public/app.js", import.meta.url), "utf8"))
   .replace(/^import[^\n]+\n/gm, "");
@@ -292,7 +293,7 @@ test("audit query is an explicit bounded read and displays only reviewed fields"
       };
       assert.fail(`unexpected request ${path}`);
     },
-    ...evidence, ...jobs, mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
+    ...evidence, ...jobs, ...graph, mapServerInfo, mapWebApps, sameWebAppState, mapReadOnlySource, READ_ONLY_SOURCES,
     inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS,
   };
   vm.runInNewContext(appSource, context, { filename: "public/app.js" });

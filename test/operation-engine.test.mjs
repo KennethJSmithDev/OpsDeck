@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { cancelOperationPlan, createOperationPlan, createWebAppOperationProvider, executeFixturePlan, executeOperationPlan, fingerprintPreState, isTerminalOperationState } from "../src/operation-engine.js";
+import { cancelOperationPlan, createOperationPlan, createWebAppOperationProvider, executeFixturePlan, executeOperationPlan, fingerprintPreState, isTerminalOperationState, setObserveOnly } from "../src/operation-engine.js";
 import { createEvidenceCollection, exportEvidenceJSON, operationReceiptEvidence } from "../public/evidence-center.js";
 
 const now = Date.parse("2026-10-02T12:00:00Z");
@@ -14,6 +14,38 @@ const input = {
   preconditions: [{ claim: "Disposable fixture confirmed", observed: true, evidence: "fixture-setup" }],
 };
 const makePlan = () => createOperationPlan(input, now);
+
+test('Observe Only enforces executor refusal even with an exact confirmation and permits plan construction',async()=>{
+  setObserveOnly(true);
+  try {
+    const plan=makePlan();
+    const result=await executeFixturePlan(plan,{providerIdentity:'opsdeck-fixture-v1',currentPreState:{enabled:false},confirmed:true,authority:{state:'SUPPORTED',evidence:'authority:1'},now,observeOnly:false});
+    assert.equal(plan.state,'REVIEW_REQUIRED');
+    assert.equal(result.reason,'observe-only-policy');
+    assert.equal(result.dispatchAllowed,false);
+  } finally {setObserveOnly(false);}
+});
+test('enabling Observe Only during an awaited authority check prevents subsequent dispatch',async()=>{
+  let dispatches=0;
+  const provider={identity:'race-provider',targetProvider:'iris-admin-api',readPreState:async()=>({enabled:false}),
+    checkAuthority:async()=>{setObserveOnly(true);return{state:'SUPPORTED',evidence:'authority:1'};},
+    dispatch:async()=>{dispatches++;return{state:'ACCEPTED'};},readBack:async()=>({enabled:true}),verifyReadback:async()=>({supported:true,matched:true})};
+  const plan=makePlan();
+  try {
+    const result=await executeOperationPlan(plan,provider,{providerIdentity:provider.identity,now,confirmation:{confirmed:true,planId:plan.id,preStateFingerprint:plan.preStateFingerprint}});
+    assert.equal(result.reason,'observe-only-policy');assert.equal(dispatches,0);
+  }finally{setObserveOnly(false);}
+});
+
+test('invalidating the confirmed operation context during authority checking cancels before dispatch',async()=>{
+  let current=true,dispatches=0;
+  const provider={identity:'context-race-provider',targetProvider:'iris-admin-api',readPreState:async()=>({enabled:false}),
+    checkAuthority:async()=>{current=false;return{state:'SUPPORTED',evidence:'authority:1'};},
+    dispatch:async()=>{dispatches++;return{state:'ACCEPTED'};},readBack:async()=>({enabled:true}),verifyReadback:async()=>({supported:true,matched:true})};
+  const plan=makePlan();
+  const result=await executeOperationPlan(plan,provider,{providerIdentity:provider.identity,now,isCurrent:()=>current,confirmation:{confirmed:true,planId:plan.id,preStateFingerprint:plan.preStateFingerprint}});
+  assert.equal(result.state,'CANCELLED');assert.equal(result.reason,'operation-context-changed');assert.equal(dispatches,0);
+});
 
 test("plans preserve canonical target/capability identity and bounded review semantics", () => {
   const plan = makePlan();

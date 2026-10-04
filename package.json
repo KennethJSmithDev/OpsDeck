@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node src/server.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "inventory": "node scripts/capability-inventory.mjs"
   }
 }

@@ -1,0 +1,30 @@
+{
+  "schema": "opsdeck-semantic-readback-runtime-v1",
+  "target": "OPSDECK_08_TEST_TARGET",
+  "identity": "OpsDeckQualify",
+  "targetRef": {
+    "id": "local",
+    "label": "LOCAL Docker",
+    "origin": "http://127.0.0.1:52774",
+    "environment": "LOCAL"
+  },
+  "observedAt": "2026-10-04T09:18:23.648Z",
+  "records": [
+    {
+      "operation": "GET /api/admin/v2/security/role/owners",
+      "statuses": [
+        200,
+        200
+      ],
+      "scope": "Existing own-role direct holders only, maxRows=20; no inherited membership or effective-authority closure.",
+      "state": "VERIFIED",
+      "matched": true,
+      "empty": false
+    }
+  ],
+  "providerSha256": "de821f10eb78445cfe609e3eab06f249b1fe83ec5d1d2f6dc9ca92c515bfc0fd",
+  "specSha256": "1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee5898596650",
+  "dispatchCount": 0,
+  "permissionChanges": 0,
+  "boundary": "Two separately fetched responses under the same existing identity compared by the existing handcrafted semantic mapper. VERIFIED means agreement of the named positive projection at this time; it is not independent implementation, transaction, complete endpoint schema, mutation-effect or production qualification. Raw data withheld; no extra privileges."
+}

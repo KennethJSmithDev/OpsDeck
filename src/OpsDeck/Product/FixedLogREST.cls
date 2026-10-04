@@ -3,6 +3,8 @@ Class OpsDeck.Product.FixedLogREST Extends %CSP.REST
 XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 {
 <Routes>
+  <Route Url="/intent-profiles" Method="GET" Call="IntentProfiles" />
+  <Route Url="/intent-rehearsal" Method="POST" Call="IntentRehearsal" />
   <Route Url="/derived-search" Method="GET" Call="DerivedSearch" />
   <Route Url="/derived-refresh" Method="POST" Call="DerivedRefresh" />
   <Route Url="/messages" Method="GET" Call="MessagesLog" />
@@ -14,6 +16,16 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/package-authority" Method="GET" Call="PackageAuthority" />
   <Route Url="/package-operation" Method="POST" Call="PackageOperation" />
 </Routes>
+}
+
+ClassMethod IntentProfiles() As %Status
+{
+    quit ##class(OpsDeck.Product.IntentRehearsal).Profiles()
+}
+
+ClassMethod IntentRehearsal() As %Status
+{
+    quit ##class(OpsDeck.Product.IntentRehearsal).Rehearse()
 }
 
 ClassMethod DerivedSearch() As %Status

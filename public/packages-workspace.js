@@ -1,4 +1,5 @@
 import { createOperationPlan } from "./operation-engine.js?v=opsdeck-0.8.0-ipm";
+import {getTargetRef} from './target-context.js?v=target-1';
 
 const SYNTHETIC_SOURCE = "opsdeck-fixture://package-catalog";
 const INSTALLED_IPM_SOURCE = "iris-ipm-installed-v1";
@@ -18,7 +19,7 @@ function bounded(value, label, max = 256) {
 
 export function packageResourceRef(item, provider = "opsdeck-package-fixture-v1", observedAt = new Date(0).toISOString()) {
   if (!item || !SAFE_NAME.test(item.name) || typeof item.namespace !== "string" || !item.namespace.trim()) throw new Error("Package resource identity is incomplete.");
-  return Object.freeze({ domain: "applications", kind: "package", provider, key: item.name, scope: bounded(item.namespace, "namespace", 128), label: item.name, observedAt: bounded(observedAt, "observation time", 64) });
+  return Object.freeze({ targetRef:getTargetRef(), domain: "applications", kind: "package", provider, key: item.name, scope: bounded(item.namespace, "namespace", 128), label: item.name, observedAt: bounded(observedAt, "observation time", 64) });
 }
 
 export function mapInstalledPackageInventory(payload, observedAt = new Date().toISOString()) {
@@ -47,6 +48,7 @@ export function mapInstalledPackageInventory(payload, observedAt = new Date().to
   });
   return Object.freeze({
     state: payload.status.toUpperCase(), sourceIdentity: INSTALLED_IPM_SOURCE, synthetic: false,
+    targetRef:getTargetRef(),
     namespace, truncated: payload.status === "truncated", packages: Object.freeze(packages),
   });
 }
@@ -105,6 +107,7 @@ export function mapAvailablePackageCatalog(payload, observedAt = new Date().toIS
   ]);
   return Object.freeze({
     state: payload.status.toUpperCase(), sourceIdentity: AVAILABLE_IPM_SOURCE, synthetic: false,
+    targetRef:getTargetRef(),
     namespace, name, coverage: payload.coverage, repositoryCount: payload.repositoryCount,
     availableRepositoryCount: payload.availableRepositoryCount, truncated: payload.status === "truncated",
     reason: knownReasons.has(payload.reason) ? payload.reason : null,
@@ -153,7 +156,7 @@ export function createPackageInventory(items = FIXTURE_PACKAGES, providerState =
     const state = ["installed", "update-available", "available"].includes(item.state) ? item.state : "unavailable";
     return Object.freeze({ ref: packageResourceRef({ name: item.name, namespace }), name: item.name, namespace, installedVersion, availableVersion, source, description: typeof item.description === "string" ? item.description.slice(0, 512) : "Not returned", state, synthetic: providerState === "AVAILABLE" });
   });
-  return Object.freeze({ state: packages.length ? "AVAILABLE" : providerState, sourceIdentity: providerState === "AVAILABLE" ? SYNTHETIC_SOURCE : null, synthetic: providerState === "AVAILABLE", packages: Object.freeze(packages) });
+  return Object.freeze({ targetRef:getTargetRef(), state: packages.length ? "AVAILABLE" : providerState, sourceIdentity: providerState === "AVAILABLE" ? SYNTHETIC_SOURCE : null, synthetic: providerState === "AVAILABLE", packages: Object.freeze(packages) });
 }
 
 export function fixturePackageInventory() { return createPackageInventory(FIXTURE_PACKAGES); }

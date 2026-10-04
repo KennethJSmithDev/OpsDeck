@@ -1,3 +1,4 @@
+import {getTargetRef,sameTarget} from './target-context.js?v=target-1';
 function requireRecord(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`${label} must be a JSON object.`);
@@ -132,7 +133,7 @@ export function validateAuditLocation(locationHeader, pageUrl) {
   return handle;
 }
 
-export function mapAuditAsyncResult(payload, identity) {
+function coremapAuditAsyncResult(payload, identity) {
   const task = requireRecord(unwrapIrisResult(payload), "IRIS async-result task");
   const handle = requireRecord(identity, "Validated IRIS async-result Location");
   if (!validatedAuditLocations.has(handle)) throw new Error("IRIS async-result Location was not validated.");
@@ -188,7 +189,7 @@ const FIXED_LOGS = Object.freeze({
   systemMonitorLog: { name: "SystemMonitor.log", maxBytes: 65536, maxLines: 250, maxProjectionUnits: 6500, maxLineUnits: 2048 },
 });
 
-export function mapFixedLogResult(sourceId, payload) {
+function coremapFixedLogResult(sourceId, payload) {
   const isRotation = /^messagesRotation:[0-9A-F]{64}$/u.test(sourceId);
   const source = FIXED_LOGS[sourceId] || (isRotation ? { name: "messages.log rotation", ...FIXED_LOGS.messagesLog } : null);
   if (!source) throw new Error("IRIS log source is not enabled.");
@@ -258,7 +259,7 @@ const LOG_ANALYSIS_RULES = Object.freeze({
   }),
 });
 
-export function mapLogAnalysisResult(sourceId, payload, observedAt = new Date().toISOString()) {
+function coremapLogAnalysisResult(sourceId, payload, observedAt = new Date().toISOString()) {
   if (!["messagesLog", "systemMonitorLog"].includes(sourceId) && !/^messagesRotation:[0-9A-F]{64}$/u.test(sourceId)) {
     throw new Error("IRIS log analysis source is not enabled.");
   }
@@ -299,7 +300,7 @@ export function mapLogAnalysisResult(sourceId, payload, observedAt = new Date().
     });
   });
   return Object.freeze({
-    sourceId, source: FIXED_LOGS[sourceId]?.name || "messages.log rotation", provider: payload.provider, observedAt,
+    sourceId, source: FIXED_LOGS[sourceId]?.name || "messages.log rotation", provider: payload.provider, targetRef: getTargetRef(), observedAt,
     status: payload.status, lineCount, findingCount, truncated, findingsTruncated,
     reason: typeof payload.reason === "string" ? payload.reason.slice(0, 80) : null,
     findings: Object.freeze(mappedFindings),
@@ -351,7 +352,7 @@ export function unwrapIrisResult(payload) {
   return payload.result;
 }
 
-export function mapServerInfo(payload, observedAt = new Date().toISOString()) {
+function coremapServerInfo(payload, observedAt = new Date().toISOString()) {
   const result = requireRecord(unwrapIrisResult(payload), "IRIS info result");
   if (typeof result.serverVersion !== "string" || typeof result.username !== "string") {
     throw new Error("IRIS info result is missing the observed server identity fields.");
@@ -384,11 +385,11 @@ export function mapServerInfo(payload, observedAt = new Date().toISOString()) {
     systemMode: ["DEMO", "DEVELOPMENT", "TEST", "LIVE", "FAILOVER"].includes(result.systemMode) ? result.systemMode : null,
     namespaces,
     privileges,
-    observedAt,
+    targetRef: getTargetRef(), observedAt,
   };
 }
 
-export function mapWebApps(payload, observedAt = new Date().toISOString()) {
+function coremapWebApps(payload, observedAt = new Date().toISOString()) {
   const result = unwrapIrisResult(payload);
   if (!Array.isArray(result)) throw new Error("IRIS web-app result must be an array.");
   return result.map((item) => {
@@ -411,7 +412,7 @@ export function mapWebApps(payload, observedAt = new Date().toISOString()) {
         scope: item.Namespace,
         label: item.Name,
         volatile: false,
-        observedAt,
+        targetRef: getTargetRef(), observedAt,
       },
       name: item.Name,
       namespace: item.Namespace,
@@ -436,7 +437,7 @@ const SAFE_WEB_APP_DETAIL_TYPES = Object.freeze({
   Timeout: "number", UseCookies: "string", SessionScope: "string",
 });
 
-export function mapWebAppDetail(payload, selected, observedAt = new Date().toISOString()) {
+function coremapWebAppDetail(payload, selected, observedAt = new Date().toISOString()) {
   requireRecord(selected, "Selected web application reference");
   if (typeof selected.name !== "string" || typeof selected.namespace !== "string") {
     throw new Error("Selected web application is missing its stable identity.");
@@ -454,13 +455,13 @@ export function mapWebAppDetail(payload, selected, observedAt = new Date().toISO
   return {
     ref: {
       domain: "applications", kind: "web-app-detail", provider: "sysadmin-api-v2",
-      key: selected.name, scope: selected.namespace, label: selected.name, volatile: false, observedAt,
+      key: selected.name, scope: selected.namespace, label: selected.name, volatile: false, targetRef: getTargetRef(), observedAt,
     },
     values,
   };
 }
 
-export function mapSecurityUserDetail(payload, selected, observedAt = new Date().toISOString()) {
+function coremapSecurityUserDetail(payload, selected, observedAt = new Date().toISOString()) {
   requireRecord(selected, "Selected IRIS user");
   requireRecord(selected.ref, "Selected IRIS user reference");
   if (selected.ref.kind !== "users" || typeof selected.ref.key !== "string" || !selected.ref.key) {
@@ -477,11 +478,11 @@ export function mapSecurityUserDetail(payload, selected, observedAt = new Date()
     }
     return result[field].map((name) => ({
       domain: "access", kind: "roles", provider: "sysadmin-api-v2", key: name,
-      scope: null, label: name, volatile: false, relation, observedAt,
+      scope: null, label: name, volatile: false, relation, targetRef: getTargetRef(), observedAt,
     }));
   };
   return {
-    ref: { ...selected.ref, kind: "user-detail", observedAt },
+    ref: { ...selected.ref, kind: "user-detail", targetRef: getTargetRef(), observedAt },
     source: READ_ONLY_SOURCES.users.path.replace(/users$/u, "user"),
     relationships: {
       directRoles: mapRoleRefs("Roles", "direct"),
@@ -491,12 +492,13 @@ export function mapSecurityUserDetail(payload, selected, observedAt = new Date()
 }
 
 export function sameSecurityUserRelationships(left, right) {
+  if(!sameTarget(left?.targetRef,right?.targetRef))return false;
   const keys = (refs) => refs === null ? null : refs.map((ref) => ref.key).sort();
   return JSON.stringify(keys(left.relationships.directRoles)) === JSON.stringify(keys(right.relationships.directRoles)) &&
     JSON.stringify(keys(left.relationships.escalationRoles)) === JSON.stringify(keys(right.relationships.escalationRoles));
 }
 
-export function mapSecurityRoleDetail(payload, selected, observedAt = new Date().toISOString()) {
+function coremapSecurityRoleDetail(payload, selected, observedAt = new Date().toISOString()) {
   requireRecord(selected, "Selected IRIS role");
   requireRecord(selected.ref, "Selected IRIS role reference");
   if (selected.ref.kind !== "roles" || typeof selected.ref.key !== "string" || !selected.ref.key) {
@@ -513,7 +515,7 @@ export function mapSecurityRoleDetail(payload, selected, observedAt = new Date()
     }
     return result[field].map((name) => ({
       domain: "access", kind: "roles", provider: "sysadmin-api-v2", key: name,
-      scope: null, label: name, volatile: false, relation: "direct", observedAt,
+      scope: null, label: name, volatile: false, relation: "direct", targetRef: getTargetRef(), observedAt,
     }));
   };
   let resources = null;
@@ -525,7 +527,7 @@ export function mapSecurityRoleDetail(payload, selected, observedAt = new Date()
         throw new Error("IRIS role resource grant is missing its observed name or permissions string.");
       }
       return {
-        ref: { domain: "access", kind: "resources", provider: "sysadmin-api-v2", key: item.Name, scope: null, label: item.Name, volatile: false, relation: "direct", observedAt },
+        ref: { domain: "access", kind: "resources", provider: "sysadmin-api-v2", key: item.Name, scope: null, label: item.Name, volatile: false, relation: "direct", targetRef: getTargetRef(), observedAt },
         permissions: item.Permissions,
       };
     });
@@ -537,7 +539,7 @@ export function mapSecurityRoleDetail(payload, selected, observedAt = new Date()
     throw new Error("IRIS role detail Description must be a string.");
   }
   return {
-    ref: { ...selected.ref, kind: "role-detail", observedAt },
+    ref: { ...selected.ref, kind: "role-detail", targetRef: getTargetRef(), observedAt },
     source: READ_ONLY_SOURCES.roles.path.replace(/roles$/u, "role"),
     description: typeof result.Description === "string" ? result.Description : null,
     grantedRoles: stringArray("GrantedRoles"),
@@ -547,6 +549,7 @@ export function mapSecurityRoleDetail(payload, selected, observedAt = new Date()
 }
 
 export function sameSecurityRoleDetail(left, right) {
+  if(!sameTarget(left?.targetRef,right?.targetRef))return false;
   const normalize = (detail) => ({
     description: detail.description,
     escalationOnly: detail.escalationOnly,
@@ -556,7 +559,7 @@ export function sameSecurityRoleDetail(left, right) {
   return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
 }
 
-export function mapSecurityRoleOwners(payload, selected, observedAt = new Date().toISOString()) {
+function coremapSecurityRoleOwners(payload, selected, observedAt = new Date().toISOString()) {
   requireRecord(selected, "Selected IRIS role");
   requireRecord(selected.ref, "Selected IRIS role reference");
   if (selected.ref.kind !== "roles" || typeof selected.ref.key !== "string" || !selected.ref.key) {
@@ -569,16 +572,17 @@ export function mapSecurityRoleOwners(payload, selected, observedAt = new Date()
     for (const field of ["Name", "Type", "AdminOption"]) {
       if (typeof item[field] !== "string") throw new Error(`IRIS role owner ${field} must be a string.`);
     }
-    return { name: item.Name, type: item.Type, adminOption: item.AdminOption, roleKey: selected.ref.key, observedAt };
+    return { name: item.Name, type: item.Type, adminOption: item.AdminOption, roleKey: selected.ref.key, targetRef: getTargetRef(), observedAt };
   });
 }
 
 export function sameSecurityRoleOwners(left, right) {
+  if(!sameTarget(left?.targetRef,right?.targetRef))return false;
   const normalize = (owners) => owners.map(({ name, type, adminOption }) => [name, type, adminOption]).sort(([a, b, c], [x, y, z]) => `${a}\u0000${b}\u0000${c}`.localeCompare(`${x}\u0000${y}\u0000${z}`));
   return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
 }
 
-export function mapSecurityResourceDetail(payload, selected, observedAt = new Date().toISOString()) {
+function coremapSecurityResourceDetail(payload, selected, observedAt = new Date().toISOString()) {
   requireRecord(selected, "Selected IRIS resource");
   requireRecord(selected.ref, "Selected IRIS resource reference");
   if (selected.ref.kind !== "resources" || typeof selected.ref.key !== "string" || !selected.ref.key) {
@@ -594,7 +598,7 @@ export function mapSecurityResourceDetail(payload, selected, observedAt = new Da
     }
   }
   return {
-    ref: { ...selected.ref, kind: "resource-detail", observedAt },
+    ref: { ...selected.ref, kind: "resource-detail", targetRef: getTargetRef(), observedAt },
     source: READ_ONLY_SOURCES.resources.path.replace(/resources$/u, "resource"),
     description: typeof result.Description === "string" ? result.Description : null,
     publicPermission: typeof result.PublicPermission === "string" ? result.PublicPermission : null,
@@ -602,10 +606,11 @@ export function mapSecurityResourceDetail(payload, selected, observedAt = new Da
 }
 
 export function sameSecurityResourceDetail(left, right) {
+  if(!sameTarget(left?.targetRef,right?.targetRef))return false;
   return left.ref.key === right.ref.key && left.description === right.description && left.publicPermission === right.publicPermission;
 }
 
-export function mapRestServiceSpec(payload, ref, observedAt = new Date().toISOString()) {
+function coremapRestServiceSpec(payload, ref, observedAt = new Date().toISOString()) {
   requireRecord(ref, "Selected REST service reference");
   const spec = requireRecord(payload, "IRIS REST specification");
   const swagger = typeof spec.swagger === "string";
@@ -634,7 +639,7 @@ export function mapRestServiceSpec(payload, ref, observedAt = new Date().toISOSt
   return {
     ref: {
       domain: "applications", kind: "rest-service-spec", provider: ref.provider,
-      key: ref.key, scope: ref.scope ?? null, label: ref.label, volatile: false, observedAt,
+      key: ref.key, scope: ref.scope ?? null, label: ref.label, volatile: false, targetRef: getTargetRef(), observedAt,
     },
     format: swagger ? "Swagger 2.0" : `OpenAPI ${spec.openapi}`,
     title: typeof spec.info?.title === "string" ? spec.info.title : ref.label,
@@ -645,6 +650,7 @@ export function mapRestServiceSpec(payload, ref, observedAt = new Date().toISOSt
 }
 
 export function sameWebAppState(left, right) {
+  if(!sameTarget(left.targetRef||left[0]?.ref?.targetRef,right.targetRef||right[0]?.ref?.targetRef))return false;
   const snapshot = (rows) => rows
     .map((row) => ({
       name: row.name,
@@ -668,7 +674,7 @@ function displayValue(value) {
   return null;
 }
 
-export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toISOString()) {
+function coremapReadOnlySource(sourceId, payload, observedAt = new Date().toISOString()) {
   const isRotation = /^messagesRotation:[0-9A-F]{64}$/u.test(sourceId);
   if (!Object.hasOwn(READ_ONLY_SOURCES, sourceId) && !isRotation) throw new Error("Unknown IRIS read source.");
   const source = READ_ONLY_SOURCES[sourceId] || { label: "messages.log rotation", path: "/opsdeck-api/message-rotation" };
@@ -686,7 +692,7 @@ export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toI
         !Number.isInteger(row.size) || row.size < 0) throw new Error("IRIS log rotation identity is invalid.");
       return Object.freeze({ sourceIdentity: row.sourceIdentity, sourceTimestamp: row.sourceTimestamp, size: row.size });
     });
-    return { sourceId, provider: payload.provider, observedAt, status: payload.status, coverage: payload.coverage === "complete" || payload.coverage === "partial" ? payload.coverage : "unknown", truncated: payload.truncated, scannedCount: payload.scannedCount, count: rotations.length, rotations: Object.freeze(rotations) };
+    return { sourceId, provider: payload.provider, targetRef: getTargetRef(), observedAt, status: payload.status, coverage: payload.coverage === "complete" || payload.coverage === "partial" ? payload.coverage : "unknown", truncated: payload.truncated, scannedCount: payload.scannedCount, count: rotations.length, rotations: Object.freeze(rotations) };
   }
   if (sourceId === "messagesLog" || sourceId === "systemMonitorLog" || isRotation) {
     const mapped = mapFixedLogResult(sourceId, payload);
@@ -704,18 +710,18 @@ export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toI
       } catch {
         analysis = Object.freeze({
           sourceId, source: mapped.source, provider: "opsdeck-embedded-python-log-analysis-v1",
-          observedAt, status: "failed", lineCount: mapped.lines.length, findingCount: 0,
+          targetRef: getTargetRef(), observedAt, status: "failed", lineCount: mapped.lines.length, findingCount: 0,
           truncated: mapped.truncated, findingsTruncated: false, reason: "invalid-analysis-projection", findings: Object.freeze([]),
         });
       }
     }
     return {
-      sourceId, provider: "opsdeck-native-fixed-log-v1", observedAt,
+      sourceId, provider: "opsdeck-native-fixed-log-v1", targetRef: getTargetRef(), observedAt,
       resultType: "log-lines", count: mapped.lines.length, status: mapped.status,
       truncated: mapped.truncated, bytesReturned: mapped.bytesReturned, analysis,
       ...(isRotation ? { sourceIdentity: mapped.sourceIdentity, sourceTimestamp: mapped.sourceTimestamp } : {}),
       items: mapped.lines.map((line, index) => ({
-        ref: { domain: "logs", kind: sourceId, provider: "opsdeck-native-fixed-log-v1", key: `line:${index + 1}`, scope: null, label: `Line ${index + 1}`, observedAt },
+        ref: { domain: "logs", kind: sourceId, provider: "opsdeck-native-fixed-log-v1", key: `line:${index + 1}`, scope: null, label: `Line ${index + 1}`, targetRef: getTargetRef(), observedAt },
         values: { line },
       })),
     };
@@ -729,7 +735,7 @@ export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toI
     return {
       sourceId,
       provider: "iris-monitor-api",
-      observedAt,
+      targetRef: getTargetRef(), observedAt,
       resultType: "stateful-alert-batch",
       count: result.length,
       items: result.map((record, index) => {
@@ -738,7 +744,7 @@ export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toI
           ref: {
             domain: "logs", kind: "alert", provider: "iris-monitor-api",
             key: `batch:${index}`, scope: null, label: `Alert record ${index + 1}`,
-            volatile: true, observedAt,
+            volatile: true, targetRef: getTargetRef(), observedAt,
           },
           // Only field names are surfaced until this provider's non-empty record
           // shape and safe display fields have been qualified on the live instance.
@@ -763,20 +769,20 @@ export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toI
         key: identity === undefined ? `${sourceId}:${index}` : String(identity),
         scope: typeof record.Namespace === "string" ? record.Namespace : typeof record.namespace === "string" ? record.namespace : null,
         label: label === undefined ? identity === undefined ? `${source.label} ${index + 1}` : String(identity) : String(label),
-        volatile: sourceId === "taskHistory" || sourceId === "processes", observedAt,
+        volatile: sourceId === "taskHistory" || sourceId === "processes", targetRef: getTargetRef(), observedAt,
       },
       values,
     };
   };
 
   if (Array.isArray(result)) {
-    return { sourceId, provider: source.path.startsWith("/api/admin/") ? "sysadmin-api-v2" : "iris-management-rest", observedAt, resultType: "array", count: result.length, items: result.map(mapRecord) };
+    return { sourceId, provider: source.path.startsWith("/api/admin/") ? "sysadmin-api-v2" : "iris-management-rest", targetRef: getTargetRef(), observedAt, resultType: "array", count: result.length, items: result.map(mapRecord) };
   }
   requireRecord(result, `IRIS ${sourceId} result`);
-  return { sourceId, provider: "sysadmin-api-v2", observedAt, resultType: "object", count: null, items: [mapRecord(result, 0)] };
+  return { sourceId, provider: "sysadmin-api-v2", targetRef: getTargetRef(), observedAt, resultType: "object", count: null, items: [mapRecord(result, 0)] };
 }
 
-export function mapTaskDetail(payload, selected, observedAt = new Date().toISOString()) {
+function coremapTaskDetail(payload, selected, observedAt = new Date().toISOString()) {
   requireRecord(selected, "Selected IRIS task");
   requireRecord(selected.ref, "Selected IRIS task reference");
   if (selected.ref.kind !== "tasks" || !/^\d{1,10}$/u.test(selected.ref.key)) {
@@ -794,16 +800,17 @@ export function mapTaskDetail(payload, selected, observedAt = new Date().toISOSt
   }
   const mapped = mapReadOnlySource("tasks", payload, observedAt);
   const item = mapped.items[0];
-  return { ...item, ref: { ...selected.ref, kind: "task-detail", observedAt } };
+  return { ...item, ref: { ...selected.ref, kind: "task-detail", targetRef: getTargetRef(), observedAt } };
 }
 
 export function sameTaskDetail(left, right) {
+  if(!sameTarget(left?.targetRef,right?.targetRef))return false;
   return left?.ref?.key === right?.ref?.key && left?.ref?.scope === right?.ref?.scope &&
     JSON.stringify(left?.values) === JSON.stringify(right?.values);
 }
 
 export function sameReadOnlySource(left, right) {
-  if (!left || !right || left.sourceId !== right.sourceId || left.resultType !== right.resultType || left.count !== right.count) {
+  if (!left || !right || !sameTarget(left.targetRef,right.targetRef) || left.sourceId !== right.sourceId || left.resultType !== right.resultType || left.count !== right.count) {
     return false;
   }
   const normalize = (data) => data.items.map((item) => ({
@@ -813,3 +820,23 @@ export function sameReadOnlySource(left, right) {
   })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
   return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
 }
+
+// Target attachment is additive; the same providers remain authoritative.
+function targetedObservation(value) {
+  const attach=item=>{ const result={...item,targetRef:getTargetRef()}; return Object.isFrozen(item)?Object.freeze(result):result; };
+  if(!Array.isArray(value))return attach(value);
+  const rows=value.map(attach);Object.defineProperty(rows,'targetRef',{value:getTargetRef()});return rows;
+}
+export function mapAuditAsyncResult(...args) { return targetedObservation(coremapAuditAsyncResult(...args)); }
+export function mapFixedLogResult(...args) { return targetedObservation(coremapFixedLogResult(...args)); }
+export function mapLogAnalysisResult(...args) { return targetedObservation(coremapLogAnalysisResult(...args)); }
+export function mapServerInfo(...args) { return targetedObservation(coremapServerInfo(...args)); }
+export function mapWebApps(...args) { return targetedObservation(coremapWebApps(...args)); }
+export function mapWebAppDetail(...args) { return targetedObservation(coremapWebAppDetail(...args)); }
+export function mapSecurityUserDetail(...args) { return targetedObservation(coremapSecurityUserDetail(...args)); }
+export function mapSecurityRoleDetail(...args) { return targetedObservation(coremapSecurityRoleDetail(...args)); }
+export function mapSecurityRoleOwners(...args) { return targetedObservation(coremapSecurityRoleOwners(...args)); }
+export function mapSecurityResourceDetail(...args) { return targetedObservation(coremapSecurityResourceDetail(...args)); }
+export function mapRestServiceSpec(...args) { return targetedObservation(coremapRestServiceSpec(...args)); }
+export function mapReadOnlySource(...args) { return targetedObservation(coremapReadOnlySource(...args)); }
+export function mapTaskDetail(...args) { return targetedObservation(coremapTaskDetail(...args)); }

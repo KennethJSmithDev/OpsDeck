@@ -1,0 +1,127 @@
+{
+  "schema": "opsdeck-representation-measurement-v1",
+  "assets": [
+    {
+      "path": "public/trusted-intelligence.js",
+      "bytes": 5965,
+      "sha256": "89df79881ad8d7b6e4295e03882d701a9b4c7afba12cb80e7c0824b3fe2db33f"
+    },
+    {
+      "path": "public/workflow-engine.js",
+      "bytes": 5914,
+      "sha256": "934f2938558962dd56d5f8e23ee3486b6488336105e509001bb308ead181572f"
+    },
+    {
+      "path": "public/entity-graph.js",
+      "bytes": 5007,
+      "sha256": "5ba901f887b35f14000668f45c4ff9fbd46207f1835cd53cadd7bd601e68e68e"
+    },
+    {
+      "path": "public/target-context.js",
+      "bytes": 4151,
+      "sha256": "4c28bfa1df5d35fc05d3b58076a04883cd30107ba6c9b752c1d4360d45ba1df0"
+    },
+    {
+      "path": "public/sysadmin-explorer.js",
+      "bytes": 11677,
+      "sha256": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153"
+    },
+    {
+      "path": "public/export-projection.js",
+      "bytes": 1160,
+      "sha256": "144ff4cfcdf56c25d65292dc91c34337e10bc961f232cfc157d1aad4fafd8d38"
+    },
+    {
+      "path": "public/command-surface.js",
+      "bytes": 1378,
+      "sha256": "048c34851c154ee43c03f1e57bd111f5280e9f761fc29e937de72ba437021ab4"
+    },
+    {
+      "path": "public/api-catalog.json",
+      "bytes": 231423,
+      "sha256": "843ff16d1308b228d57ea88c5b3b3359dcd81f069c5855e5cdf0f1bae578981a"
+    },
+    {
+      "path": "public/capability-summary.json",
+      "bytes": 1954,
+      "sha256": "a402d4e2de6013de1a86607c32b53ff9190f7aeb03ef6fad5580123e5c802d90"
+    },
+    {
+      "path": "public/fx-studio.js",
+      "bytes": 3153,
+      "sha256": "8b10b2b8f3fda04078d3dca2b4ee81a4e5f828eca9ef95684444eb5055db3cd5"
+    },
+    {
+      "path": "public/app.js",
+      "bytes": 209652,
+      "sha256": "381b1ecf671ed9e29fe31e4052f9689d3ee60a50a449327db33c85f9402606dc"
+    },
+    {
+      "path": "public/index.html",
+      "bytes": 475,
+      "sha256": "6ab677b73195316ad28f4e7d172308ce8458211b130079a704cee999d24abf8f"
+    },
+    {
+      "path": "public/styles.css",
+      "bytes": 46433,
+      "sha256": "957018a8c36db6f8a6c843eacbd45934022e25a98ef1e35e083df68df3c7a5cd"
+    },
+    {
+      "path": "src/iris-provider.js",
+      "bytes": 49710,
+      "sha256": "de821f10eb78445cfe609e3eab06f249b1fe83ec5d1d2f6dc9ca92c515bfc0fd"
+    },
+    {
+      "path": "public/evidence-center.js",
+      "bytes": 10019,
+      "sha256": "5bbe890ed9bcc0a3ce9d36b9e778f0e51c9c283e1ec2845c8895c4dfea0f5344"
+    },
+    {
+      "path": "public/operation-engine.js",
+      "bytes": 38427,
+      "sha256": "92ab893f6405345da107a4c8f1e9198ddafca651e8e6acf04b143bf9ac7e122f"
+    },
+    {
+      "path": "public/packages-workspace.js",
+      "bytes": 15129,
+      "sha256": "0f22dc813bea2ff17e04912d27cfdc233ddb4a0d145aa9e6d4550de419f9689e"
+    },
+    {
+      "path": "public/job-center.js",
+      "bytes": 3549,
+      "sha256": "e7adb0a03752b838595837f415b1d585725487d769b09880d6079293fed460dd"
+    },
+    {
+      "path": "public/product-identity.js",
+      "bytes": 1477,
+      "sha256": "e1ee192ae43d4b475a2ba128a51241237fd8a6f0ae090d0d057d5ed8935d7c44"
+    },
+    {
+      "path": "public/semantic-search.js",
+      "bytes": 4421,
+      "sha256": "fe418a880dab8f4393590fd73e38d38ebf044748dcb7529f86155f958003868a"
+    },
+    {
+      "path": "public/snippet-namespace.txt",
+      "bytes": 88,
+      "sha256": "3fbf9fa6a8daa797fdffc6a9282196753d26b235a4e05df41d2d4441e2a44dc6"
+    },
+    {
+      "path": "public/snippet-try-catch.txt",
+      "bytes": 170,
+      "sha256": "53fd2435322bea6ce0076bf79b56baf1410fb2ac5d65f61eb983cf87a1f71a5c"
+    },
+    {
+      "path": "public/snippet-http-read.txt",
+      "bytes": 480,
+      "sha256": "c3f3cc1631e5a3f8c0f0d6290d4c9ffc605381e55a5cd652db308e044c6ccd8b"
+    }
+  ],
+  "browserBytes": 417697,
+  "lazyMetadataBytes": 233377,
+  "allManifestFileBytes": 651812,
+  "preservedBaselineBytes": 228337,
+  "deltaBytes": 189360,
+  "deltaPercent": 82.93,
+  "boundary": "Uncompressed source including lazy modules; not transfer size. Browser timing/heap not inferred."
+}

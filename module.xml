@@ -13,6 +13,16 @@
       <Resource Name="OpsDeck.Product.PKG" />
       <Resource Name="OpsDeckDerivedStore" ProcessorClass="OpsDeck.Product.DerivedStorage" />
 
+      <FileCopy Name="public/trusted-intelligence.js" Target="{$cspdir}opsdeck/trusted-intelligence.js" />
+      <FileCopy Name="public/workflow-engine.js" Target="{$cspdir}opsdeck/workflow-engine.js" />
+      <FileCopy Name="public/entity-graph.js" Target="{$cspdir}opsdeck/entity-graph.js" />
+      <FileCopy Name="public/target-context.js" Target="{$cspdir}opsdeck/target-context.js" />
+      <FileCopy Name="public/sysadmin-explorer.js" Target="{$cspdir}opsdeck/sysadmin-explorer.js" />
+      <FileCopy Name="public/export-projection.js" Target="{$cspdir}opsdeck/export-projection.js" />
+      <FileCopy Name="public/command-surface.js" Target="{$cspdir}opsdeck/command-surface.js" />
+      <FileCopy Name="public/api-catalog.json" Target="{$cspdir}opsdeck/api-catalog.json" />
+      <FileCopy Name="public/capability-summary.json" Target="{$cspdir}opsdeck/capability-summary.json" />
+      <FileCopy Name="public/fx-studio.js" Target="{$cspdir}opsdeck/fx-studio.js" />
       <FileCopy Name="public/app.js" Target="{$cspdir}opsdeck/app.js" />
       <FileCopy Name="public/index.html" Target="{$cspdir}opsdeck/index.html" />
       <FileCopy Name="public/styles.css" Target="{$cspdir}opsdeck/styles.css" />

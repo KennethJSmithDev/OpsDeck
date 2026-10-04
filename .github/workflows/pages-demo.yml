@@ -49,6 +49,18 @@ jobs:
           mkdir _site
           cp demo/index.html _site/index.html
           cp demo/demo-provider.js _site/demo-provider.js
+          cp public/target-context.js _site/target-context.js
+          cp public/sysadmin-explorer.js _site/sysadmin-explorer.js
+          cp public/export-projection.js _site/export-projection.js
+          cp public/command-surface.js _site/command-surface.js
+          cp public/api-catalog.json _site/api-catalog.json
+          cp public/capability-summary.json _site/capability-summary.json
+          cp public/trusted-intelligence.js _site/trusted-intelligence.js
+          cp public/workflow-engine.js _site/workflow-engine.js
+          cp public/entity-graph.js _site/entity-graph.js
+          cp public/fx-studio.js _site/fx-studio.js
+          cp public/product-identity.js _site/product-identity.js
+          cp public/semantic-search.js _site/semantic-search.js
           cp public/app.js _site/app.js
           cp public/styles.css _site/styles.css
           cp public/evidence-center.js _site/evidence-center.js

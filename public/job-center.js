@@ -1,3 +1,4 @@
+import {createTargetRef,getTargetRef} from './target-context.js?v=target-1';
 const JOB_STATES = Object.freeze([
   "ACCEPTED", "QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELED",
   "PAUSED", "DENIED", "UNAVAILABLE", "AMBIGUOUS",
@@ -29,6 +30,7 @@ export function createJob(input) {
   const terminal = ["COMPLETED", "FAILED", "CANCELED"].includes(status);
   return Object.freeze({
     identity: text(input.identity, "Job identity"),
+    targetRef:createTargetRef(input.targetRef||getTargetRef()),
     provider: text(input.provider, "Job provider", 128),
     operation: text(input.operation, "Job operation", 128),
     acceptedAt,
@@ -63,6 +65,7 @@ export function mapAuditJob(query, previous = null) {
   const resultId = query.resultIdentity?.url || previous?.resultIdentity?.id || null;
   return createJob({
     identity,
+    targetRef:query.targetRef||previous?.targetRef,
     provider: "iris-admin-api",
     operation: "POST /api/admin/v2/security/audit/records",
     acceptedAt: previous?.acceptedAt || query.observedAt,

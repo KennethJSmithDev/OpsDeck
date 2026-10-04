@@ -1,0 +1,454 @@
+{
+  "schema": "opsdeck-generic-readback-runtime-v1",
+  "target": "OPSDECK_08_TEST_TARGET",
+  "identity": "OpsDeckQualify",
+  "targetRef": {
+    "id": "local",
+    "label": "LOCAL Docker",
+    "origin": "http://127.0.0.1:52774",
+    "environment": "LOCAL"
+  },
+  "observedAt": "2026-10-04T09:52:48.362Z",
+  "records": [
+    {
+      "operation": "GET /api/admin/v2/doc-dbs",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "EMPTY",
+        "EMPTY"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": true,
+      "reason": "positive-projection-agreement"
+    },
+    {
+      "operation": "GET /api/admin/v2/locks",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 7,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 7,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "positive-projection-agreement"
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/dashboard/ecp",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "UNVERIFIED",
+      "matched": false,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 1,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 1,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "projection-changed"
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/dashboard/globals-and-routines",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "UNVERIFIED",
+      "matched": false,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "projection-changed"
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/dashboard/main",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 12,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 12,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "positive-projection-agreement"
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/dashboard/system-resources",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "UNVERIFIED",
+      "matched": false,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "projection-changed"
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/license-usage",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "positive-projection-agreement"
+    },
+    {
+      "operation": "GET /api/admin/v2/monitor/system-usage/shared-memory",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "positive-projection-agreement"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/privileged-routines",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "EMPTY",
+        "EMPTY"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": true,
+      "reason": "positive-projection-agreement"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/services",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 15,
+          "withheld": 15,
+          "truncated": false
+        },
+        {
+          "redacted": 15,
+          "withheld": 15,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "positive-projection-agreement"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/superservers",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "positive-projection-agreement"
+    },
+    {
+      "operation": "GET /api/admin/v2/security/web-auth",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 2,
+          "withheld": 0,
+          "truncated": false
+        },
+        {
+          "redacted": 2,
+          "withheld": 0,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "positive-projection-agreement"
+    },
+    {
+      "operation": "GET /api/admin/v2/task/manager",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "positive-projection-agreement"
+    },
+    {
+      "operation": "GET /api/admin/v2/task/upcoming",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "positive-projection-agreement"
+    },
+    {
+      "operation": "GET /api/admin/v2/web-app/pct-accesses",
+      "statuses": [
+        200,
+        200
+      ],
+      "state": "VERIFIED",
+      "matched": true,
+      "projectionQualified": true,
+      "projectionStates": [
+        "OBSERVED",
+        "OBSERVED"
+      ],
+      "stats": [
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        },
+        {
+          "redacted": 0,
+          "withheld": 0,
+          "truncated": false
+        }
+      ],
+      "scope": "Existing schema-derived positive response fields only, exact compiled operation/query; redacted and undeclared fields excluded. Separate HTTP projection agreement, no complete endpoint, item behavior, authority closure or mutation-effect claim.",
+      "empty": false,
+      "reason": "positive-projection-agreement"
+    }
+  ],
+  "readerSha256": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153",
+  "specSha256": "1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee5898596650",
+  "dispatchCount": 0,
+  "permissionChanges": 0,
+  "boundary": "Only already positively observed parameter-free GET contracts, current existing identity and grants. Exact compiled requests, raw response bound 1 MiB, existing projection bound 100 rows/64 KiB. Verified only for two successful meaningful untruncated positive projections that agree. Valid empty arrays may agree; opaque/withheld-only objects cannot. Previously changed audit/system counters are not retried to seek a passing snapshot. Raw returned values withheld; no independent implementation, whole endpoint or mutation claim."
+}

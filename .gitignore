@@ -18,9 +18,26 @@ coverage/
 *.temp
 tmp/
 temp/
+tmp-*.txt
 
 # OS / editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
+# Local qualification traces; reviewed aggregate witnesses are explicitly allowed.
+docs/EXECUTION_QUALIFICATION_20261004.md
+docs/evidence/*
+!docs/evidence/representation-measurement.json
+!docs/evidence/phase9-generic-readers.json
+!docs/evidence/phase9-named-readers.json
+!docs/evidence/phase9-entity-readers.json
+!docs/evidence/phase9-configuration-readers.json
+!docs/evidence/phase9-percent-access-readers.json
+!docs/evidence/phase9-semantic-readbacks.json
+!docs/evidence/phase9-owner-readbacks.json
+!docs/evidence/phase9-additional-readbacks.json
+!docs/evidence/phase9-generic-readbacks.json
+scripts/qualify-*
+scripts/deploy-qualification-assets.mjs

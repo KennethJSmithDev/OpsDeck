@@ -1,0 +1,411 @@
+{
+  "schema": "opsdeck-retained-qualification-evidence-index-v1",
+  "boundary": "Hashes identify locally retained qualification evidence. Detailed traces, screenshots, local harnesses and machine-specific diagnostics are excluded from this integration checkpoint. This index is an integrity reference, not publication of their contents or independent reproduction.",
+  "artifacts": [
+    {
+      "path": "docs/evidence/phase2-ledger.png",
+      "bytes": 178164,
+      "sha256": "b23399e0c079557f4fb16658f32494b4194610302d094b4533bd4f4f0814fb30"
+    },
+    {
+      "path": "docs/evidence/phase2-rehearsal.json",
+      "bytes": 1292,
+      "sha256": "371ceed581fb1b527d7accf8ef038c67855480fe6f624a0720a5c3d2d7a19246"
+    },
+    {
+      "path": "docs/evidence/phase3-base-without-fx.png",
+      "bytes": 57385,
+      "sha256": "3b0e35c82479904fc26a82c50b0097fb0217747e016a1255d4b35d7407d2bca5"
+    },
+    {
+      "path": "docs/evidence/phase3-fx-mobile.png",
+      "bytes": 22658,
+      "sha256": "972b7a75a02c462b4925006ef75b4005e5bf66a4e51346eea068c894672d766f"
+    },
+    {
+      "path": "docs/evidence/phase4-command-mobile.png",
+      "bytes": 15718,
+      "sha256": "4d7225a332b46372b5d0174f21c1fdca6b92cbc3802d88b6c8e6b92f6dd03979"
+    },
+    {
+      "path": "docs/evidence/phase5-refusal-mobile.png",
+      "bytes": 14533,
+      "sha256": "8f95a9e0dad63256dbca7b2d5546c9b4e379563553f5a94b790a3a4a8dcc5bf9"
+    },
+    {
+      "path": "docs/evidence/phase5-sysadmin.json",
+      "bytes": 4352,
+      "sha256": "ceb443f8b9c64f8e8faf89b3cfd21b2c6c11f0aff372a21039c066cafc675919"
+    },
+    {
+      "path": "docs/evidence/phase6-targets-mobile.png",
+      "bytes": 12226,
+      "sha256": "a75b3157da7321a0200e2907faac24d60999ccfa7fce169ae51fbf5e0f74a464"
+    },
+    {
+      "path": "docs/evidence/phase6-targets.json",
+      "bytes": 2227,
+      "sha256": "74f8e83c4edd04074c522907954a23c2f9607b4d1a7b5e65fb620f0af189118a"
+    },
+    {
+      "path": "docs/evidence/phase7-graph-evidence.png",
+      "bytes": 65825,
+      "sha256": "5a85c10523532b6f5bbd245a48916a41ba33546ef42ccd1ed76c7ecf2a50a13c"
+    },
+    {
+      "path": "docs/evidence/phase7-graph-mobile.png",
+      "bytes": 3040,
+      "sha256": "17c315523161d9ff967dbdfd6e258ecb5771cae66f104478d40db3d953b8bb67"
+    },
+    {
+      "path": "docs/evidence/phase7-workflow-graph.json",
+      "bytes": 19576,
+      "sha256": "4bb0dec0cfce373b640be8725f4fc06fa2226db6c88815b504abb378db42e806"
+    },
+    {
+      "path": "docs/evidence/phase8-intelligence-mobile.png",
+      "bytes": 33085,
+      "sha256": "1f3807c38b0405522b9c184f950eb310570a8f07f29f8697634450f2e61d7573"
+    },
+    {
+      "path": "docs/evidence/phase8-intent-mutation.json",
+      "bytes": 7164,
+      "sha256": "239c77832a81dad34caaa6d0c03858948db786efb6f928d277bc4f414b05c4b2"
+    },
+    {
+      "path": "docs/evidence/phase8-trusted-intent.json",
+      "bytes": 3770,
+      "sha256": "fc3ebeb699788ce7e4598204c9e53522cf6d2f84aa60d0d07d55ca333012fe02"
+    },
+    {
+      "path": "docs/evidence/phase9-additional-readbacks.json",
+      "bytes": 2564,
+      "sha256": "19537669406442a86732716ad836ce277841043d9975b9f42fe1d251651b5286"
+    },
+    {
+      "path": "docs/evidence/phase9-api-draft-mobile.png",
+      "bytes": 40317,
+      "sha256": "b532ebe82add06a2e10c66f2ff8e462adda081ce3316e72403edba64216a1c7a"
+    },
+    {
+      "path": "docs/evidence/phase9-api-draft-ui.json",
+      "bytes": 1597,
+      "sha256": "9fa51bc47a9581d5e61ca79014f1e4191e5aa32799177daf5625cd8db18cf987"
+    },
+    {
+      "path": "docs/evidence/phase9-api-race-mobile.png",
+      "bytes": 38590,
+      "sha256": "d825b59ccfe47c3a78ea114e499d83708642f47c6aefbecc3c201d22bc9d8d53"
+    },
+    {
+      "path": "docs/evidence/phase9-api-race-ui.json",
+      "bytes": 2985,
+      "sha256": "e8cd26f67112e939823592c1c59bb7babefe6d73e5e39cd597b64c77469e3001"
+    },
+    {
+      "path": "docs/evidence/phase9-browser-export-files.json",
+      "bytes": 1398,
+      "sha256": "5a9d53c19aaa6c27aa89f9d0c7fa761d702f56286faad31aac1d38df67cde847"
+    },
+    {
+      "path": "docs/evidence/phase9-browser-exports.json",
+      "bytes": 1374,
+      "sha256": "555d552afae47c8d76b6b472d14bf8b367fadf84e20074a46c55dce65a8ff9b8"
+    },
+    {
+      "path": "docs/evidence/phase9-capability-mobile.png",
+      "bytes": 36398,
+      "sha256": "b13205fca84e95f339b77f0a470662d88a917f73eba34ede8cfbb7ae82d28fa8"
+    },
+    {
+      "path": "docs/evidence/phase9-capability-scope-mobile.png",
+      "bytes": 53828,
+      "sha256": "4b53aacf155c61c38d55b1fa0898da300554bbf46813c9a57a4c01c6f4990b94"
+    },
+    {
+      "path": "docs/evidence/phase9-capability-ui.json",
+      "bytes": 1591,
+      "sha256": "8c81674eb4bae7b1c7112b86a71a0b3e1cd124ff37f4173539f8b3bad01a0642"
+    },
+    {
+      "path": "docs/evidence/phase9-comparison-graph-mobile.png",
+      "bytes": 33481,
+      "sha256": "63b6b04ccbd5508d89eff715e76f08c0a1f6ee72c107e25819209cf6b39c958c"
+    },
+    {
+      "path": "docs/evidence/phase9-comparison-graph-ui.json",
+      "bytes": 2156,
+      "sha256": "49e65c4d895e5f629dc0dbb604b755643725ce39347d22f4afa1a6bf0a2d232a"
+    },
+    {
+      "path": "docs/evidence/phase9-configuration-readers.json",
+      "bytes": 4228,
+      "sha256": "9c89680d54132a55335b09f9781f457b63b316997def8b031948ee539eb27b8c"
+    },
+    {
+      "path": "docs/evidence/phase9-confirmation-landscape.png",
+      "bytes": 20282,
+      "sha256": "481e2a1f75ea4a4316d1a7e78d2c037a1e9c8aee76ca88cc8a461490c9bb06fd"
+    },
+    {
+      "path": "docs/evidence/phase9-confirmation-mobile.png",
+      "bytes": 41236,
+      "sha256": "6ad60a41b202e52e4f8d80b4a697c22638f2ef74171e8a44bcdc891510a1bc69"
+    },
+    {
+      "path": "docs/evidence/phase9-confirmation-short-mobile.png",
+      "bytes": 20894,
+      "sha256": "7b41ea8206e14cff0d687f7b6e9ff46b2854d08786af66432e3e938735f2e629"
+    },
+    {
+      "path": "docs/evidence/phase9-entity-readers.json",
+      "bytes": 3356,
+      "sha256": "2b2afa07acc481f81dc39aa45c11ac28706fd6cbac790e52cd815cfb07e73548"
+    },
+    {
+      "path": "docs/evidence/phase9-export-desktop.png",
+      "bytes": 72495,
+      "sha256": "c560673e105f0081b321d13d9f0f796f0737e6a5121167ad11076fdec9760add"
+    },
+    {
+      "path": "docs/evidence/phase9-failure-ui.json",
+      "bytes": 1495,
+      "sha256": "24061d88352c19ff0b3bba2f37630549551e640b2b34d20eb78ba29196b82aae"
+    },
+    {
+      "path": "docs/evidence/phase9-fileset-alias-revisit.json",
+      "bytes": 810,
+      "sha256": "74f679bd528f174be91c9d82097ca64ee99bd33e6f9d05f01fbd0f17d4269761"
+    },
+    {
+      "path": "docs/evidence/phase9-fixed-observations.json",
+      "bytes": 1929,
+      "sha256": "b3b2b5fe2faac8195224b852029c4c3e3064fc47c50f65a328be7c9021de5591"
+    },
+    {
+      "path": "docs/evidence/phase9-fixed-rest-namespace-revisit.json",
+      "bytes": 779,
+      "sha256": "f92cce80870e7362a2bf8829def22077eb60f2665fe62e4b8ab1531b0146e980"
+    },
+    {
+      "path": "docs/evidence/phase9-generic-override-ui.json",
+      "bytes": 5264,
+      "sha256": "3f89b80a576f30f269047ef6d17f33ebf2e3aaeb262db399794e91f1ac00600c"
+    },
+    {
+      "path": "docs/evidence/phase9-generic-readbacks.json",
+      "bytes": 13773,
+      "sha256": "23073d8ca942d89adcbc80148e4cfa51b892f942c96aaa8bf2e1d84aff143c8c"
+    },
+    {
+      "path": "docs/evidence/phase9-generic-readers.json",
+      "bytes": 15957,
+      "sha256": "dab9d8074742a2e040a15ae856113b11058e6a992db2e623fe0482bbe89c6c43"
+    },
+    {
+      "path": "docs/evidence/phase9-generic-rehearsal-ledger-mobile.png",
+      "bytes": 33537,
+      "sha256": "e7f26ef4b0f3660411f300afb6df39f7b0f4dea328ca72a71a20352a15bcf73d"
+    },
+    {
+      "path": "docs/evidence/phase9-generic-rehearsal-mobile.png",
+      "bytes": 41612,
+      "sha256": "1ce69255353c62379b4b4927427c0dc553bbaa3a5baf1027e48207123bd37656"
+    },
+    {
+      "path": "docs/evidence/phase9-generic-rehearsal-ui.json",
+      "bytes": 4156,
+      "sha256": "622425e8ccb0cd24edae186dcb306dacf2dcee6cb3af0f2e1d32d5accfa71e32"
+    },
+    {
+      "path": "docs/evidence/phase9-integration-desktop.png",
+      "bytes": 40519,
+      "sha256": "9cde02b75384a41e4b7e52ee631aaee4fff54d89eae4ae78a73cda8ddc33c1e2"
+    },
+    {
+      "path": "docs/evidence/phase9-intent-draft-mobile.png",
+      "bytes": 32450,
+      "sha256": "08c36640e0aabe3d8d4c307928f7384d3c187fc3952e462b748304e17d838ecc"
+    },
+    {
+      "path": "docs/evidence/phase9-intent-draft-ui.json",
+      "bytes": 3490,
+      "sha256": "e960c92fb8ca385c3d8ec6fa339b3a17be3d49d1f926f03a85eaee4827b01871"
+    },
+    {
+      "path": "docs/evidence/phase9-intent-race-mobile.png",
+      "bytes": 32440,
+      "sha256": "dab1dee61fd86bf171ac6e88ef648082aa48a82a26e209bdf8a76382e24968bc"
+    },
+    {
+      "path": "docs/evidence/phase9-intent-race-ui.json",
+      "bytes": 2171,
+      "sha256": "2912f1edaeac0326c3b7d969a2ec726350ce37dc82901a2060f3ff5d3eb44018"
+    },
+    {
+      "path": "docs/evidence/phase9-inventory-denial-mobile.png",
+      "bytes": 30230,
+      "sha256": "11431fa7326fc5d58be2d608488ab074f6fc4b8d26410946216be63a861f16e9"
+    },
+    {
+      "path": "docs/evidence/phase9-inventory-denial-ui.json",
+      "bytes": 1799,
+      "sha256": "7703a4055be0316a79343e41b4459ebd67ca67925c2305d399f336cc92cbe27b"
+    },
+    {
+      "path": "docs/evidence/phase9-landscape-before.png",
+      "bytes": 21741,
+      "sha256": "50dcb98a9e44794a852cc626945f81f0dd354615f1335ca7ffdd7c91b7a65557"
+    },
+    {
+      "path": "docs/evidence/phase9-named-readers.json",
+      "bytes": 8690,
+      "sha256": "271827026b500d9ded77fb400c7fa16bf98127aa41779c25eb95273d81e61e4d"
+    },
+    {
+      "path": "docs/evidence/phase9-native-browser-delivery.json",
+      "bytes": 30988,
+      "sha256": "2e396b3ecb8cd47ab7a5332d7bb74879f0c09e72b9cd5f419a9bb0124a1dc0dc"
+    },
+    {
+      "path": "docs/evidence/phase9-native-http.json",
+      "bytes": 14184,
+      "sha256": "0fe5b2acde90e81696cbb3b60dbb4ab1be8af08a8821271cf7dd1c4a243960d9"
+    },
+    {
+      "path": "docs/evidence/phase9-native-landing-mobile.png",
+      "bytes": 39379,
+      "sha256": "be702d7d370571ff4f6b46fb39d3afa21ef1b116e16f933c0e08aeb1a9613e11"
+    },
+    {
+      "path": "docs/evidence/phase9-native-security-graph.json",
+      "bytes": 1621,
+      "sha256": "c670b58e0e69fc1710f670d5fb3cab448bcd2f9295e803a2f0a4791b4f83c83c"
+    },
+    {
+      "path": "docs/evidence/phase9-native-workflow.json",
+      "bytes": 7154,
+      "sha256": "9648fb389ee47d92ab97e06f8cb727cfc46f124387a191cf73b723835fdd5a6a"
+    },
+    {
+      "path": "docs/evidence/phase9-owner-readbacks.json",
+      "bytes": 1240,
+      "sha256": "8eecb0a65d17274686d6c8935d76d567e27dff4487ac8eed10427998b258ad56"
+    },
+    {
+      "path": "docs/evidence/phase9-package-confirmation-mobile.png",
+      "bytes": 44934,
+      "sha256": "568e6f6fd9493bf429f7c190935b87045e29a50439f9f59b8bc08ea5d5475319"
+    },
+    {
+      "path": "docs/evidence/phase9-package-failed-ledger-desktop.png",
+      "bytes": 68823,
+      "sha256": "9a418f80c159d0b73206531b683c2759e223cc1f678dd2aff85d4b4472363ba7"
+    },
+    {
+      "path": "docs/evidence/phase9-package-ledger-mobile.png",
+      "bytes": 36388,
+      "sha256": "192b4f317c0d3cd7be09e309be937cacb395743bc514c9b4516bf5745c174bdf"
+    },
+    {
+      "path": "docs/evidence/phase9-package-mismatch-desktop.png",
+      "bytes": 65564,
+      "sha256": "18bf53461192e2ec71f68a02131854c790cc54a1e8ad09bb73c0d98fc783e52d"
+    },
+    {
+      "path": "docs/evidence/phase9-package-mismatch-ui.json",
+      "bytes": 3583,
+      "sha256": "73f3eadc6751e95b75a2ca2bb449f80251d275e06355fd80aafd72a4cae8cc49"
+    },
+    {
+      "path": "docs/evidence/phase9-package-ui.json",
+      "bytes": 4524,
+      "sha256": "87cefdae384896e4154323b27d9c1cce731ee25fa4e7c2a3f450cf445767cb1c"
+    },
+    {
+      "path": "docs/evidence/phase9-percent-access-readers.json",
+      "bytes": 2320,
+      "sha256": "b4d79e00e32cc7ef791507c67e2c6ef6fe034346cce9f121598274abb9ea11f1"
+    },
+    {
+      "path": "docs/evidence/phase9-plan-mobile.png",
+      "bytes": 39218,
+      "sha256": "5189f972a7f2aee7eb1fcef7fed7e390dbc7f19a8d7239beb12a2400230da4f1"
+    },
+    {
+      "path": "docs/evidence/phase9-process-revisit.json",
+      "bytes": 1416,
+      "sha256": "b97882ffce8ceff9159075d10118aabee6d9e35678c265d0f90d23ce99425867"
+    },
+    {
+      "path": "docs/evidence/phase9-receipt-mobile.png",
+      "bytes": 33679,
+      "sha256": "60dd571a3cf4a43afed7e319f07dd348c19d893da1e4c374e9e47660b0a31329"
+    },
+    {
+      "path": "docs/evidence/phase9-rest-discovery.json",
+      "bytes": 1616,
+      "sha256": "2ce4318b38d6a72738fe40953adc6ab82225cb1a6b2f7a7fa5ef0638f03f200a"
+    },
+    {
+      "path": "docs/evidence/phase9-rest-v2-shape.json",
+      "bytes": 1322,
+      "sha256": "e5d3e059ec6e5da0aaac06ec94ae2e88f546e08de1524bd506cb89d32ccfffec"
+    },
+    {
+      "path": "docs/evidence/phase9-rest-v2-spec.json",
+      "bytes": 1136,
+      "sha256": "30ad82ff1aee27541bb684d1f4b22c46c0ecc1b31ab7f92205a1362b82f2e4c3"
+    },
+    {
+      "path": "docs/evidence/phase9-rotation-after.json",
+      "bytes": 1329,
+      "sha256": "0d8ae46ff53771884f8d6e909db2ba803c0b8958e5c163a58bc70f71189f7dcf"
+    },
+    {
+      "path": "docs/evidence/phase9-rotation-before.json",
+      "bytes": 1222,
+      "sha256": "44dad451d1860e4979d2e424a89e0627015c61d51a8e715655fa5247a1170f30"
+    },
+    {
+      "path": "docs/evidence/phase9-rotation-failure-mobile.png",
+      "bytes": 30025,
+      "sha256": "1724a28c286a052413c8ef4b4598aeaeac7317283540dcf823930a6b752291ca"
+    },
+    {
+      "path": "docs/evidence/phase9-semantic-readbacks.json",
+      "bytes": 4315,
+      "sha256": "99c0138a06312e8e3a0ea99a8c8885022b1e77ae2270082eb6e99779dbcd417e"
+    },
+    {
+      "path": "docs/evidence/phase9-short-height-review-ui.json",
+      "bytes": 4193,
+      "sha256": "0d06b390a6e108b955a8ddde4ca7fccfa646f1e2110f84f0554e9c6e2fc0dbbd"
+    },
+    {
+      "path": "docs/evidence/phase9-static-deployment.json",
+      "bytes": 7806,
+      "sha256": "390857eb1c0d613c864a87bb68c3d08e44e0884042455f735c70970e344c8001"
+    },
+    {
+      "path": "docs/evidence/phase9-target-comparison-mobile.png",
+      "bytes": 32047,
+      "sha256": "f328587308317ea5f1a2e31a5c339d87b86213c0c79dd5dde7f5b12e4b5b96f3"
+    },
+    {
+      "path": "docs/evidence/phase9-target-comparison-ui.json",
+      "bytes": 5063,
+      "sha256": "8b7a5f984167f59e3ed6835dc38f0cb2a32d4c4ef4134b76a822eaa073724250"
+    },
+    {
+      "path": "docs/evidence/representation-measurement.json",
+      "bytes": 4027,
+      "sha256": "cb7b5ff8741da0ff4d465f569335af03785ecf08b0350c136aac6ff86e9d5a29"
+    },
+    {
+      "path": "docs/EXECUTION_QUALIFICATION_20261004.md",
+      "bytes": 64918,
+      "sha256": "5504061f801c642210e3ea5759e24bd93bb97993e51b95863f1bc6a0837129a7"
+    }
+  ]
+}

@@ -125,7 +125,7 @@ test("maps observed role detail and direct resource grants using selected list i
 test("maps direct role owners without coercing string AdminOption or inferring holder types", () => {
   const selected = { ref: { kind: "roles", key: "%Manager" } };
   const rows = mapSecurityRoleOwners(envelope([{ Name: "ops-user", Type: "User", AdminOption: "Yes" }]), selected, "2026-09-23T00:00:00.000Z");
-  assert.deepEqual(rows, [{ name: "ops-user", type: "User", adminOption: "Yes", roleKey: "%Manager", observedAt: "2026-09-23T00:00:00.000Z" }]);
+  assert.deepEqual(rows, [{ name: "ops-user", type: "User", adminOption: "Yes", roleKey: "%Manager", observedAt: "2026-09-23T00:00:00.000Z", targetRef:{id:'local',label:'LOCAL',origin:'same-origin',environment:'LOCAL'} }]);
   const reordered = mapSecurityRoleOwners(envelope([{ Name: "ops-user", Type: "User", AdminOption: "Yes" }]), selected);
   assert.equal(sameSecurityRoleOwners(rows, reordered), true);
   assert.throws(() => mapSecurityRoleOwners(envelope([{ Name: "ops-user", Type: "User", AdminOption: true }]), selected), /AdminOption must be a string/);
@@ -362,6 +362,7 @@ test("enforces fixed log source identities and bounded sanitized output", () => 
 test("distinguishes empty, unavailable, denied, and failed fixed log reads", () => {
   assert.deepEqual(mapFixedLogResult("systemMonitorLog", { status: "available", lines: [], truncated: false }), {
     source: "SystemMonitor.log", status: "empty", lines: [], truncated: false, bytesReturned: 0,
+    targetRef:{id:'local',label:'LOCAL',origin:'same-origin',environment:'LOCAL'},
   });
   for (const status of ["unavailable", "denied", "read-failure"]) {
     const result = mapFixedLogResult("systemMonitorLog", { status, lines: ["must not escape"] });

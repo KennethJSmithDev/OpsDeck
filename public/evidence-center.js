@@ -1,12 +1,15 @@
+import {createTargetRef,getTargetRef} from './target-context.js?v=target-1';
 const MAX_ITEMS = 100;
 const MAX_EXPORT_BYTES = 65_536;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9:._/-]{0,127}$/u;
 const STATES = new Set(["VERIFIED", "PARTIAL", "FAILED", "UNVERIFIED", "BLOCKED", "UNAVAILABLE", "DENIED"]);
-const KINDS = new Set(["read-observation", "operation-plan", "operation-receipt", "qualification"]);
+const KINDS = new Set(["read-observation", "operation-plan", "operation-receipt", "qualification", "confirmation", "refusal"]);
 
 const SOURCE_FIELDS = Object.freeze(["identity", "provider", "apiVersion", "version", "namespace", "scope", "observedAt"]);
 const RESOURCE_FIELDS = Object.freeze(["domain", "kind", "provider", "key", "scope", "label", "volatile", "observedAt"]);
 const EVIDENCE_FIELDS = Object.freeze({
+  "confirmation": Object.freeze(["operationId", "capability", "risk", "authorityState"]),
+  "refusal": Object.freeze(["operationId", "capability", "providerState", "reason"]),
   "read-observation": Object.freeze(["matched", "count", "fields", "providerState", "verification", "identityBasis", "continuationFields", "truncated", "bytesReturned"]),
   "operation-plan": Object.freeze(["operationId", "capability", "risk", "requiresConfirmation", "authorityState", "preStateEvidence", "expectedReadback", "execution", "executorIdentity", "canExecute", "synthetic"]),
   "operation-receipt": Object.freeze(["operationId", "verification", "verificationReason", "providerResponseStatus", "evidenceSources", "warnings"]),
@@ -59,6 +62,7 @@ export function createEvidenceRef(input) {
   const evidence = projectFields(input.evidence, EVIDENCE_FIELDS[kind], "evidence");
   return Object.freeze({
     id: input.id,
+    targetRef:createTargetRef(input.targetRef||input.resource?.targetRef||getTargetRef()),
     kind,
     state: input.state,
     title: text(input.title, "evidence title"),
@@ -86,6 +90,7 @@ export function operationReceiptEvidence(receipt) {
   }
   return createEvidenceRef({
     id: receipt.id,
+    targetRef:receipt.targetRef,
     kind: "operation-receipt",
     state: receipt.verification,
     title: receipt.intent,
@@ -97,11 +102,16 @@ export function operationReceiptEvidence(receipt) {
   });
 }
 
+export function evidenceLabel(record) {
+  const prefix=record.kind==='operation-receipt'&&record.state==='VERIFIED'?'Verified Receipt · ':record.kind==='operation-plan'?'Operation Rehearsal · ':'';
+  return `${prefix}${record.title}`;
+}
+
 export function filterEvidence(collection, query = "", state = "ALL") {
   if (!collection || !Array.isArray(collection.records)) throw new Error("Evidence collection is invalid.");
   if (state !== "ALL" && !STATES.has(state)) throw new Error("Evidence filter state is invalid.");
   const needle = String(query).trim().toLowerCase().slice(0, 128);
-  return collection.records.filter(record => (state === "ALL" || record.state === state) && (!needle || `${record.title} ${record.summary} ${record.kind} ${record.id}`.toLowerCase().includes(needle)));
+  return collection.records.filter(record => (state === "ALL" || record.state === state) && (!needle || `${evidenceLabel(record)} ${record.summary} ${record.kind} ${record.id} ${record.targetRef.label} ${record.resource?.key||''}`.toLowerCase().includes(needle)));
 }
 
 function exportProjection(records) {
@@ -126,4 +136,32 @@ export function exportEvidenceMarkdown(collection, records = collection.records)
   return output;
 }
 
+export function exportEvidenceCSV(collection, records = collection.records) {
+  const safe = exportProjection(records);
+  // CSV cells represent the existing scalar fields; compound fields stay JSON.
+  // Quote every cell and neutralize spreadsheet formula prefixes on import.
+  const cell = value => {
+    const text = typeof value === 'object' ? JSON.stringify(value) : String(value ?? '');
+    const safeText = /^[=+@\-\t\r]/u.test(text) ? `'${text}` : text;
+    return `"${safeText.replaceAll('"','""')}"`;
+  };
+  const keys = ['id','targetRef','kind','state','title','observedAt','source','resource','summary','evidence'];
+  const output = [keys.map(cell).join(','),...safe.map(record=>keys.map(key=>cell(record[key])).join(','))].join('\r\n')+'\r\n';
+  if (new TextEncoder().encode(output).byteLength > MAX_EXPORT_BYTES) throw new Error('Evidence export exceeds 64 KiB.');
+  return output;
+}
+
 export const EVIDENCE_LIMITS = Object.freeze({ maxItems: MAX_ITEMS, maxExportBytes: MAX_EXPORT_BYTES });
+
+// A projection over existing session Evidence, with no independent event store.
+export function sessionLedger(collection) {
+  const categories = { observations: [], plans: [], confirmations: [], receipts: [], findings: [], refusals: [] };
+  for (const record of collection.records) {
+    const category = record.kind === 'operation-plan' ? 'plans' : record.kind === 'operation-receipt' ? 'receipts' :
+      record.kind === 'confirmation' ? 'confirmations' : record.kind === 'refusal' || ['DENIED','BLOCKED'].includes(record.state) ? 'refusals' :
+      record.summary.startsWith('INFERRED:') ? 'findings' : 'observations';
+    categories[category].push(record);
+  }
+  return Object.freeze({ state: collection.state, truncated: collection.truncated,
+    categories: Object.freeze(Object.fromEntries(Object.entries(categories).map(([key, records]) => [key, Object.freeze(records)]))) });
+}

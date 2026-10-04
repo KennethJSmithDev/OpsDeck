@@ -1,0 +1,73 @@
+{
+  "schema": "opsdeck-generic-reader-runtime-v1",
+  "target": "OPSDECK_08_TEST_TARGET",
+  "targetRef": {
+    "id": "local",
+    "label": "LOCAL Docker",
+    "origin": "http://127.0.0.1:52774",
+    "environment": "LOCAL"
+  },
+  "identity": "OpsDeckQualify",
+  "observedAt": "2026-10-04T09:47:54.846Z",
+  "records": [
+    {
+      "operation": "GET /api/admin/v2/web-app/pct-accesses",
+      "method": "GET",
+      "path": "/api/admin/v2/web-app/pct-accesses",
+      "status": 200,
+      "responseBytes": 1126,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 36.54,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 10
+      },
+      "prerequisite": true
+    },
+    {
+      "operation": "GET /api/admin/v2/web-app/pct-access",
+      "method": "GET",
+      "path": "/api/admin/v2/web-app/pct-access",
+      "status": 200,
+      "responseBytes": 80,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 8.16,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 1
+      },
+      "prerequisite": false
+    }
+  ],
+  "specSha256": "1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee5898596650",
+  "readerSha256": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153",
+  "dispatchCount": 0,
+  "permissionChanges": 0,
+  "result": "PASS",
+  "mode": "own-identity-and-observed-entity-parameters",
+  "boundary": "Actual bounded GETs under the existing identity. Named parameters use the fixture identity, existing qualified resource/table or identities from positive prerequisite observations. Sensitive configuration/session/license families excluded. Values withheld from artifact; OBSERVED/EMPTY prove operation response only, not reproduction or independent verification. Denials and unresolved schemas stay separate."
+}

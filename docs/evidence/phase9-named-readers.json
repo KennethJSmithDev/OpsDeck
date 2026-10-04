@@ -1,0 +1,333 @@
+{
+  "schema": "opsdeck-generic-reader-runtime-v1",
+  "target": "OPSDECK_08_TEST_TARGET",
+  "targetRef": {
+    "id": "local",
+    "label": "LOCAL Docker",
+    "origin": "http://127.0.0.1:52774",
+    "environment": "LOCAL"
+  },
+  "identity": "OpsDeckQualify",
+  "observedAt": "2026-10-04T08:52:50.239Z",
+  "records": [
+    {
+      "operation": "GET /api/admin/v2/security/user",
+      "method": "GET",
+      "path": "/api/admin/v2/security/user",
+      "status": 200,
+      "responseBytes": 395,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 33.54,
+      "stats": {
+        "redacted": 2,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 14
+      },
+      "prerequisite": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/role",
+      "method": "GET",
+      "path": "/api/admin/v2/security/role",
+      "status": 200,
+      "responseBytes": 341,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 10.72,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 4
+      },
+      "prerequisite": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/role/owners",
+      "method": "GET",
+      "path": "/api/admin/v2/security/role/owners",
+      "status": 200,
+      "responseBytes": 119,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 20.84,
+      "stats": {
+        "redacted": 0,
+        "withheld": 1,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 1
+      },
+      "prerequisite": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/resource",
+      "method": "GET",
+      "path": "/api/admin/v2/security/resource",
+      "status": 200,
+      "responseBytes": 164,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 7.7,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 2
+      },
+      "prerequisite": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/sql-admin-privileges",
+      "method": "GET",
+      "path": "/api/admin/v2/security/sql-admin-privileges",
+      "status": 200,
+      "responseBytes": 62,
+      "state": "EMPTY",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 14.64,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 0
+      },
+      "prerequisite": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/sql-privileges",
+      "method": "GET",
+      "path": "/api/admin/v2/security/sql-privileges",
+      "status": 200,
+      "responseBytes": 2884,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 276.28,
+      "stats": {
+        "redacted": 0,
+        "withheld": 30,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 15
+      },
+      "prerequisite": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/sql-column-privileges",
+      "method": "GET",
+      "path": "/api/admin/v2/security/sql-column-privileges",
+      "status": 200,
+      "responseBytes": 62,
+      "state": "EMPTY",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 12.71,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 0
+      },
+      "prerequisite": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/services",
+      "method": "GET",
+      "path": "/api/admin/v2/security/services",
+      "status": 200,
+      "responseBytes": 3381,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 9.07,
+      "stats": {
+        "redacted": 15,
+        "withheld": 15,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 15
+      },
+      "prerequisite": true
+    },
+    {
+      "operation": "GET /api/admin/v2/security/service",
+      "method": "GET",
+      "path": "/api/admin/v2/security/service",
+      "status": 200,
+      "responseBytes": 153,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 6.51,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 4
+      },
+      "prerequisite": false
+    },
+    {
+      "operation": "GET /api/admin/v2/security/superservers",
+      "method": "GET",
+      "path": "/api/admin/v2/security/superservers",
+      "status": 200,
+      "responseBytes": 135,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 7.49,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 1
+      },
+      "prerequisite": true
+    },
+    {
+      "operation": "GET /api/admin/v2/security/superserver",
+      "method": "GET",
+      "path": "/api/admin/v2/security/superserver",
+      "status": 200,
+      "responseBytes": 398,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 6.98,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "object",
+        "fieldCount": 16
+      },
+      "prerequisite": false
+    },
+    {
+      "operation": "GET /api/admin/v2/tasks",
+      "method": "GET",
+      "path": "/api/admin/v2/tasks",
+      "status": 200,
+      "responseBytes": 3794,
+      "state": "OBSERVED",
+      "reason": "",
+      "targetRef": {
+        "id": "local",
+        "label": "LOCAL Docker",
+        "origin": "http://127.0.0.1:52774",
+        "environment": "LOCAL"
+      },
+      "elapsedMs": 8.2,
+      "stats": {
+        "redacted": 0,
+        "withheld": 0,
+        "truncated": false
+      },
+      "projectedShape": {
+        "type": "array",
+        "count": 16
+      },
+      "prerequisite": true
+    }
+  ],
+  "specSha256": "1ab154c7c5d9b25e6b227944a44a120c670686f876c2e14abfb9ee5898596650",
+  "readerSha256": "943f5b42452717feee905a2fb8a277e880cbb75b23060ca2800841070e2ac153",
+  "dispatchCount": 0,
+  "permissionChanges": 0,
+  "result": "PASS",
+  "mode": "own-identity-and-observed-entity-parameters",
+  "boundary": "Actual bounded GETs under the existing identity. Named parameters use the fixture identity, existing qualified resource/table or identities from positive prerequisite observations. Sensitive configuration/session/license families excluded. Values withheld from artifact; OBSERVED/EMPTY prove operation response only, not reproduction or independent verification. Denials and unresolved schemas stay separate."
+}

@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { comparePackageCatalogToInstalled, createPackageInventory, fixturePackageInventory, mapAvailablePackageCatalog, mapInstalledPackageInventory, PACKAGE_FIXTURE_SOURCE, packageResourceRef, preparePackagePlan } from "../public/packages-workspace.js";
+import {DEFAULT_TARGET} from '../public/target-context.js?v=target-1';
 
 test("fixture inventory has stable scoped Package ResourceRefs and remains visibly synthetic", () => {
   const inventory = fixturePackageInventory();
   assert.equal(inventory.synthetic, true);
   assert.equal(inventory.sourceIdentity, PACKAGE_FIXTURE_SOURCE);
   assert.equal(inventory.packages.length, 2);
-  assert.deepEqual(packageResourceRef({ name: "sample-observer", namespace: "USER" }), { domain: "applications", kind: "package", provider: "opsdeck-package-fixture-v1", key: "sample-observer", scope: "USER", label: "sample-observer", observedAt: new Date(0).toISOString() });
+  assert.deepEqual(packageResourceRef({ name: "sample-observer", namespace: "USER" }), { domain: "applications", kind: "package", provider: "opsdeck-package-fixture-v1", key: "sample-observer", scope: "USER", label: "sample-observer", targetRef:DEFAULT_TARGET, observedAt: new Date(0).toISOString() });
   assert.equal(inventory.packages.find(item => item.name === "sample-observer").state, "update-available");
   assert.equal(inventory.packages.find(item => item.name === "sample-reporting-kit").state, "available");
 });
@@ -51,7 +52,7 @@ test("installed IPM projection preserves namespace and installed provenance with
   assert.equal(inventory.packages.length, 1);
   assert.deepEqual(inventory.packages[0].ref, {
     domain: "applications", kind: "package", provider: "iris-ipm-installed-v1",
-    key: "opsdeck", scope: "%SYS", label: "opsdeck", observedAt: "2026-10-02T12:00:00Z",
+    key: "opsdeck", scope: "%SYS", label: "opsdeck", targetRef:DEFAULT_TARGET, observedAt: "2026-10-02T12:00:00Z",
   });
   assert.equal(inventory.packages[0].installedVersion, "0.3.0");
   assert.equal(inventory.packages[0].availableVersion, null);
