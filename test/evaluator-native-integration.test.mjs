@@ -71,8 +71,8 @@ test("System About uses canonical product identity and leaves provider view inta
     providerDomainView("system")
   `, context);
   assert.match(identity, /Beta Release[\s\S]*OpsDeck[\s\S]*Version 0\.2/u);
-  assert.match(identity, /Internal version[\s\S]*0\.7\.0/u);
-  assert.match(identity, /Package version[\s\S]*0\.7\.0/u);
+  assert.match(identity, /Internal version[\s\S]*0\.8\.0/u);
+  assert.match(identity, /Package version[\s\S]*0\.8\.0/u);
   assert.match(identity, /IRIS Fixture 2026\.2/u);
   assert.match(identity, /Namespace[\s\S]*%SYS/u);
   assert.match(identity, /Native IRIS CSP application/u);
@@ -380,4 +380,41 @@ test("logout during operation preflight prevents further authority requests or d
   assert.equal(count, 1);
   assert.equal(vm.runInContext('state.webAppOperation', context), null);
   assert.equal(vm.runInContext('state.operationEvidence.length', context), 0);
+});
+
+test("live Packages reviews pinned intent, confirms once and projects install/remove receipts", async () => {
+  let installedVersion = null;
+  const calls = [];
+  const name = "qualification-package";
+  const { context } = contextFor("/opsdeck/index.html", async (path, options) => {
+    calls.push({ path, method: options.method });
+    let value;
+    if (path === "/opsdeck-api/packages") value = { provider: "iris-ipm-installed-v1", namespace: "%SYS", status: installedVersion ? "available" : "empty", packages: installedVersion ? [{ name, installedVersion }] : [] };
+    else if (path === "/opsdeck-api/package-authority") value = { provider: "iris-ipm-operations-v1", username: "Qualification", namespace: "%SYS", state: "SUPPORTED" };
+    else if (path.startsWith("/opsdeck-api/available-packages?")) value = catalog();
+    else if (path === "/opsdeck-api/package-operation") { const body = JSON.parse(options.body); installedVersion = body.action === "install" ? body.version : null; value = { provider: "iris-ipm-operations-v1", username: "Qualification", namespace: "%SYS", state: "ACCEPTED" }; }
+    else throw new Error("Unexpected request");
+    return { ok: true, status: 200, json: async () => realmJSON(value) };
+  });
+  function realmJSON(value) { return vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify(value))})`, context); }
+  function catalog() { return { provider: "iris-ipm-available-v1", namespace: "%SYS", name, status: "available", coverage: "complete", repositoryCount: 1, availableRepositoryCount: 1, truncated: false, packages: [{ name, availableVersion: "0.0.1", repository: "qualification-repo" }] }; }
+  vm.runInContext('state.connected=true;state.info={username:"Qualification",serverVersion:"Fixture IRIS"};nativeAuthorization="Basic opaque-fixture";state.applicationsTab="packages";', context);
+  await vm.runInContext('loadPackageInventory(true)', context);
+  context.fixtureCatalog = realmJSON(catalog());
+  vm.runInContext('state.availablePackageCatalog=mapAvailablePackageCatalog(fixtureCatalog)', context);
+  for (const action of ["install", "remove"]) {
+    await vm.runInContext('prepareLivePackageOperation(0)', context);
+    assert.equal(vm.runInContext('state.livePackageOperation.state', context), "REVIEW_REQUIRED");
+    assert.match(vm.runInContext('packagesWorkspaceView()', context), new RegExp(`Confirm ${action} qualification-package`));
+    const before = calls.filter(x => x.method === "POST").length;
+    await vm.runInContext('confirmLivePackageOperation(state.livePackageOperation.plan.id)', context);
+    await vm.runInContext('confirmLivePackageOperation(state.livePackageOperation.plan.id)', context);
+    assert.equal(calls.filter(x => x.method === "POST").length, before + 1);
+    assert.equal(vm.runInContext('state.livePackageOperation.state', context), "VERIFIED");
+  }
+  assert.equal(installedVersion, null);
+  assert.equal(vm.runInContext('currentEvidenceCollection().records.filter(r=>r.kind==="operation-receipt").length', context), 2);
+  assert.match(vm.runInContext('evidenceView()', context), /operation-receipt/u);
+  vm.runInContext('clearSession()', context);
+  assert.equal(vm.runInContext('state.livePackageOperation', context), null);
 });

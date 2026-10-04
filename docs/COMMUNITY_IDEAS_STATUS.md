@@ -6,15 +6,15 @@ This record distinguishes Community Ideas Portal requests from adjacent product 
 
 | Field | Status |
 |---|---|
-| Community status | Community Opportunity; implementation incomplete |
+| Community status | Community Opportunity; requested behavior complete at the qualified Docker fixture scope. |
 | Problem requested | Discover available and installed packages and install packages from the administration portal. |
-| OpsDeck implementation | Live installed-package inventory and bounded exact-name configured-repository catalog projection are integrated. Package planning is a synthetic preview; package mutation is not connected to the verified executor. |
-| Semantic equivalence | Inventory and catalog observations cover only discovery portions; no package installation/removal behavior is claimed. |
-| Authority boundary | Existing caller authority is required. No SQL privilege or package authority was added. |
-| Test | Local provider/workspace tests cover installed/available states, repository coverage, and version relationships. Connected Edge rendered live catalog data under the Docker-only `OpsDeckQualify` identity; authority is fixture-specific and does not establish ordinary operator access. |
+| OpsDeck implementation | Live installed inventory, bounded configured-repository discovery, version relationships, reviewed install/remove plans, confirmation, shared executor, authoritative inventory read-back and Evidence receipts. |
+| Semantic equivalence | Operators discover available and installed packages and install the selected package from the Packages workspace. One locally controlled package was installed and removed through this UI. |
+| Authority boundary | Current IRIS caller authority; no execution identity substitution. Qualification used individually approved temporary Docker database WRITE and exact SQL grants, all revoked afterward. This does not establish ordinary-operator authority. |
+| Test | Shared-engine provider/selection tests; real authenticated HTTP and Edge install/remove with VERIFIED receipts, authoritative absence and unrelated-package preservation; see VERSION_GATE_LEDGER.md. |
 | Representation cost | Catalog source delta was recorded in `OPSDECK_0_9_PERFORMANCE_BASELINE.md`; no global catalog preload. |
-| Public demo path | Packages workspace; catalog and package operations remain explicitly scoped by their qualification state. |
-| Bonus claim | Not claimed; DPI-I-261 is not complete. |
+| Public demo path | Native Applications → Packages → exact catalog lookup → reviewed plan → confirmation → Evidence. Safe-demo data remains synthetic and review-only. |
+| Bonus claim | Implementation qualified at the recorded scope; bonus eligibility, award and stacking are not confirmed or claimed. |
 
 ## IRIS Management for Humans — contextual learning capability
 

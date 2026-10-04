@@ -1,4 +1,4 @@
-import { createOperationPlan } from "./operation-engine.js?v=opsdeck-0.7.0";
+import { createOperationPlan } from "./operation-engine.js?v=opsdeck-0.8.0-ipm";
 
 const SYNTHETIC_SOURCE = "opsdeck-fixture://package-catalog";
 const INSTALLED_IPM_SOURCE = "iris-ipm-installed-v1";
@@ -130,6 +130,16 @@ export function comparePackageCatalogToInstalled(catalog, installedInventory) {
       state: relationship === "INSTALLED_OLDER" ? "update-available" : "installed",
     });
   }));
+}
+
+// UI intent only. Fresh inventory, authority and confirmation remain executor-owned.
+export function livePackageSelection(row) {
+  if (!row || row.namespace !== "%SYS" || !SAFE_NAME.test(row.name) || ["opsdeck", "zpm"].includes(row.name) ||
+      !row.installedStateKnown || !row.repository || !/^[A-Za-z0-9_.-]{1,128}$/.test(row.repository)) return null;
+  const action = row.installedVersion ? "remove" : "install";
+  const version = action === "remove" ? row.installedVersion : row.availableVersion;
+  if (!/^\d+\.\d+\.\d+$/.test(version || "")) return null;
+  return Object.freeze({ action, packageName: row.name, namespace: row.namespace, installedVersion: row.installedVersion || null, requestedVersion: version, sourceIdentity: row.repository });
 }
 
 export function createPackageInventory(items = FIXTURE_PACKAGES, providerState = "AVAILABLE") {

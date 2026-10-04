@@ -19,8 +19,8 @@
 |---|---|---|
 | 0.5 operational visibility | **ACCEPTED — PASS** | All explicit v0.5 criteria passed at their qualified scope. See the v0.5 acceptance record below. The generic `INSTALLED` badge is presentation debt, not a contradictory or false state. |
 | 0.6 verified operations | **ACCEPTED — PASS** | Exact fixture create/remove, shared executor, live receipt/Evidence consumption, cleanup and sibling preservation pass. |
-| 0.7 operational Evidence | **NOT ACCEPTED** | A real OperationReceipt consumed and rendered with its evidence-backed findings. |
-| 0.8 package operations | **NOT ACCEPTED** | Same-executor package install/remove, DPI-I-261 completion, and unrelated-package preservation. |
+| 0.7 operational Evidence | **ACCEPTED — PASS** | Real browser-reviewed plans, impact, verified receipts and session Evidence; exact scope in VERSION_GATE_LEDGER.md. |
+| 0.8 package operations | **ACCEPTED — PASS** | Shared-executor fixture install/remove, live Edge plans/receipts, authoritative absence, unrelated-package preservation, and changed native package lifecycle pass. Qualification used explicitly approved temporary Docker grants, subsequently revoked. |
 | 0.9 intelligent operations | **NOT ACCEPTED** | Operational core plus owned derived storage, real Vector Search, semantic retrieval, AI boundary, morphing/responsive browser qualification, and full product lifecycle. |
 
 The live installed UI demonstrated the catalog behavior and correct version facts at its installed package scope. The current-source explicit relationship label remains source/test-qualified only.

@@ -82,7 +82,7 @@ OpsDeck is deliberately thin:
 
 ## Built with the IRIS Community
 
-The integration branch has accepted the **v0.5 operational-visibility milestone**. A Docker-only connected Edge qualification rendered live installed IPM registrations and an exact-name available-catalog result with repository coverage and both installed/available versions. Catalog authority was qualified only for the disposable fixture identity; package install/remove through the verified executor remains unqualified. This is not a public `0.5.0` release. DPI-I-261 remains partial because package installation is not implemented, and no Community Ideas bonus claim is made.
+The integration branch has accepted **v0.8 operational core**: live observations, verified reversible web-application operations, session Evidence, and reviewed package install/remove through the same executor. Connected Edge rendered actual package plans and VERIFIED receipts on the disposable Docker target. DPI-I-261's requested discovery and installation behavior is complete at that fixture's qualified authority scope. Temporary qualification grants were revoked afterward; ordinary operator authority and arbitrary third-party packages are not qualified. This is an integration milestone, not a public release. Public identity remains **OpsDeck · Beta Release 0.2**; no bonus award or stacking claim is made. See [the exact acceptance ledger](docs/VERSION_GATE_LEDGER.md).
 
 The read-only ObjectScript snippet library and contextual IRIS help are community-oriented learning aids, not verified Ideas Portal submissions. Snippets are inert text, load on selection, and are never executed by OpsDeck.
 

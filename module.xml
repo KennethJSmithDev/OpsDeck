@@ -3,8 +3,8 @@
   <Document name="opsdeck.ZPM">
     <Module>
       <Name>opsdeck</Name>
-      <Version>0.7.0</Version>
-      <Description>OpsDeck read-only operations console for InterSystems IRIS</Description>
+      <Version>0.8.0</Version>
+      <Description>OpsDeck bounded observations and verified operations for InterSystems IRIS</Description>
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>
       <Resource Name="OpsDeck.Product.PKG" />

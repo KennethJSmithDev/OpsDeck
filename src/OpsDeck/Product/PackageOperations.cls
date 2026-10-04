@@ -26,7 +26,7 @@ ClassMethod Dispatch() As %Status
         write result.%ToJSON()
         quit $$$OK
     }
-    set originalIO=$io,sink=$select($zversion(1)=3:"/dev/null",1:"NUL"),sinkOpen=0,started=0
+    set originalIO=$io,sink=$select($zversion(1)=3:"/dev/null",1:"NUL"),sinkOpen=0,started=0,stage="input"
     try {
         if %request.Content.Size>4096 throw ##class(%Exception.General).%New("invalid-input")
         set input=##class(%DynamicObject).%FromJSON(%request.Content)
@@ -40,6 +40,7 @@ ClassMethod Dispatch() As %Status
         if (input.namespace'=$namespace)||((input.action'="install")&&(input.action'="remove")) throw ##class(%Exception.General).%New("invalid-input")
         if (name="opsdeck")||(name="zpm")||($length(name)>128)||(name="")||(name'=$zconvert(name,"L"))||($extract(name,1)'?1AN)||($translate(name,"abcdefghijklmnopqrstuvwxyz0123456789_.-","")'="") throw ##class(%Exception.General).%New("invalid-input")
         if (version'?1.N1"."1.N1"."1.N)||($length(version)>64)||(repository="")||($length(repository)>128)||($translate(repository,"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-","")'="") throw ##class(%Exception.General).%New("invalid-input")
+        set stage="prestate"
         do ##class(%IPM.Main).GetListModules($namespace,name,.modules)
         set installed=""
         for index=1:1:modules {
@@ -48,6 +49,7 @@ ClassMethod Dispatch() As %Status
         if installed'=input.expectedInstalledVersion throw ##class(%Exception.General).%New("stale-input")
         if input.action="install" {
             if installed'="" throw ##class(%Exception.General).%New("stale-input")
+            set stage="catalog"
             set catalog=##class(OpsDeck.Product.FixedLogREST).SearchAvailablePackages(name),matches=0
             for index=0:1:catalog.packages.%Size()-1 {
                 set row=catalog.packages.%Get(index)
@@ -59,11 +61,12 @@ ClassMethod Dispatch() As %Status
         }
         set command("parameters","module")=$select(input.action="install":repository_"/"_name,1:name)
         set command("parameters","version")=version,command("data","Verbose")=0
-        open sink:(writeonly):1
+        set stage="output-sink"
+        open sink:("W"):1
         if '$test throw ##class(%Exception.General).%New("output-sink-unavailable")
         set sinkOpen=1
         use sink
-        set started=1
+        set started=1,stage="ipm-dispatch"
         if input.action="install" {
             set command="install"
             do ##class(%IPM.Main).Install(.command)
@@ -80,6 +83,7 @@ ClassMethod Dispatch() As %Status
         set %response.Status=$select(started:500,1:400)
         set result.state=$select(started:"AMBIGUOUS",1:"FAILED")
         set result.reason=$select(started:"ipm-outcome-unresolved",1:"input-or-prestate-rejected")
+        set result.stage=stage,result.errorKind=exception.Name
     }
     write result.%ToJSON()
     quit $$$OK
