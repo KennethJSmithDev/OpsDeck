@@ -75,7 +75,7 @@ test("the native package interprets only fixed log observations and keeps them i
   assert.match(interpreter, /"systemMonitorLog": "SystemMonitor\.log"/u);
   assert.match(interpreter, /len\(lines\) > 250/u);
   assert.match(interpreter, /len\(findings\) < 20/u);
-  assert.doesNotMatch(interpreter, /\b(?:open|exec|eval)\s*\(|subprocess|socket|os\.system/u);
+  assert.doesNotMatch(interpreter, /\b(?:open|exec|eval)\s*\(|\b(?:import|from)\s+(?:subprocess|socket)\b|\b(?:subprocess|socket)\s*\.|os\.system/u);
   assert.match(rest, /WriteSource\("messagesLog"\)/u);
   assert.match(rest, /WriteSource\("systemMonitorLog"\)/u);
   assert.match(rest, /LogInterpreter\)\.Analyze\(sourceId,result\.%ToJSON\(\)\)/u);

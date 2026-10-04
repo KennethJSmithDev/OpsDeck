@@ -60,11 +60,17 @@ ClassMethod Provision() As %Status
             set sc=##class(Config.Namespaces).Create(..#STORE,.properties)
             if $$$ISERR(sc) throw ##class(%Exception.StatusException).CreateFromStatus(sc)
             set namespaceCreated=1
+            set sc=##class(OpsDeck.Product.DerivedVector).InstallSchema()
+            if $$$ISERR(sc) throw ##class(%Exception.StatusException).CreateFromStatus(sc)
             zn "OPSDECK"
-            set ^OpsDeckDerivedOwner("package")="opsdeck",^OpsDeckDerivedOwner("schema")=1
+            set ^OpsDeckDerivedOwner("package")="opsdeck",^OpsDeckDerivedOwner("schema")=2
             set ^OpsDeckDerivedOwner("namespace")="OPSDECK",^OpsDeckDerivedOwner("database")="OPSDECK"
             set ^OpsDeckDerivedOwner("directory")=..Directory(),^OpsDeckDerivedOwner("resource")="%DB_OPSDECK"
-            // Snapshot only fresh IRIS-created metadata, before any derived schema exists.
+            set definition=##class(%Dictionary.CompiledClass).%OpenId("OpsDeckDerived.VectorRecord"),storage=definition.Storages.GetAt(1)
+            set location=storage.DataLocation
+            if (location="")||($extract(location,1)'="^") throw ##class(%Exception.General).%New("derived-vector-storage-invalid")
+            set ^OpsDeckDerivedOwner("vectorPrefix")=$piece($extract(location,2,*),".",1,*-1)_"."
+            // Snapshot IRIS/schema metadata only after creating our exact table and index.
             set globals=##class(%SYS.GlobalQuery).DirectoryListFunc(..Directory(),"","*",1,0)
             while globals.%Next() {
                 if globals.Name'="OpsDeckDerivedOwner" set ^OpsDeckDerivedOwner("baseline",globals.Name)=..Fingerprint(globals.Name)
@@ -115,11 +121,17 @@ ClassMethod Validate() As %Status
         if $$$ISERR(sc) throw ##class(%Exception.StatusException).CreateFromStatus(sc)
         if (properties("Description")'=..#DESCRIPTION)||((properties("PublicPermission")'="")&&(properties("PublicPermission")'=0)) throw ##class(%Exception.General).%New("derived-store-security-conflict")
         zn "OPSDECK"
-        if ($get(^OpsDeckDerivedOwner("package"))'="opsdeck")||($get(^OpsDeckDerivedOwner("schema"))'=1)||($get(^OpsDeckDerivedOwner("namespace"))'="OPSDECK")||($get(^OpsDeckDerivedOwner("database"))'="OPSDECK")||($get(^OpsDeckDerivedOwner("directory"))'=..Directory())||($get(^OpsDeckDerivedOwner("resource"))'="%DB_OPSDECK") throw ##class(%Exception.General).%New("derived-store-owner-conflict")
+        if ($get(^OpsDeckDerivedOwner("package"))'="opsdeck")||($get(^OpsDeckDerivedOwner("schema"))'=2)||($get(^OpsDeckDerivedOwner("namespace"))'="OPSDECK")||($get(^OpsDeckDerivedOwner("database"))'="OPSDECK")||($get(^OpsDeckDerivedOwner("directory"))'=..Directory())||($get(^OpsDeckDerivedOwner("resource"))'="%DB_OPSDECK") throw ##class(%Exception.General).%New("derived-store-owner-conflict")
+        set prefix=$get(^OpsDeckDerivedOwner("vectorPrefix"))
+        if (prefix="")||($length(prefix)<4) throw ##class(%Exception.General).%New("derived-vector-storage-invalid")
+        set definition=##class(%Dictionary.CompiledClass).%OpenId("OpsDeckDerived.VectorRecord")
+        if '$isobject(definition) throw ##class(%Exception.General).%New("derived-vector-schema-absent")
+        set storage=definition.Storages.GetAt(1)
+        if $extract(storage.DataLocation,2,$length(prefix)+1)'=prefix throw ##class(%Exception.General).%New("derived-vector-storage-conflict")
         zn "%SYS"
         set globals=##class(%SYS.GlobalQuery).DirectoryListFunc(..Directory(),"","*",1,0)
         while globals.%Next() {
-            if globals.Name'="OpsDeckDerivedOwner" {
+            if (globals.Name'="OpsDeckDerivedOwner"),($extract(globals.Name,1,$length(prefix))'=prefix) {
                 set name=globals.Name
                 set expected=$get(^|"OPSDECK"|OpsDeckDerivedOwner("baseline",name)),actual=..Fingerprint(name)
                 if expected="",..EmptyIRISHeader(name) set expected=$SYSTEM.Encryption.SHAHash(256,"")

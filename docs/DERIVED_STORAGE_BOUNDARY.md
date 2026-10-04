@@ -1,6 +1,6 @@
 # Derived storage boundary for the next gate
 
-Status: product lifecycle foundation implemented and qualified on the authorized disposable Docker target. Vector schema/data lifecycle is not yet qualified. Accepted milestone remains 0.8.0.
+Status: product storage and native Vector schema/data lifecycle qualified on the authorized disposable Docker target. Caller HTTP authority and live log indexing remain unqualified. Accepted milestone remains 0.8.0.
 
 ## Scope and identities
 
@@ -21,11 +21,17 @@ Read-only inspection on OPSDECK_08_TEST_TARGET found the namespace, configured d
 | Uninstall | Standard IPM Clean hook, not an unconnected custom action. Verify ownership and bindings; refuse deletion if foreign resources/data are detected. Remove only derived state and owned namespace/database/resource/automatic role. Read back absence. |
 | Collision or changed ownership | Refuse adoption/deletion and report the precise conflict. Operator resolves it explicitly. |
 
-`OpsDeck.Product.DerivedStorage` owns the virtual `OpsDeckDerivedStore` manifest resource. Configure creates the directory, database, configuration, namespace and dedicated resource. `^OpsDeckDerivedOwner` lives in OPSDECK and binds the identities above. Fresh IRIS metadata has bounded SHA-256 fingerprints; physical database references bypass mappings. The numeric `oddDEF` generation counter is normalized, while all definition children remain checked. Lazy, physically empty IRIS metadata headers are allowed only from the observed fixed list.
+`OpsDeck.Product.DerivedStorage` owns the virtual `OpsDeckDerivedStore` manifest resource. Configure creates the directory, database, configuration, namespace, dedicated resource and fixed Vector table/index. `^OpsDeckDerivedOwner` lives in OPSDECK and binds the identities above plus schema revision 2. Fresh IRIS/schema metadata has bounded SHA-256 fingerprints; physical database references bypass mappings. The numeric `oddDEF` generation counter is normalized, while all definition children remain checked. Lazy, physically empty IRIS metadata headers are allowed only from the observed fixed list.
+
+The mutable Vector global family is derived from the authoritative compiled storage definition of `OpsDeckDerived.VectorRecord`, rather than guessed from its SQL name. The marker binds that family and validation requires the table still use it. Other global contents remain checked. The closed table has identity, source/time, normalized text/fingerprint, EvidenceRef and a fixed 16-component vector; its HNSW index uses cosine distance. The bounded native query returns at most five references and similarities, never vector arrays. Similarity is navigation, not proof. HNSW plan selection at scale is unverified.
 
 Clean preflight runs before IPM unconfigures applications. It refuses changed bindings, mappings, foreign globals/files/streams, foreign resource use or memberships in the associated role. The Clean callback repeats validation before removing artifacts. Directory cleanup uses only removal of empty directories, including the IRIS-created stream child. Failed provisioning rolls back successful creations in reverse order and reports incomplete rollback.
 
-Runtime qualification passed fresh creation, repeat Configure, empty-directory collision refusal, foreign-global refusal/preservation, temporary foreign-role refusal/preservation, actual package upgrade, uninstall absence for all five artifacts, unrelated IPM/app preservation and reinstall. The early foreign-data refusal also preserved both product web applications. These tests establish the empty-store foundation; record preservation, schema evolution and Vector data/index ownership remain separate gates.
+Runtime qualification passed fresh creation, repeat Configure, empty-directory collision refusal, foreign-global refusal/preservation, temporary foreign-role refusal/preservation, actual package upgrade, uninstall absence for all five artifacts, unrelated IPM/app preservation and reinstall. The early foreign-data refusal also preserved both product web applications. Three synthetic Vector records survived package reload, returned exact source/EvidenceRef identities with expected cosine relationships, were removed with actual package uninstall, and were absent after schema rebuild/reinstall. Schema collision refused adoption.
+
+Upgrade debt: an already loaded IPM processor revision can execute its earlier callback code within a process that recompiles it. Qualification used fresh console processes when changing processor semantics. Revision-1 experimental empty stores are refused by revision 2; no silent adoption or data migration is implemented. Future cross-revision upgrades require a separate exact qualification.
+
+Embedded Python's `opsdeck-concepts-v1` is a deterministic, transparent concept vocabulary for compact normalization. It produces concept labels rather than raw log lines and is not a neural embedding model. Its native runtime example mapped "slow database connection with failed permission" to timeout/denied/error/network/database. Live log-to-index and browser retrieval still need qualification.
 
 ## Stored representation
 

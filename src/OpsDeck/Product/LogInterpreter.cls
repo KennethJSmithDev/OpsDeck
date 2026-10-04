@@ -1,6 +1,33 @@
 Class OpsDeck.Product.LogInterpreter Extends %RegisteredObject
 {
 
+/// Compact transparent concept vectors, not a neural embedding model. No rich log text is retained.
+ClassMethod ConceptVector(text As %String) As %String [ Language = python ]
+{
+    import json
+    import re
+    concepts = (
+        ("timeout", r"time[ -]?out|timed out|latency|slow"),
+        ("denied", r"denied|forbidden|unauthori[sz]ed|permission|privilege"),
+        ("error", r"error|fatal|severe|failed|failure"),
+        ("warning", r"warning|warn"),
+        ("retry", r"retry|retries|retrying"),
+        ("network", r"network|http|connection|socket|gateway"),
+        ("database", r"database|global|storage|journal|disk"),
+        ("namespace", r"namespace|mapping"),
+        ("package", r"package|ipm|zpm|module|install"),
+        ("task", r"task|schedule|job|async"),
+        ("application", r"application|web app|dispatch|route"),
+        ("authentication", r"authenticat|login|password|credential"),
+        ("memory", r"memory|heap|allocation"),
+        ("cpu", r"cpu|processor|compute"),
+        ("restart", r"restart|startup|shutdown|starting|stopped"),
+        ("security", r"security|audit|role|resource"),
+    )
+    selected = [bool(re.search(pattern, text[:2048], re.IGNORECASE)) for _, pattern in concepts]
+    return json.dumps({"model": "opsdeck-concepts-v1", "text": " ".join(name for (name, _), yes in zip(concepts, selected) if yes), "vector": ",".join("1" if yes else "0" for yes in selected)}, separators=(",", ":"))
+}
+
 /// Classify one bounded fixed-log projection with Embedded Python.
 /// No filesystem, network, process, or persistent-data access is performed here.
 ClassMethod Analyze(sourceId As %String, logPayload As %String) As %String [ Language = python ]
