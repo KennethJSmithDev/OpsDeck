@@ -3,6 +3,8 @@ Class OpsDeck.Product.FixedLogREST Extends %CSP.REST
 XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 {
 <Routes>
+  <Route Url="/derived-search" Method="GET" Call="DerivedSearch" />
+  <Route Url="/derived-refresh" Method="POST" Call="DerivedRefresh" />
   <Route Url="/messages" Method="GET" Call="MessagesLog" />
   <Route Url="/system-monitor" Method="GET" Call="SystemMonitorLog" />
   <Route Url="/message-rotations" Method="GET" Call="MessageRotations" />
@@ -12,6 +14,16 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/package-authority" Method="GET" Call="PackageAuthority" />
   <Route Url="/package-operation" Method="POST" Call="PackageOperation" />
 </Routes>
+}
+
+ClassMethod DerivedSearch() As %Status
+{
+    quit ##class(OpsDeck.Product.DerivedSearch).Query()
+}
+
+ClassMethod DerivedRefresh() As %Status
+{
+    quit ##class(OpsDeck.Product.DerivedSearch).Refresh()
 }
 
 ClassMethod PackageAuthority() As %Status

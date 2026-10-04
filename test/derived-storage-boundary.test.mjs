@@ -4,6 +4,13 @@ import { readFile } from "node:fs/promises";
 
 const source = await readFile(new URL("../src/OpsDeck/Product/DerivedStorage.cls", import.meta.url), "utf8");
 
+test("physical database lifecycle refuses surrounding transactions and manifest opts out of IPM wrapping", async () => {
+  const manifest = await readFile(new URL("../module.xml", import.meta.url), "utf8");
+  assert.match(manifest, /<Defaults>[\s\S]*?<Parameter Name="NoTransaction">1<\/Parameter>[\s\S]*?<\/Defaults>/u);
+  for (const method of ["Provision", "Remove", "CleanupPreflight"]) assert.match(source, new RegExp(`ClassMethod ${method}\\(\\)[\\s\\S]*?if \\$tlevel>0 quit`, "u"));
+  assert.doesNotMatch(manifest, /NoJournal/u);
+});
+
 test("derived storage uses standard IPM ownership callbacks and a dedicated no-public resource", () => {
   assert.match(source, /Extends %IPM\.ResourceProcessor\.Abstract/u);
   assert.match(source, /OnAfterPhase[\s\S]*?pPhase'="Configure"/u);

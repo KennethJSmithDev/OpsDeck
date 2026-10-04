@@ -141,6 +141,11 @@ const state = {
   selectedItems: {},
   evidenceFilter: "",
   evidenceStateFilter: "ALL",
+  semanticQuery: "",
+  semanticResult: null,
+  semanticInterpretation: null,
+  semanticBusy: false,
+  semanticError: "",
   applicationsTab: "web-apps",
   packageFilter: "all",
   packagePlan: null,
@@ -907,10 +912,58 @@ function evidenceView() {
     </section>
     <section class="evidence-grid">${cardHtml}</section>
     ${evidencePanel}
+    ${semanticSearchPanel()}
     <section class="panel evidence-legend"><div class="panel-head"><div><div class="panel-kicker">STATE SEMANTICS</div><h2>Absence is not failure, and failure is not absence</h2></div></div>
       <div class="state-legend-grid"><div>${badge("VERIFIED", "success")}<p>Independent evidence agrees with the displayed state.</p></div><div>${badge("EMPTY", "accent")}<p>The authoritative provider returned a valid empty collection.</p></div><div>${badge("UNAVAILABLE", "warning")}<p>The source could not provide a usable result. OpsDeck does not invent one.</p></div><div>${badge("DENIED", "error")}<p>The current identity lacks authority for the source.</p></div><div>${badge("UNVERIFIED", "muted")}<p>The behavior has not crossed its required qualification boundary.</p></div></div>
       <div class="evidence-actions"><button class="button secondary" data-route="applications">Inspect applications</button><button class="button secondary" data-route="access">Inspect access relationships</button><button class="button secondary" data-route="security">Inspect provider boundaries</button></div>
     </section>`);
+}
+
+function semanticSearchPanel() {
+  const supported = nativeMode && state.info?.systemMode !== "DEMO";
+  const result = state.semanticResult;
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-kicker">DERIVED NAVIGATION · EXPERIMENTAL</div><h2>Concept search</h2></div>${badge(result?.state || (supported ? "UNQUALIFIED" : "UNAVAILABLE"), "warning")}</div><p class="source-message">Rebuildable IRIS Vector index of authorized fixed-log findings. A transparent concept vocabulary ranks overlap; similarity is navigation, not proof. Rich source content is read only when selected.</p>${supported ? `<form data-semantic-form><label>Investigation <input name="query" type="search" maxlength="256" value="${esc(state.semanticQuery)}" placeholder="For example: slow database connection" required></label><button class="button secondary" ${state.semanticBusy ? "disabled" : ""}>Search indexed findings</button></form><button class="button quiet" data-semantic-refresh ${state.semanticBusy ? "disabled" : ""}>Index authorized messages findings</button>` : `<p class="source-message">Native derived provider is unavailable in this deployment. No demo data replaces live search.</p>`}${state.semanticError ? `<p class="source-message">${esc(state.semanticError)}</p>` : ""}${result ? `<p class="source-message">${result.items.length} bounded results · ${esc(result.model)}</p>${result.items.map(item => `<article class="evidence-record"><strong>${esc(item.text)}</strong><small>Source ${esc(item.sourceIdentity)} · similarity ${item.similarity.toFixed(3)} · source timestamp ${esc(item.sourceTimestamp || "unobserved")}</small><p>${esc(item.evidenceRef)}</p><button class="button quiet" data-semantic-source="${esc(item.sourceIdentity)}">Inspect current source</button></article>`).join("")}${result.items.length ? `<button class="button secondary" data-semantic-interpret ${state.semanticBusy ? "disabled" : ""}>Interpret compact context</button>` : ""}` : ""}${state.semanticInterpretation ? `<p class="source-message"><strong>Deterministic local interpretation</strong> · external inference UNVERIFIED<br>${esc(state.semanticInterpretation.explanation)}</p>` : ""}</section>`;
+}
+
+async function runSemanticSearch(query, refresh = false) {
+  if (!nativeMode || !state.connected || state.semanticBusy) return;
+  const owner = sessionEpoch;
+  state.semanticBusy = true;
+  state.semanticError = "";
+  state.semanticQuery = String(query).slice(0, 256);
+  state.semanticInterpretation = null;
+  render();
+  try {
+    const { mapDerivedSearch } = await import("./semantic-search.js?v=opsdeck-vector-preview-1");
+    if (owner !== sessionEpoch) return;
+    if (refresh) {
+      const refreshed = await requestJson("/opsdeck-api/derived-refresh", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceId: "messagesLog" }) });
+      if (owner !== sessionEpoch) return;
+      if (refreshed.state !== "SUPPORTED") throw new Error(`Index refresh: ${refreshed.state || "FAILED"}`);
+    }
+    const payload = await requestJson(`/opsdeck-api/derived-search?q=${encodeURIComponent(state.semanticQuery || "error")}`);
+    if (owner !== sessionEpoch) return;
+    state.semanticResult = mapDerivedSearch(payload, state.info.username);
+  } catch (error) {
+    if (owner !== sessionEpoch) return;
+    state.semanticError = error.message;
+    state.semanticResult = { state: error.status === 403 ? "DENIED" : "FAILED", model: "opsdeck-concepts-v1", items: [] };
+  } finally {
+    if (owner === sessionEpoch) { state.semanticBusy = false; render(); }
+  }
+}
+
+async function interpretSemanticResult() {
+  const owner = sessionEpoch;
+  try {
+    const { createContextBundle, deterministicInterpretationProvider, interpretContext } = await import("./semantic-search.js?v=opsdeck-vector-preview-1");
+    if (owner !== sessionEpoch || !state.semanticResult) return;
+    const identity = ProductIdentity.resolve({ irisVersion: state.info?.serverVersion, deployment: "native" });
+    const result = await interpretContext(deterministicInterpretationProvider, createContextBundle(identity, state.semanticResult));
+    if (owner !== sessionEpoch) return;
+    state.semanticInterpretation = result;
+  } catch (error) { if (owner === sessionEpoch) state.semanticError = error.message; }
+  if (owner === sessionEpoch) render();
 }
 
 function currentEvidenceCollection() {
@@ -1063,6 +1116,10 @@ function render() {
   }));
   app.querySelector("#evidence-filter")?.addEventListener("change", (event) => { state.evidenceFilter = event.target.value.slice(0, 128); render(); });
   app.querySelector("#evidence-state-filter")?.addEventListener("change", (event) => { state.evidenceStateFilter = event.target.value; render(); });
+  app.querySelector("[data-semantic-form]")?.addEventListener("submit", (event) => { event.preventDefault(); runSemanticSearch(event.currentTarget.elements.query.value); });
+  app.querySelector("[data-semantic-refresh]")?.addEventListener("click", () => runSemanticSearch(state.semanticQuery || "error", true));
+  app.querySelector("[data-semantic-interpret]")?.addEventListener("click", interpretSemanticResult);
+  app.querySelectorAll("[data-semantic-source]").forEach(button => button.addEventListener("click", () => { state.route = "logs"; state.sourceTabs.logs = button.dataset.semanticSource; location.hash = "logs"; render(); loadSource(button.dataset.semanticSource); }));
   app.querySelectorAll("[data-export-evidence]").forEach((button) => button.addEventListener("click", () => {
     const collection = currentEvidenceCollection();
     const records = filterEvidence(collection, state.evidenceFilter, state.evidenceStateFilter);
@@ -1158,6 +1215,11 @@ function clearSession() {
   state.availablePackageLoading = false;
   state.evidenceFilter = "";
   state.evidenceStateFilter = "ALL";
+  state.semanticQuery = "";
+  state.semanticResult = null;
+  state.semanticInterpretation = null;
+  state.semanticBusy = false;
+  state.semanticError = "";
   state.route = "overview";
   history.replaceState(null, "", "#overview");
 }

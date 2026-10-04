@@ -101,3 +101,16 @@ Representation before stamping: 253,734 JS + 38,100 CSS + 458 HTML = 292,292 byt
 Debt: package update unqualified; arbitrary/third-party package mutation unqualified; ordinary operator policy not qualified. Authority endpoint's preliminary checks cannot certify every package lifecycle hook; IRIS still enforces all actual accesses under the caller. Safe demo remains visibly synthetic and review-only. Bonus eligibility/awards unconfirmed. Vector, semantic retrieval, AI and derived product storage remain the next gate.
 
 V0_8_ACCEPTED
+
+## v0.9 exact gate checkpoint — incomplete
+
+| Acceptance criterion | Evidence | Status |
+|---|---|---|
+| Dedicated package-owned derived/rebuildable store; no authoritative state mirror | Resource, namespace/database, ownership marker, collision and foreign-data refusal; actual package uninstall/reinstall and controlled failed Configure cleanup | PASS at Docker qualification scope |
+| Real IRIS Vector schema, bounded records/query, source references, drop/rebuild | VECTOR(DOUBLE,16), HNSW cosine schema; synthetic native similarity fixtures and actual fixed-log/Python pipeline; empty rebuild after uninstall | PASS at tested bounded scope; scale unverified |
+| Compact semantic navigation over selected domains | Connected Edge fixed-log finding search, exact observation ref and current-source navigation | PARTIAL: fixed-log findings only |
+| Capability-aware morphing across identity/authority/provider/context/width/relevance | Existing projection remains; new Edge SUPPORTED → DENIED after grant revocation, logout cleared state | PARTIAL: complete new intelligence projection not qualified |
+| Provider-neutral explanation/proposal; trusted server OperationPlan reconstruction, normal confirmation/executor/read-back/receipt | Deterministic compact-context explanation and strictly observed read proposal pass tests/Edge. Existing v0.6–v0.8 generic executor preserved | INCOMPLETE: mutation candidate reconstruction/bridge absent; read proposal is not a substitute |
+| Behavioral correctness and representation sanity | 184/184 suite, syntax/XML/diff, compilation/lifecycle; 302,075 browser bytes, +9,783 over v0.8 | PASS for this slice; timing/heap not remeasured |
+
+No v0.9 acceptance, version stamp, Main merge, tag or release. The next architectural boundary is server-owned candidate-intent reconstruction integrated with the existing planner/executor, without introducing another safety engine. Source details and independent qualification are in [the retrieval record](DERIVED_SEARCH_QUALIFICATION.md).

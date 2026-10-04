@@ -1,5 +1,13 @@
 # OpsDeck qualification status
 
+## Current frontier — derived search qualification
+
+Highest accepted integration milestone: **v0.8 PASS**, internal/package version **0.8.0**, public identity **OpsDeck · Beta Release 0.2**. v0.5, v0.6 and v0.7 remain accepted at their recorded scopes. The following dated sections preserve earlier snapshots rather than current package/version counts.
+
+The derived-store/schema lifecycle and caller-scoped fixed-log concept-search preview now have native, authenticated HTTP and connected Edge evidence. Full suite **184/184 PASS**; syntax, XML and diff checks PASS. Temporary derived database/table permissions were revoked and Edge confirmed DENIED before logout. A real failed-Configure rollback defect was corrected with IPM's supported NoTransaction default and early transaction refusal; controlled actual-package failure cleanup and successful restoration passed.
+
+**v0.9 remains incomplete.** Read-only deterministic interpretation does not implement the required server reconstruction of candidate mutation intent into a trusted OperationPlan and the existing executor/receipt chain. See [exact qualified scope and remaining criteria](DERIVED_SEARCH_QUALIFICATION.md) and [storage lifecycle contract](DERIVED_STORAGE_BOUNDARY.md). Experimental Vector/search work stays on integration. ObjectScript Quality remains UNAVAILABLE UNDER ACCEPTABLE TRUST BOUNDARY and does not block ordinary qualification.
+
 ## Current integration snapshot — 2026-10-03
 
 - Branch at the start of the 2026-10-03 authenticated HTTP qualification: `integration/opsdeck-1.0-20261002`, pushed tip `65fa4a250c120b43998bb11b7734c6e83553e5c7`. The pushed follow-on checkpoints are recorded in Git; see [the authenticated catalog boundary record](OPSDECK_0_9_AUTHENTICATED_HTTP_BOUNDARY_20261003.md) for this qualification's Docker-only security changes and exact outcomes.

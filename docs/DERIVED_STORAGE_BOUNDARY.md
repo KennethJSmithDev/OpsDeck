@@ -1,6 +1,6 @@
 # Derived storage boundary for the next gate
 
-Status: product storage and native Vector schema/data lifecycle qualified on the authorized disposable Docker target. Caller HTTP authority and live log indexing remain unqualified. Accepted milestone remains 0.8.0.
+Status: product storage, native Vector schema/data lifecycle, caller-scoped HTTP indexing/retrieval and connected Edge preview qualified on the authorized disposable Docker target. Full v0.9 acceptance remains incomplete. Accepted milestone remains 0.8.0.
 
 ## Scope and identities
 
@@ -31,7 +31,19 @@ Runtime qualification passed fresh creation, repeat Configure, empty-directory c
 
 Upgrade debt: an already loaded IPM processor revision can execute its earlier callback code within a process that recompiles it. Qualification used fresh console processes when changing processor semantics. Revision-1 experimental empty stores are refused by revision 2; no silent adoption or data migration is implemented. Future cross-revision upgrades require a separate exact qualification.
 
-Embedded Python's `opsdeck-concepts-v1` is a deterministic, transparent concept vocabulary for compact normalization. It produces concept labels rather than raw log lines and is not a neural embedding model. Its native runtime example mapped "slow database connection with failed permission" to timeout/denied/error/network/database. Live log-to-index and browser retrieval still need qualification.
+Embedded Python's `opsdeck-concepts-v1` is a deterministic, transparent concept vocabulary for compact normalization. It produces concept labels rather than raw log lines and is not a neural embedding model. Its native runtime example mapped "slow database connection with failed permission" to timeout/denied/error/network/database. The caller-scoped HTTP/Edge slice is documented in [the retrieval qualification record](DERIVED_SEARCH_QUALIFICATION.md).
+
+### Physical lifecycle and transaction failure
+
+A failed Configure invocation exposed a real rollback error: the IPM loader's surrounding transaction still referenced schema writes when provisioning cleanup deleted the physical database. IRIS subsequently reported ROLLFAIL. The earlier successful lifecycle tests did not establish this failure path.
+
+Installed IPM 0.10.8 `LoadNewModule` supports the module default `NoTransaction`. The manifest now declares `<Defaults><Parameter Name="NoTransaction">1</Parameter></Defaults>`. Provision, Clean preflight and Remove refuse a surrounding transaction before mutation. If an unexpected transaction remains during failed provisioning, cleanup refuses database deletion and reports incomplete cleanup. Journaling remains enabled. Physical namespace/database configuration is explicitly nontransactional; this is not an atomic installation guarantee.
+
+Qualification exercised an actual package Configure failure after schema/ownership writes using a temporary, fixture-only copy of the product processor. With the default active, the failure left transaction level zero and namespace, configured database, directory, resource and associated role absent. The real processor was restored, compiled in a separate process and loaded successfully; both product routes and unrelated IPM/system app survived. Direct surrounding-transaction probes refused Provision and Remove while preserving the caller's transaction and store. The temporary failing processor is not product source or deployed behavior.
+
+External problem: transactional package load cannot safely roll back a physical database that cleanup has deleted. Transferable idea: use the package manager's official nontransactional load contract for physical lifecycle ownership. OpsDeck design: manifest default plus early transaction refusal and checked reverse cleanup. Minimum reason: avoids replacing IPM or adding a parallel installation engine. Representation cost: manifest metadata and small native guards, no browser cost. Official corroboration: [IPM 0.10.8 Module implementation](https://github.com/intersystems/ipm/blob/v0.10.8/src/cls/IPM/Utils/Module.cls) and [module parameter representation](https://github.com/intersystems/ipm/blob/v0.10.8/src/cls/IPM/Storage/ModuleSetting/Parameter.cls).
+
+Limitations: nested dependency installation with an outer transaction, cross-revision processor changes and schema migration require separate qualification. An explicit override disabling this default fails closed. Historical native error logs and IPM history remain intact.
 
 ## Stored representation
 

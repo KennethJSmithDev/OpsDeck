@@ -21,21 +21,23 @@ ClassMethod InstallSchema() As %Status
 }
 
 /// Bounded native qualification query. Input vectors have exactly sixteen numeric components.
-ClassMethod Similar(pVector As %String) As %DynamicArray
+ClassMethod Similar(pVector As %String, pScope As %String = "") As %DynamicArray
 {
     if $length(pVector)>512 throw ##class(%Exception.General).%New("derived-vector-input-invalid")
     if $length(pVector,",")'=16 throw ##class(%Exception.General).%New("derived-vector-input-invalid")
     for i=1:1:16 { if $piece(pVector,",",i)'?1.N0.1"."0.N throw ##class(%Exception.General).%New("derived-vector-input-invalid") }
+    if (pScope'=""),((pScope'?32AN1":")||($translate($extract(pScope,1,32),"0123456789abcdef","")'="")) throw ##class(%Exception.General).%New("derived-vector-scope-invalid")
     set original=$namespace,rows=##class(%DynamicArray).%New()
     zn "OPSDECK"
     try {
-        set statement=##class(%SQL.Statement).%New(),sc=statement.%Prepare("SELECT TOP 5 RecordID,SourceIdentity,SourceTimestamp,NormalizedText,Fingerprint,EvidenceRef,VECTOR_COSINE(Embedding,TO_VECTOR(?,double,16)) AS Similarity FROM OpsDeckDerived.VectorRecord ORDER BY Similarity DESC,RecordID")
+        set statement=##class(%SQL.Statement).%New(),sc=statement.%Prepare("SELECT TOP 5 RecordID,SourceIdentity,SourceTimestamp,NormalizedText,Fingerprint,EvidenceRef,VECTOR_COSINE(Embedding,TO_VECTOR(?,double,16)) AS Similarity FROM OpsDeckDerived.VectorRecord WHERE RecordID %STARTSWITH ? ORDER BY Similarity DESC,RecordID")
         if $$$ISERR(sc) throw ##class(%Exception.StatusException).CreateFromStatus(sc)
-        set result=statement.%Execute(pVector)
+        set result=statement.%Execute(pVector,pScope)
         if result.%SQLCODE<0 throw ##class(%Exception.General).%New("derived-vector-query-failed")
         while result.%Next() {
             set row=##class(%DynamicObject).%New(),row.id=result.RecordID,row.sourceIdentity=result.SourceIdentity,row.sourceTimestamp=result.SourceTimestamp
             set row.text=result.NormalizedText,row.fingerprint=result.Fingerprint,row.evidenceRef=result.EvidenceRef,row.similarity=result.Similarity
+            if row.sourceTimestamp="UNKNOWN" do row.%Set("sourceTimestamp","","null")
             do rows.%Push(row)
         }
     } catch exception { zn original throw exception }

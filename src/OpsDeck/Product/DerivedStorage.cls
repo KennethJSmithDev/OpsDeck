@@ -33,6 +33,9 @@ ClassMethod Directory() As %String
 
 ClassMethod Provision() As %Status
 {
+    // Physical database lifecycle cannot be rolled back by a surrounding IPM transaction.
+    // The manifest supplies IPM's supported NoTransaction default; explicit overrides fail closed.
+    if $tlevel>0 quit $$$ERROR($$$GeneralError,"Derived provisioning requires a nontransactional package lifecycle")
     set original=$namespace,sc=$$$OK,resourceCreated=0,directoryCreated=0,databaseCreated=0,configCreated=0,namespaceCreated=0
     zn "%SYS"
     lock +^OpsDeckDerivedLifecycle:5
@@ -84,11 +87,15 @@ ClassMethod Provision() As %Status
         set sc=exception.AsStatus()
         // Roll back only successful creations from this invocation, in reverse order.
         set rollback=$$$OK
-        if namespaceCreated set rollback=##class(Config.Namespaces).Delete(..#STORE)
-        if $$$ISOK(rollback),configCreated set rollback=##class(Config.Databases).Delete(..#STORE)
-        if $$$ISOK(rollback),databaseCreated set rollback=##class(SYS.Database).DeleteDatabase(..Directory())
-        if $$$ISOK(rollback),directoryCreated set rollback=..RemoveEmptyDirectories()
-        if $$$ISOK(rollback),resourceCreated set rollback=##class(Security.Resources).Delete(..#RESOURCE)
+        if $tlevel>0 {
+            set rollback=$$$ERROR($$$GeneralError,"Derived cleanup deferred until the active transaction has ended; inspect incomplete ownership")
+        } else {
+            if namespaceCreated set rollback=##class(Config.Namespaces).Delete(..#STORE)
+            if $$$ISOK(rollback),configCreated set rollback=##class(Config.Databases).Delete(..#STORE)
+            if $$$ISOK(rollback),databaseCreated set rollback=##class(SYS.Database).DeleteDatabase(..Directory())
+            if $$$ISOK(rollback),directoryCreated set rollback=..RemoveEmptyDirectories()
+            if $$$ISOK(rollback),resourceCreated set rollback=##class(Security.Resources).Delete(..#RESOURCE)
+        }
         if $$$ISERR(rollback) set sc=$SYSTEM.Status.AppendStatus(sc,rollback)
     }
     lock -^OpsDeckDerivedLifecycle
@@ -151,6 +158,7 @@ ClassMethod Validate() As %Status
 
 ClassMethod Remove() As %Status
 {
+    if $tlevel>0 quit $$$ERROR($$$GeneralError,"Derived removal requires a nontransactional package lifecycle")
     set original=$namespace,sc=$$$OK
     zn "%SYS"
     lock +^OpsDeckDerivedLifecycle:5
@@ -182,6 +190,7 @@ ClassMethod Remove() As %Status
 
 ClassMethod CleanupPreflight() As %Status
 {
+    if $tlevel>0 quit $$$ERROR($$$GeneralError,"Derived removal requires a nontransactional package lifecycle")
     set original=$namespace,sc=$$$OK
     zn "%SYS"
     try {

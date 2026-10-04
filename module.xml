@@ -7,6 +7,9 @@
       <Description>OpsDeck bounded observations and verified operations for InterSystems IRIS</Description>
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>
+      <Defaults>
+        <Parameter Name="NoTransaction">1</Parameter>
+      </Defaults>
       <Resource Name="OpsDeck.Product.PKG" />
       <Resource Name="OpsDeckDerivedStore" ProcessorClass="OpsDeck.Product.DerivedStorage" />
 
@@ -19,6 +22,7 @@
       <FileCopy Name="public/packages-workspace.js" Target="{$cspdir}opsdeck/packages-workspace.js" />
       <FileCopy Name="public/job-center.js" Target="{$cspdir}opsdeck/job-center.js" />
       <FileCopy Name="public/product-identity.js" Target="{$cspdir}opsdeck/product-identity.js" />
+      <FileCopy Name="public/semantic-search.js" Target="{$cspdir}opsdeck/semantic-search.js" />
       <FileCopy Name="public/snippet-namespace.txt" Target="{$cspdir}opsdeck/snippet-namespace.txt" />
       <FileCopy Name="public/snippet-try-catch.txt" Target="{$cspdir}opsdeck/snippet-try-catch.txt" />
       <FileCopy Name="public/snippet-http-read.txt" Target="{$cspdir}opsdeck/snippet-http-read.txt" />
