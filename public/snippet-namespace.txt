@@ -1,0 +1,2 @@
+// Read the active namespace for this session.
+write "Current namespace: ",$NAMESPACE,!

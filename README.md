@@ -3,202 +3,176 @@
 <p align="center">
   <a href="https://kennethjsmithdev.github.io/OpsDeck/"><strong>🚀 LIVE SAFE DEMO</strong></a>
   &nbsp;·&nbsp;
-  <a href="#project-status"><strong>📋 PROJECT STATUS</strong></a>
+  <a href="https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v0.2.0"><strong>📦 v0.2.0 RELEASE</strong></a>
   &nbsp;·&nbsp;
-  <a href="#development"><strong>🛠️ DEVELOPMENT</strong></a>
+  <a href="docs/NATIVE_INSTALL.md"><strong>🛠️ NATIVE INSTALL</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/EVALUATOR_GUIDE.md"><strong>🧭 EVALUATOR GUIDE</strong></a>
+  &nbsp;·&nbsp;
+  <a href="docs/ROADMAP.md"><strong>🗺️ ROADMAP</strong></a>
 </p>
 
 <p align="center">
-  <sub>Interactive sanitized sample data · No IRIS connection or credentials required · Includes a 90-second evaluator tour and evidence center</sub>
+  <sub>Native IRIS operations console · Evidence-scoped verification · Responsive from phone to desktop</sub>
 </p>
 
 <p align="center">
   <img src="assets/OpsDeckLogo.png" alt="OpsDeck — Operations Console for InterSystems IRIS" width="720">
 </p>
 
-**OpsDeck** is an open-source, web-based operations console for InterSystems IRIS. It brings application discovery, access and security metadata, tasks, system information, logs, and evidence-backed read verification into one focused interface.
+**OpsDeck** is an open-source operations console for InterSystems IRIS. It brings application discovery, access and security metadata, tasks, system information, logs, and evidence-backed read verification into one focused interface.
 
 OpsDeck is being developed for the **InterSystems Programming Contest: Build Your Own Management Portal (2026)**.
 
-## Current milestone — local native package lifecycle reproduced
+## Current release
 
-The repository version is **0.2.0 candidate**. The exact tested package source is 1663869af14673f027efb63a986ac5c1e50a8ac1; its local-source load, uninstall, and clean same-source reload were reproduced on IRIS 2026.2 Build 221U. The separate Node reference workflow and selected native management reads remain scoped to their own evidence.
+**v0.2.0 is published.**
 
-The controlled local-source lifecycle receipt is PASS for that exact package candidate and four-resource fingerprint. This does not establish the exact core IPM version, fresh public-checkout installation, or public-registry availability. See the [native installation guide](docs/NATIVE_INSTALL.md), [qualification status](docs/QUALIFICATION_STATUS.md), and [0.2.0 release notes](docs/RELEASE_0_2_0.md) for the bounded scope.
+- Release commit: `23215459096cb47d255c45b1e6e86687f3d8e93a`
+- Tested package source: `1663869af14673f027efb63a986ac5c1e50a8ac1`
+- Package: `opsdeck 0.2.0`
+- Tested runtime: native Windows IRIS 2026.2 Build 221U, `%SYS`
+- Product regression suite: **82/82 PASS**
 
-### Capability status
+The controlled local-source lifecycle reproduced load, registration, native operational checks, uninstall/removal, unrelated-state preservation, and clean same-source reload. The installed native app was exercised as `OpsDeckTest`; eight routes were checked at 320, 390, 600, 820, 1024, and 1440 CSS px with zero measured document horizontal overflow, plus a no-reload wide → narrow → wide resize.
+
+### Distribution boundary
+
+A post-release fresh Windows clone of tag `v0.2.0` with `core.autocrlf=true` materialized `public/app.js` and `public/styles.css` with CRLF line endings. Those working-tree hashes differ from the lifecycle receipt even though the Git object blobs match the tested source commit.
+
+That finding demonstrates **checkout representation variance, not a runtime failure**.
+
+Exact fresh-checkout byte parity and public-registry installation therefore remain **UNVERIFIED**. The published `v0.2.0` tag will not be moved. Current development is closing that distribution-fidelity boundary for the next patch release.
+
+See [Qualification Status](docs/QUALIFICATION_STATUS.md) for the current evidence ledger.
+
+The current native package ownership design, package authority model, DPI-I-261 acceptance matrix, and remaining runtime gates are recorded in the [OpsDeck 1.0 product integration checkpoint](docs/OPSDECK_1_0_PRODUCT_INTEGRATION.md).
+
+## Why OpsDeck
+
+OpsDeck is deliberately thin:
+
+- **IRIS remains authoritative.** OpsDeck does not mirror the platform into a second management database.
+- **Observed state stays tied to source identity.** Independent read-back is used where qualified.
+- **Empty, unavailable, denied, and failed are different states.** The UI does not collapse them into generic errors.
+- **Responsive layout is semantic, not merely cosmetic.** Navigation collapses into a More menu, inventories change representation when space is constrained, inspectors stack, source tabs wrap, and ordinary workflows avoid horizontal panning.
+- **The native runtime is small.** IRIS serves the browser application directly; Node is not required for the native page.
+- **Claims stay bounded.** Unsupported or unqualified behavior remains visible instead of being implied by a successful neighboring feature.
+
+## Current management workspace
+
+- **Overview** — IRIS identity, API information, namespaces, application count, and read-back status.
+- **Applications** — web applications, REST-service discovery, application detail, and bounded OpenAPI/Swagger summaries.
+- **Access** — users, roles, resources, and qualified direct relationships.
+- **Security** — bounded security metadata with explicit safe-field projections.
+- **Tasks** — task inventory, detail, and history/status where available.
+- **System** — system usage, processes, databases, and devices where available.
+- **Logs** — audit status/event definitions, task history, and journal-file metadata where available.
+- **Evidence** — what OpsDeck can prove, what is blocked, and where qualification deliberately stops.
+
+## Capability status
 
 | Path | Current evidence | Boundary |
 |---|---|---|
-| Node reference runtime | Reproduced against IRIS Community Edition 2026.2 for server identity, web-app discovery, and independent web-app read-back. Fixed read-only provider mappings, safe-field projections, loopback session behavior, and adapter/server/bootstrap tests are in the repository. | This is the reference and development workflow. It is not required by the qualified native browser path. |
-| IRIS-native browser app | `/opsdeck/index.html`, static assets, browser authentication, live identity, web-app list/read-back, and selected Applications, Access, Security, Tasks, System, and Logs reads have been observed on native Windows IRIS 2026.2. Sign-out and recoverable authentication errors are implemented. | M1 is **PARTIAL**. Audit record retrieval is **BLOCKED / UNVERIFIED** after IRIS accepts the asynchronous request; Messages and System Monitor readers are **UNAVAILABLE / DEFERRED**. See [qualification status](docs/QUALIFICATION_STATUS.md). |
-| Safe demo | The Pages demo uses deterministic sanitized data through a separate demo provider. The app can be explored without IRIS or credentials; a Pages deployment workflow is included. | Demo data is illustrative and does not prove live IRIS behavior. |
-| IPM/ZPM package | Local-source load, uninstall/removal, and clean same-source reload were reproduced for opsdeck 0.2.0 on the tested native IRIS instance. | Exact core IPM version, fresh public-source checkout, and registry installation remain unverified. This evidence does not imply registry availability. |
-| ObjectScript execution / CallIn | The repository contains a static browser client that calls bounded same-origin IRIS REST APIs; it has no ObjectScript execution bridge. | No authenticated native ObjectScript execution or CallIn capability is claimed. |
+| Native IRIS browser app | Sign-in, identity, web-app list/read-back, selected Applications, Access, Security, Tasks, System, Logs, sign-out, and responsive behavior reproduced on IRIS 2026.2 | M1 remains partial; audit async result retrieval, Messages, and System Monitor readers remain unqualified/deferred |
+| Local-source IPM lifecycle | Load, registration, deployed hashes, HTTP checks, uninstall/removal, unrelated-state preservation, and clean reload reproduced | Exact core IPM version, fresh public-checkout byte parity, and public-registry installation remain unverified |
+| Safe demo | Deterministic sanitized evaluator data, authority personas, responsive UI, and Evidence semantics | Demo data is not live IRIS evidence |
+| Node reference runtime | Live identity, web-app discovery/read-back, fixed routes, safe mappings, and session behavior | Development/reference workflow; not required by the native browser path |
+| ObjectScript execution / CallIn | No execution bridge is present | No native arbitrary execution capability is claimed |
 
-These are scoped claims, not a single pass/fail label for the whole product. Full evidence, current limitations, and the next test boundary are recorded in [qualification status](docs/QUALIFICATION_STATUS.md).
+## Built with the IRIS Community
 
-### Current management workspace
+The integration branch has accepted the **v0.5 operational-visibility milestone**. A Docker-only connected Edge qualification rendered live installed IPM registrations and an exact-name available-catalog result with repository coverage and both installed/available versions. Catalog authority was qualified only for the disposable fixture identity; package install/remove through the verified executor remains unqualified. This is not a public `0.5.0` release. DPI-I-261 remains partial because package installation is not implemented, and no Community Ideas bonus claim is made.
 
-- **Overview** — live IRIS identity, API information, namespaces, application count, and authoritative read-back status.
-- **Applications** — web applications, REST-service discovery, application detail, and bounded Swagger/OpenAPI summaries.
-- **Access** — users, roles, and resources through explicit read-only provider mappings.
-- **Security** — bounded security metadata with explicit field allowlists; secret-bearing values are not intentionally rendered.
-- **Tasks** — task inventory and schedule/status information where available from the provider.
-- **System** — system usage, processes, databases, and devices where available.
-- **Logs** — audit status/event definitions, task history, and journal-file metadata where available.
+The read-only ObjectScript snippet library and contextual IRIS help are community-oriented learning aids, not verified Ideas Portal submissions. Snippets are inert text, load on selection, and are never executed by OpsDeck.
 
-Provider errors and unavailable sources are shown separately from valid empty collections. OpsDeck does not substitute fixture data for live IRIS state.
+## 90-second evaluation path
 
-For a conservative boundary-by-boundary record, see [Qualification Status](docs/QUALIFICATION_STATUS.md). For the credential-free review path, see the [Evaluator Guide](docs/EVALUATOR_GUIDE.md).
+For a credential-free review, open the [live safe demo](https://kennethjsmithdev.github.io/OpsDeck/) and follow the [Evaluator Guide](docs/EVALUATOR_GUIDE.md).
 
-## Design
+The useful story is short:
 
-OpsDeck follows a deliberately thin architecture:
+`Overview → Applications → Access → provider-state differences → Evidence`
+
+The safe demo is intentionally obvious about being sanitized sample data. Failed live IRIS reads are never replaced with demo records.
+
+## Native source installation
+
+The tested deployment model is an IRIS-hosted IPM source package.
+
+```powershell
+git clone https://github.com/KennethJSmithDev/OpsDeck.git
+cd OpsDeck
+git checkout v0.2.0
+```
+
+Then, from the IRIS IPM prompt in `%SYS`:
 
 ```text
-User
-  ↓
-OpsDeck
-  ↓
+load C:\path\to\OpsDeck
+```
+
+Open:
+
+```text
+http://127.0.0.1:52773/opsdeck/index.html
+```
+
+Adjust the HTTP port for the local instance.
+
+**Important:** the v0.2.0 source release is published, but exact fresh-checkout byte parity on Windows is still being requalified because of the line-ending finding above. Public-registry availability/installation is also a separate unverified boundary. Do not advertise `install opsdeck` as qualified until the intended registry version has been independently confirmed and installed.
+
+See [Native Installation](docs/NATIVE_INSTALL.md) for prerequisites, ownership, recovery, and uninstall boundaries.
+
+## Architecture
+
+```text
+operator
+   ↓
+OpsDeck UI
+   ↓
 bounded provider adapter
-  ↓
-authoritative InterSystems IRIS APIs
-  ↓
-rendered result
-  ↓
+   ↓
+authoritative IRIS APIs
+   ↓
+rendered state
+   ↓
 independent authoritative read-back where qualified
 ```
 
-IRIS remains the source of truth. OpsDeck keeps provider-owned identities and scopes rather than creating a second operational state store.
+IRIS owns IRIS state, authorization, and platform semantics. OpsDeck owns operator intent, compact references, presentation state, and bounded evidence.
 
-## Native installation plan
+## Authentication and security
 
-The native release target is an IPM package served by IRIS itself, with no Node runtime needed. Local-source lifecycle behavior has been reproduced for the exact candidate; public registry availability and the post-publication fresh-checkout path remain separate checks.
+- Credentials are never committed to the repository.
+- Native browser credentials remain in tab memory and are cleared by Sign out.
+- Secret-bearing fields are not intentionally projected into generic views.
+- Provider routes are explicit and bounded.
+- The current release is read-oriented; broad mutation workflows are not yet claimed.
+- Public management ports should not be exposed to untrusted networks.
 
-## Requirements
+## Development / Node reference runtime
 
-For the Node reference runtime:
-
-- **InterSystems IRIS Community Edition 2026.2**, available through the local SysAdmin API (the tested default is `http://127.0.0.1:52773`). A native Windows installation is supported; Docker is optional.
-- **Node.js 22 or newer**
-
-The application has no npm package dependencies; it uses Node's built-in modules.
-
-**Docker is optional.** OpsDeck can use an existing local IRIS installation. A container may also be used as a development/test IRIS instance, but Docker is not an application requirement.
-
-Use the supported InterSystems Windows installer or an InterSystems-published Community Edition image. The validated container image was `intersystems/iris-community:2026.2-linux-amd64` (Linux/amd64). See the [official image and deployment guidance](https://hub.docker.com/r/intersystems/iris-community) and the [official 2026.2 documentation](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=ACLOUD).
-
-Keep the Management Portal and API on the local machine for this development workflow; do not expose management ports to an untrusted network.
-
-## Start a local IRIS instance
-
-For a native Windows installation, start the IRIS instance using the installed InterSystems tooling and verify the local Management Portal at `http://127.0.0.1:52773/csp/sys/UtilHome.csp` (adjust the port if the installation uses another one). Complete any required first-login setup in the Portal, then enter the resulting account in OpsDeck. Do not put that password in a command, repository file, or issue.
-
-### Optional: use the Community Edition container
-
-If no container named `opsdeck-iris` exists, run:
-
-```powershell
-docker run --name opsdeck-iris --detach `
-  --publish 127.0.0.1:1972:1972 `
-  --publish 127.0.0.1:52773:52773 `
-  intersystems/iris-community:2026.2-linux-amd64
-```
-
-Wait for the container health check and verify the Management Portal at `http://127.0.0.1:52773/csp/sys/UtilHome.csp`. Complete the IRIS first-login password setup in the portal. Do not put that password in a command, repository file, or issue. To restart the same container later, use `docker start opsdeck-iris` and verify its health again.
-
-## Run the Node reference runtime
-
-Clone the repository, then from its root:
+The preserved Node path remains useful for development and provider tests:
 
 ```powershell
 npm test
 npm start
 ```
 
-Open `http://127.0.0.1:4173`. By default the reference runtime expects IRIS at `http://127.0.0.1:52773`.
+Open `http://127.0.0.1:4173`. The reference server defaults to IRIS at `http://127.0.0.1:52773` and intentionally restricts upstream targets.
 
-To use a different **loopback** IRIS HTTP port, set `OPSDECK_IRIS_URL` before starting OpsDeck:
+The application has no npm package dependencies; it uses Node built-ins.
 
-```powershell
-$env:OPSDECK_IRIS_URL = 'http://127.0.0.1:52773'
-npm start
-```
+## Road to 1.0
 
-The reference proxy intentionally rejects non-loopback IRIS origins.
+The next product-facing milestone after distribution fidelity is the **capability-aware morphing UI**: one canonical interface projected according to observed authority, provider availability, context, and workspace width without inventing permissions or duplicating authoritative state.
 
-## Authentication and security
-
-The Node reference runtime accepts an IRIS username and password only for the local OpsDeck session.
-
-- Credentials are not written to repository files.
-- Credentials are not intentionally persisted in browser storage.
-- The local reference server keeps its authorization material only in process memory for the active session and clears it when the session expires or the process stops.
-- Only explicitly registered IRIS routes are proxied.
-- Arbitrary upstream paths and arbitrary cross-origin targets are rejected.
-- Provider mappings use explicit field allowlists for operational views.
-- Mutation workflows are outside the v0.1 read-only baseline.
-
-The native browser path uses same-origin IRIS APIs and keeps its Basic authorization value in tab memory. A successful native browser login and selected reads were reproduced locally; this does not establish package installation, all-provider parity, or ObjectScript/CallIn execution. Use an IRIS account with only the privileges needed for the management information you intend to inspect.
-
-## Verification model
-
-The Overview and Applications path includes an independent read-back check for the live web-application list. OpsDeck compares the displayed state with a separate authoritative IRIS read, independent of row order.
-
-The broader provider set uses stable provider identities, bounded source registration, explicit safe-field mappings, and visible provider-error handling. Not every provider has the same read-back semantics; the UI does not claim verification where it has not been established.
-
-## Development
-
-```text
-public/
-  index.html
-  app.js
-  styles.css
-
-src/
-  iris-provider.js
-  server.mjs
-
-demo/
-  index.html
-  demo-provider.js
-
-test/
-  app-bootstrap.test.mjs
-  iris-provider.test.js
-  server.test.mjs
-```
-
-Run the automated suite with `npm test`. It covers reference-server behavior and synthetic native/provider mappings; a pass does not substitute for live native-runtime qualification.
-
-## Project status
-
-### Proven or reproduced
-
-- Node reference identity, web-app discovery, and independent web-app read-back on IRIS 2026.2.
-- A bounded native IRIS browser workflow at `/opsdeck/index.html`, including sign-in, identity, web-app list/read-back, and selected live provider views.
-- Explicit output allowlists, secret-shaped field rejection, fixed read routes, and sanitized async-Location validation.
-- A safe demo using deterministic sample data without an IRIS connection or credentials.
-- Automated provider, server, and bootstrap tests.
-
-### Remaining qualification limits
-
-The tested 0.2.0 package candidate combines the native browser path and evaluator improvements. Its package bytes were installed and tested locally; this repository source commit may contain later documentation-only changes with the same package fingerprint.
-
-- Audit async result retrieval: the bounded query returns HTTP 202 with a same-origin `Location` at `/api/admin/v1/async-result`; the current validator requires `/api/admin/v2/async-result` and rejects the observed path. No status GET or result was followed because the route equivalence is not established.
-- OpsDeck providers for fixed-source `messages.log` and `SystemMonitor.log` reads.
-- Full declared v0.1 provider parity and M1 acceptance.
-- Fresh installation from a public checkout and installation from a public IPM registry.
-- Native ObjectScript execution or a CallIn bridge; neither is implemented or qualified here.
-
-The detailed known/inferred/unverified ledger and next safe test are in [docs/QUALIFICATION_STATUS.md](docs/QUALIFICATION_STATUS.md).
+The longer sequence is tracked in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Support
 
-Use the repository's **Issues** section for reproducible bugs and support requests. Please do not include passwords, tokens, private keys, or other secrets in issue reports.
+Use the repository's **Issues** section for reproducible bugs and support requests. Never include passwords, tokens, private keys, or other secrets in issue reports.
 
 ## License
 

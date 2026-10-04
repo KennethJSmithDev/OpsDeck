@@ -14,7 +14,10 @@ test("available workspace width stacks inventory and authoritative inspector", (
 
 test("inventory panel changes from a table to labeled cards at its usable width", () => {
   assert.match(css, /\.table-panel\s*\{[^}]*container:\s*inventory\s*\/\s*inline-size/s);
-  assert.match(css, /@container\s+inventory\s*\(max-width:\s*700px\)/);
+  const cardMode = css.slice(css.indexOf("@container inventory (max-width:700px)"), css.indexOf("@container source-panel (max-width:760px)"));
+  assert.match(cardMode, /table\s*\{[^}]*min-width:\s*0[^}]*display:\s*block/s);
+  assert.match(css, /(^|\n)table\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0/s);
+  assert.doesNotMatch(css, /(?:^|\n)\s*table\s*\{[^}]*min-width:\s*660px/s);
   assert.match(css, /\.app-row,\.provider-row\s*\{[^}]*display:\s*grid/s);
   assert.match(app, /data-label="Web application"/);
   assert.match(app, /data-label="Namespace"/);
@@ -42,7 +45,15 @@ test("server and username labels wrap instead of truncating useful identity text
 
 test("compact shell navigation collapses at a width that preserves workspace room", () => {
   assert.match(css, /@media\s*\(max-width:\s*980px\)/);
+  assert.match(css, /\.nav-item\s*\{[^}]*flex-wrap:\s*wrap/s);
   assert.match(css, /\.nav-secondary\s*\{\s*display:\s*none/);
   assert.match(css, /\.sidebar\.more-open\s+\.nav-secondary\s*\{\s*display:\s*flex/);
   assert.match(app, /aria-expanded="\$\{state\.mobileMoreOpen\}"/);
+  assert.match(app, /querySelector\("#mobile-more"\)\?\.addEventListener\("click"/);
+});
+
+test("package cards reflow to one column in the constrained workspace", () => {
+  assert.match(css, /\.package-list\s*\{[^}]*grid-template-columns:\s*repeat\(2,minmax\(0,1fr\)\)/s);
+  assert.match(css, /@container\s+workspace\s*\(max-width:620px\)[\s\S]*?\.package-list\s*\{\s*grid-template-columns:minmax\(0,1fr\)/);
+  assert.match(app, /data-application-tab="packages"/);
 });

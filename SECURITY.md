@@ -1,26 +1,56 @@
 # Security Policy
 
-## Reporting a security issue
+## Reporting a vulnerability
 
-Please **do not open a public GitHub issue for a suspected security vulnerability** if the report would contain credentials, tokens, private keys, sensitive IRIS configuration, or other confidential information.
+Please report security-sensitive issues privately when possible. Do not include passwords, tokens, private keys, generated credentials, or other secrets in public issues.
 
-For ordinary reproducible bugs that do not contain sensitive information, use the repository's Issues section.
-
-When reporting a security-sensitive problem, provide only the minimum information needed to identify the affected OpsDeck version and behavior. Never include real passwords or production secrets.
+When reporting a security-sensitive problem, provide only the minimum information needed to reproduce the issue.
 
 ## Scope
 
-OpsDeck 0.2.0 candidate is designed as a read-only management interface over explicitly registered InterSystems IRIS providers. Security-sensitive design goals include:
+OpsDeck 0.2.x is designed as a read-oriented management interface over explicitly registered InterSystems IRIS providers.
+
+Security-sensitive design goals include:
 
 - no credentials committed to source control;
-- no arbitrary upstream proxy targets;
-- no arbitrary provider-path forwarding;
-- explicit output-field allowlists for management data;
-- visible failure when an authoritative provider is unavailable;
-- no intentional rendering of password, secret, token, or private-key values.
+- no arbitrary browser-selected upstream targets;
+- bounded provider routes;
+- explicit safe-field projections;
+- visible access-denied and unavailable states;
+- no intentional rendering of passwords, secrets, tokens, or private-key values;
+- no silent substitution of demo data for failed live IRIS reads;
+- no claim of mutation or execution authority where it has not been qualified.
 
-The Node runtime in this repository is a local reference/development path. The IRIS-native deployment path is being qualified for the integrated 0.2.0 candidate.
+The Node runtime in this repository is a local reference/development path. The released v0.2.0 product also has a qualified native IRIS-hosted browser path served from `/opsdeck`.
 
 ## Supported versions
 
-Security support currently follows the latest published OpsDeck release; 0.2.0 remains a candidate until qualification. Pre-release and development snapshots may change without compatibility guarantees.
+Security support follows the latest published OpsDeck release and subsequent maintained patch line.
+
+| Version | Supported |
+|---|---|
+| 0.2.x | Yes |
+| 0.1.x | Best-effort historical reference only |
+
+Pre-release and development branches may change without compatibility guarantees.
+
+## Authentication boundary
+
+The native browser path uses same-origin IRIS management APIs. Credentials are kept in tab memory for the active session and cleared by Sign out.
+
+The Node reference runtime keeps its active authorization material only in process memory and restricts the configured upstream target.
+
+OpsDeck does not define a replacement IRIS authorization model. IRIS remains authoritative for identity, roles, resources, and privileges.
+
+## Current limits
+
+The current public release does not claim:
+
+- broad mutation workflows;
+- arbitrary ObjectScript execution;
+- a CallIn execution bridge;
+- least-privilege proof for every possible provider;
+- public-registry installation qualification;
+- complete audit/log parity with the Management Portal.
+
+See [docs/QUALIFICATION_STATUS.md](docs/QUALIFICATION_STATUS.md) for the current evidence boundary.

@@ -1,113 +1,125 @@
 # OpsDeck qualification status
 
-**Repository version:** `0.2.0` (release candidate)
+## Current integration snapshot — 2026-10-03
 
-**Native qualification branch:** `release/native-ipm-0.2.0`
+- Branch at the start of the 2026-10-03 authenticated HTTP qualification: `integration/opsdeck-1.0-20261002`, pushed tip `65fa4a250c120b43998bb11b7734c6e83553e5c7`. The pushed follow-on checkpoints are recorded in Git; see [the authenticated catalog boundary record](OPSDECK_0_9_AUTHENTICATED_HTTP_BOUNDARY_20261003.md) for this qualification's Docker-only security changes and exact outcomes.
+- Source package candidate version is `0.5.0` after v0.5 acceptance; this is an integration-branch candidate only, not a public release.
+- Current local JavaScript suite at the pushed source checkpoint: **156/156 PASS**. Browser-rendered catalog tests cover `INSTALLED_NEWER` without an update recommendation, simulated upstream HTTP 403 as `DENIED`, and partial configured-repository coverage with rows retained. Operation-engine tests exercise the provider-neutral executor using a deterministic provider. Syntax checks pass locally.
+- The catalog comparison distinguishes `INSTALLED_CURRENT`, `INSTALLED_OLDER`, `INSTALLED_NEWER`, `AVAILABLE_ONLY`, `INSTALLED_STATE_UNKNOWN`, and `INSTALLED_VERSION_UNCOMPARABLE`; focused tests cover those states. In the connected live browser, both installed and available versions were shown accurately. The older installed UI's generic `INSTALLED` badge is presentation debt: it is true, does not imply an update, and does not contradict the displayed `0.2.2` installed / `0.2.0` available values. The missing explicit `INSTALLED_NEWER` label is not a written v0.5 acceptance requirement.
+- The disposable `OPSDECK_08_TEST_TARGET` is running at loopback ports 51972 and 52774. Its installed `opsdeck@0.2.2` package was not updated. Authenticated HTTP and connected Edge identify `OpsDeckQualify`; the Packages workspace rendered live installed rows and the exact catalog result (`opsdeck@0.2.0`, `registry`, 1/1 configured repositories reachable) beside installed `opsdeck@0.2.2`. This is live browser evidence for the installed package version. A read-only hash comparison confirms Docker's `app.js` differs from current `public/app.js`; source-only richer label behavior is not claimed as runtime-observed.
+- The authenticated catalog required the existing `%DB_IRISSYS:READ` and `%DB_%DEFAULT:READ`, plus `%Admin_Secure:USE` for IPM's SSL configuration API and SQL EXECUTE on `%IPM_Repo.Definition_SortOrder`. These changes are limited to the disposable qualification identity/role. `%Admin_Secure:USE` is not a suitable default operator grant, so live catalog qualification currently applies only at this elevated fixture scope. Edge was visibly connected as `OpsDeckQualify`; the exact mechanism that established the session is not attributed to password-manager autofill.
+- The shared operation engine now has a provider-neutral source implementation for fresh pre-state, fresh authority, plan-bound confirmation, one dispatch attempt, authoritative read-back, provider verification, and receipt projection. The fixture adapter delegates through this engine. Deterministic provider tests prove the call order, one-dispatch behavior, and terminal ambiguity handling. No live provider is connected; no real web-app operation, package operation, or live OperationReceipt has been qualified. v0.6 remains **NOT ACCEPTED**.
+- ObjectScript Quality is **UNAVAILABLE UNDER ACCEPTABLE TRUST BOUNDARY** because the prescribed remote hook failed trust review; it is not a mainline-blocking OpsDeck acceptance gate. The workflow was not added or executed. Ordinary product quality gates remain required; see [the gate record](OBJECTSCRIPT_QUALITY_GATE_20261003.md).
+- A connected local safe-demo browser smoke rendered Overview, Applications, Logs with the deterministic synthetic Embedded Python finding, Tasks and its synthetic Job Center entry, Packages with the synthetic `opsdeck 0.2.1` versus `0.2.0` `INSTALLED NEWER` example, and Evidence. The demo banner identified sanitized sample data/no IRIS connection; the Packages screen explicitly said it queried no registry or installed IPM inventory. This is static/demo rendering evidence only and does not qualify the live authenticated provider. The loopback server and temporary staged bundle were stopped and removed.
+- A separate local IPM lifecycle fixture created and removed only its disposable `OPSDECK_STORAGE_FIXTURE` namespace/database; its marker row, package registration, class, and exact empty database/staging paths were cleaned and read back absent. `opsdeck@0.2.2` and `OpsDeck.Product.FixedLogREST` remained present. No credentials, privileges, repositories, or OpsDeck package state changed. No merge, tag, or release was made.
 
-**Current tested package:** SHA 1663869af14673f027efb63a986ac5c1e50a8ac1, opsdeck 0.2.0. Its manifest and four resource hashes match the PASS local-source lifecycle receipt. The installed native page was reviewed as OpsDeckTest; eight routes at 320, 390, 600, 820, 1024, and 1440 CSS pixels had zero document horizontal overflow. The exact core IPM version and public registry installation remain unverified. See the receipt in the private CompDocs evidence packet; the public source does not include private qualification tooling.
+### Evidence-gated frontier
 
-## Integrated final candidate — 2026-09-30 (historical checkpoint; current results are above)
+| Milestone | Current status | Remaining acceptance evidence |
+|---|---|---|
+| 0.5 operational visibility | **ACCEPTED — PASS** | All explicit v0.5 criteria passed at their qualified scope. See the v0.5 acceptance record below. The generic `INSTALLED` badge is presentation debt, not a contradictory or false state. |
+| 0.6 verified operations | **NOT ACCEPTED** | One real reversible operation through the shared executor, authoritative read-back, receipt, and cleanup on the disposable target. |
+| 0.7 operational Evidence | **NOT ACCEPTED** | A real OperationReceipt consumed and rendered with its evidence-backed findings. |
+| 0.8 package operations | **NOT ACCEPTED** | Same-executor package install/remove, DPI-I-261 completion, and unrelated-package preservation. |
+| 0.9 intelligent operations | **NOT ACCEPTED** | Operational core plus owned derived storage, real Vector Search, semantic retrieval, AI boundary, morphing/responsive browser qualification, and full product lifecycle. |
 
-This tree reconciles native-iris-pivot at d793ef14c39c7c89d2f2cfc55dfb86582f9c94da with main at ddb3c0e2665a853bb854def7c0f18e242db952c6. It preserves same-origin native reads, in-memory credentials, sign-out, fixed providers and strict audit boundaries, and adds the main evaluator tour, persona descriptions, Evidence view and responsive styles. The package identity is opsdeck 0.2.0. Static/unit/browser fixture checks qualify only their tested contracts. R3 is ATTEMPTED / INCONCLUSIVE; final authenticated package lifecycle and source/runtime parity remain unqualified. The historical bundle and prior SHA remain evidence, not qualification of this integrated tree.
+The live installed UI demonstrated the catalog behavior and correct version facts at its installed package scope. The current-source explicit relationship label remains source/test-qualified only.
 
-### Current release preparation — 2026-09-30
+### v0.5 acceptance record — PASS
 
-The operator's credential-free capture established BOM-less UTF-16LE output from the installed Terminal. After the reader repair, a bounded real probe returned the authenticated identity and `%SYS` namespace with attempt-specific completion. Read-only inspection returned IRIS 2026.2 Build 221U and `%IPM.Main` class presence, but the package-manager `version` call threw exception code -99; IPM usability/version and installed package state remain unqualified. The earlier lifecycle attempt reached authenticated application capture and stopped in IPM preflight with possible partial bootstrap state. That uncertainty remains unresolved and prohibits automatic bootstrap or lifecycle retry. No current load/uninstall/reload was attempted. Runtime browser observations must identify the installed bundle; they do not qualify the current packaged assets.
+- **Objective:** complete operational visibility through bounded live providers, Packages discovery, Jobs/Evidence projection, and capability-aware presentation.
+- **Source implemented:** required read domains, fixed-log integration, Embedded Python findings, shared Job Center, Evidence view, installed IPM inventory, exact-name available catalog provider, explicit coverage/authority states, and safe deterministic demo are present. The 156-test JavaScript suite passes; all JavaScript/ES module syntax checks and `module.xml` parsing pass.
+- **Runtime qualified:** connected Edge as `OpsDeckQualify` on `OPSDECK_08_TEST_TARGET` rendered live Overview, Applications, Logs/findings, Tasks/Job Center, Packages installed inventory/catalog, and Evidence. Catalog returned `opsdeck@0.2.0` from `registry`, with 1/1 configured repositories reachable; installed inventory showed `opsdeck@0.2.2`. The separate versions and `INSTALLED` state are accurate; no downgrade/update recommendation was shown. The live role's authority is Docker-fixture-only and includes `%Admin_Secure:USE`; this does not qualify ordinary operator access.
+- **Publicly demonstrable:** safe demo presents synthetic packages, Jobs, Evidence, and findings with explicit synthetic labeling; live Docker smoke is qualification evidence, not a public release claim.
+- **Representation cost:** current source measurement is 260,184 uncompressed browser bytes (222,152 JS, 37,584 CSS, 448 HTML), eight native initial requests, +31,847 bytes (+13.94%) versus the preserved 228,337-byte baseline. The +6,476-byte increase since the previous measurement is the bounded rotated-message-log observation path in the existing app/provider modules; it adds no asset or initial request. No framework or global catalog preload was introduced.
+- **Presentation debt:** the Docker-installed `0.2.2` renderer shows the truthful generic `INSTALLED` badge, with both versions alongside it. It does not display the more informative `INSTALLED_NEWER` label present in newer source. This is not a v0.5 acceptance failure because the written gate requires correct version semantics and no false update recommendation, not that exact badge string.
+- **Remaining gaps:** live web-app mutation, OperationReceipt, package install/remove, and current-source explicit relationship-label runtime observation remain for later gates. v0.6 is not yet accepted.
+- **Release boundary:** `0.5.0` is prepared on the integration branch only. No main merge, tag, publication, or public release occurred.
 
-The safe demo uses deterministic sanitized data and four authority personas. It does not prove live IRIS permissions, package installation or audit/log completion. See [Evaluator Guide](EVALUATOR_GUIDE.md).
+**Current public release:** `v0.2.0`  
+**Release commit:** `23215459096cb47d255c45b1e6e86687f3d8e93a`  
+**Public release status:** unchanged; no newer public release or registry availability is claimed.
 
+This document separates public release, accepted local qualification, and source-only development. Source branches do not inherit installed or live qualification.
 
-**Current status:** the exact 0.2.0 local-source package lifecycle and installed-native responsive review passed at the scope recorded by the final local receipt. M1 remains partial; public-source checkout and registry installation are not qualified.
+## Accepted local qualification
 
-### Current native candidate reproduction â€” 2026-09-25
+### 0.2.1 distribution fidelity
 
-- Candidate branch and base commit: `native-iris-pivot` at `64141ec7eae0e96f7b94b5d6b1f46d2346866741`.
-- `npm test`: 32 passed, 0 failed. JavaScript syntax checks and `git diff --check` passed on the candidate working tree.
-- `/opsdeck/index.html` loaded from the local IRISTesting instance. On 2026-09-25, the user completed browser sign-in and the app showed authenticated identity `OpsDeckTest`.
-- Applications returned 23 web-app records and the independent authoritative read-back matched. REST services returned 9 records and its second read matched.
-- Access returned 12 user records with matching second read. Security wallet collections returned an empty collection with matching second read. Tasks returned 16 task records with matching second read. System usage returned one live object; its second sample differed, consistent with changing counters and not claimed as a stable read-back. Logs audit status returned one live object and matching second read. No audit search was started.
-- A separate bounded HTTP authentication discriminator returned HTTP 200 from `/api/admin/info`; this is corroborating endpoint evidence, independent of the browser session.
-- R1 browser authentication and the selected surface smoke are **PASS** for the existing locally installed native bundle. The local checkout corrections were not deployed to IRIS; see the source-to-runtime comparison below. This does not qualify package installation or deferred audit async and named-source log readers.
-- A read-only SHA-256 comparison found `public/index.html` and `src/iris-provider.js` match the live CSP copies; `public/app.js` and `public/styles.css` differ. This confirms the current runtime is not byte-for-byte identical to the candidate checkout.
+- Corrected candidate: `50205ed79dbd80a768d67c2455d514c09bbc5999`
+- Branch: `fix/0.2.1-responsive-inventory-reflow`
+- Status: **ACCEPTED locally**
+- Fresh Windows checkout / Git-blob parity: PASS
+- Controlled lifecycle: PASS
+- Regression suite: 82/82 PASS
+- Installed-native responsive qualification: PASS
+- 48 route-at-width observations and no-reload responsive transition: PASS
 
-### Explicit v0.1 deferred dispositions
+The failed responsive specimen `69e1215febab5008fc0542d96c0e921f638b4502` remains historical evidence. The accepted local candidate has not replaced the public `v0.2.0` release.
 
-- Audit async result retrieval: **BLOCKED / UNVERIFIED**. IRIS accepted a bounded request, but the returned route failed the existing strict validator and no result GET was made.
-- Native `%SYS.Audit` DB-API path: **UNRESOLVED**. A direct DB-API request did not establish an authenticated identity; no SQL result is claimed.
-- Messages native reader: **UNAVAILABLE / DEFERRED**. No supported fixed-source reader is qualified.
-- System Monitor native reader: **UNAVAILABLE / DEFERRED**. No supported fixed-source reader is qualified.
+### 0.3 capability-aware morphing UI — first bounded slice
 
-This record applies EGEHAR's evidence rule: a result admits only the boundary that was observed. Historical local runtime receipts are identified as historical observations; they are not represented as a fresh reproduction at every later checkout.
+- Commit: `42e9f60694cc33826748e69ef8d289aac0604a6d`
+- Branch: `feature/capability-aware-morphing-ui`
+- Status: **FIRST BOUNDED SLICE ACCEPTED**, not full 0.3 completion
+- Local regressions: 88/88 PASS
+- Lifecycle and installed-native browser/responsive qualification: PASS
 
-## KNOWN
+The accepted slice projects navigation and contextual priority from observed provider evidence without treating presentation as authority.
 
-- The local checkout has a separate Node reference runtime and a browser client that can be served as static files by IRIS. Native browser API calls use bounded same-origin routes; the repository contains no server-side ObjectScript execution or CallIn bridge.
-- Historical native Windows IRIS 2026.2 observations reproduced the explicit entry URL `/opsdeck/index.html`, its relative assets, browser sign-in as the dedicated `OpsDeckTest` identity, live identity, a 23-entry web-app list with matching independent read-back, and selected Applications, Access, Security, Tasks, System, and Logs reads. Sign-out returned the UI to sign-in. The native evidence is recorded in the private project qualification receipts; this public record preserves only sanitized route/status/shape evidence.
-- The local test identity previously needed `%DB_IRISSYS:R` and `%DB_USER:R` in addition to its six `%Admin_*:U` grants for the currently qualified native reads. Those grants were observed to change the failing routes to HTTP 200; they are not represented as a formally proven minimum privilege set.
-- One authenticated native audit query, filtered to the current test identity, a rolling ten-minute interval, and `maxRows=1`, returned HTTP 202. Its `Location` was structurally same-origin and contained exactly one nonempty `id` query value. Only sanitized structure was retained.
-- The frontend's strict validator requires `/api/admin/v2/async-result` and rejected the observed `/api/admin/v1/async-result` with `unexpected-path`. It did not issue a status GET. That refusal preserves the exact-route boundary.
-- Native `messages.log` and `SystemMonitor.log` files were found by file metadata only. Their contents were not read, and the OpsDeck tree has no fixed-source reader for them.
-- A safe-demo provider supplies deterministic sanitized sample records separately from the live IRIS provider. The GitHub Pages workflow builds only the demo HTML, provider, frontend assets, and provider adapter; demo records are not live IRIS evidence.
-- On 2026-09-25, `node --version` reported `v24.21.0`. `npm test` on merged tree `361930c` (including product commit `daa07d1ec22a888522b7dad03d76dfff3ccd2db2`) passed 32/32 (0 failed, 0 skipped). `node --check public/app.js`, `node --check src/iris-provider.js`, `node --check src/server.mjs`, and `git diff --check` passed before documentation changes. This suite includes synthetic auth/provider/async/fixed-log cases; it does not reproduce native IRIS behavior.
-- At that same inspection, Windows services `IRIS_c-_devops_iris` and `IRISTestinghttpd` reported Running, and loopback TCP checks to ports 52773 and 1972 succeeded. Those checks establish listener availability only, not successful authentication or the unresolved route semantics.
+## Current development frontier — 2026-10-02
 
-## INFERRED
+### Contest 0.8 continuation — 2026-10-03
 
-- The current audit qualification gap is localized after the query POST and URL-shape inspection but before any async-result GET: the observed route version does not match the one route the client currently permits, and available evidence does not establish that the v1 resource is equivalent to the documented v2 status resource.
-- The absence of an OpsDeck reader is an integration/socket gap for Messages and System Monitor. File metadata proves the files exist, but it does not prove that a supported authenticated reader exists or what its safe projection should be.
-- The documented native UI/provider slices are independent of the unresolved audit async path and fixed-source log integration. The Node reference workflow, safe demo, and already qualified native routes therefore remain useful and must not be described as wholly unfinished.
-- Passing synthetic tests validates the guard and mapping logic at their test boundary. It cannot establish live provider attachment, ObjectScript execution, IPM lifecycle behavior, or full M1 acceptance.
+| Milestone | Branch / tip | Evidence classification |
+|---|---|---|
+| Shared session Job Center source slice | `integration/opsdeck-1-20261002` / prior checkpoint | **SOURCE IMPLEMENTED / LOCAL TESTED 136/136 / IRIS MUTATING JOB FLOW UNQUALIFIED**. The accepted bounded audit async read is projected into one bounded session Job collection, Tasks Job Center, and session Evidence. Ambiguity is explicit and never retried. |
 
-## UNVERIFIED
+### Integrated native package lifecycle — 2026-10-03
 
-- Whether `/api/admin/v1/async-result?id=â€¦` is the supported status resource returned by the v2 audit POST, a compatibility route, or an IRIS defect.
-- Any async status response, task state, terminal result shape, bounded record count, or continuation/pagination behavior for the audit query.
-- Authenticated OpsDeck readers for `messages.log` and `SystemMonitor.log`; only their existence and metadata were inspected.
-- The full declared v0.1 Logs baseline and full M1 acceptance.
-- A root candidate `module.xml` is present. IPM availability/version in the target namespace; package load/install; uninstall/removal; clean reinstall; and a reproducible package-managed native deployment remain unverified until the actual lifecycle is reproduced.
-- Server-side ObjectScript execution through OpsDeck. No ObjectScript bridge exists in this repository. CallIn availability or enablement in the IRIS runtime was not qualified, and OpsDeck makes no CallIn claim.
-- The reason `app.js` and `styles.css` differ from their live CSP copies. The fresh browser run authenticated against the existing local native bundle; local checkout changes were not package-deployed.
+The exact local-source 0.2.1 manifest was installed, uninstalled, and reinstalled in the isolated `OPSDECK_08_TEST_TARGET` (IRIS 2026.2 Build 221U, IPM 0.10.8). `OpsDeck.Product.FixedLogREST`, both OpsDeck web applications, and copied static assets were observed present after install, absent after uninstall, and restored after reinstall. During the uninstall window, an independent disposable sentinel package/class/web application and `/csp/sys` remained available; the sentinel was then uninstalled and its exact temporary CSP directory removed. Anonymous `/opsdeck-api/packages` returned 401 while installed and 404 while uninstalled. See [the detailed lifecycle record](OPSDECK_0_9_DISPOSABLE_LIFECYCLE_20261003.md).
 
-## Blocked boundary and attempts
+This qualifies package ownership for the exact local-source load and test target only. It does not qualify public-registry `zpm install`, authenticated browser-provider behavior in this target, other namespace/image combinations, or a production CSP directory provisioning path. The earlier package-load permission failure and narrowly scoped target setup are recorded in [the EGEHAR record](OPSDECK_0_9_EGEHAR_20261003.md). The OpsDeck `0.2.1` source's current local regression suite passes 141/141.
 
-### Audit async result
+For this continuation, Docker Desktop 4.93.0 / Engine 29.8.1 (Linux/amd64, WSL2) was available. An isolated `OPSDECK_08_TEST_TARGET` used the official `intersystemsdc/iris-community:2026.2-zpm` image (`sha256:68bc1d43c98ca816f2e98a185edc1250bebb6b763f8159da35c8543b09c0df70`) bound only to loopback ports 51972 and 52774. The vendor entrypoint's normal after-start wrapper failed with its `dbapi.connect` wrapper error under `ISC_DATA_DIRECTORY`; IRIS started and qualified with the vendor image's `/iris-main` entrypoint. This does not qualify the wrapper path.
 
-**Earliest failing boundary:** bounded authenticated audit `POST` â†’ HTTP 202 â†’ sanitized, same-origin `Location` â†’ strict route validation rejects the path as `unexpected-path`. No GET was attempted after rejection.
+The actual integration source was loaded and compiled with `zpm load /tmp/opsdeck-package`. `OpsDeck.Product.LogInterpreter` compiled and bounded 25 error fixtures to 20 findings, setting `findingsTruncated`. Authenticated `/opsdeck-api/packages`, `/messages`, and `/system-monitor` returned bounded results; anonymous package API access returned 401. The static `/opsdeck/index.html` and `/opsdeck/app.js` served successfully. The package lifecycle test installed a separate sentinel module, uninstalled OpsDeck, confirmed OpsDeck routes returned 404 while the sentinel static app and built-in system portal returned 200, then reloaded OpsDeck and confirmed its routes returned 200 and package inventory included `opsdeck@0.2.1` and the sentinel. This proves ownership only for this exact disposable runtime and local `zpm load` source path; it does not qualify public-registry `zpm install`.
 
-**Attempted:** one bounded query (current test user, rolling ten-minute interval, `maxRows=1`); sanitized inspection of the returned URL structure; comparison with the checked-in SysAdmin operation inventory, which lists both v1 and v2 async-result GET paths.
+At the earlier 0.8 checkpoint, the target container, named data volume, pulled image, and temporary fixture files were removed after qualification. The Docker target was later recreated for the current 0.9 continuation. That checkpoint selected session-scoped authoritative Evidence, which remains valid. Its Vector Search deferral is superseded by the current 0.9 objective: Vector Search is required for a separate, rebuildable derived index; product-owned storage is not yet implemented.
 
-**Not attempted:** following the v1 Location, guessing or substituting a v2 URL, repeating the query, loosening the route validator, retrieving audit rows, or claiming pagination behavior.
+All entries below are local source work. They have not been installed into IRISTesting and do not qualify live execution or persistence.
 
-**Next required local evidence:** obtain authoritative route binding/contract evidence that ties the returned v1 path to the v2 audit handoff, or authorize a specifically bounded discriminating runtime test. Only after that boundary is established should one status GET be considered, still enforcing same-origin, exact-route, one-id, and result-size bounds. A terminal bounded result is required before claiming audit search works.
+| Milestone | Local branch / commit | Evidence classification |
+|---|---|---|
+| 0.4 Docker / clean-room | Current integration source | **DISPOSABLE TARGET LIFECYCLE QUALIFIED FOR LOCAL SOURCE LOAD**. The isolated 2026.2 Docker target compiled and served the product, passed uninstall/sentinel-survival/reinstall checks, and was removed. Public registry install and normal vendor wrapper startup remain unqualified. |
+| 0.8 Embedded Python fixed-log interpretation | Current integration source | **SOURCE IMPLEMENTED / IRIS COMPILED / BOUNDED FIXTURE AND FIXED-ROUTE RUNTIME QUALIFIED**. Python stdlib analysis consumes only the existing fixed-source projection, returns capped rule findings without raw log values, and is attached to the existing `/messages` and `/system-monitor` responses. No Python authority or generic path/execution capability is added. |
+| 0.5 audit async | `feature/bounded-read-provider-coverage-0.5` / `6f24069cb6d15799e929519cdc2de504941d667c` | Bounded source slice; maxRows=1, strict same-origin/path validation, no redirect following. Complete official result schema remains UNVERIFIED. |
+| 0.5 fixed logs | `feature/fixed-log-reader-source-0.5` / `90108d61d33154ed497f19f0e3516353992c7c57` | **SOURCE PROTOTYPE / IRIS COMPILE AND PRIVILEGE CONTRACT UNQUALIFIED**. Provider-boundary tests pass. ObjectScript runtime byte accounting and denied-versus-unavailable classification require IRIS-side proof. Not packaged or installed. |
+| 0.6 operation engine | `feature/verified-operation-engine-0.6` / `57b5b022641e7a24d178bc9389a2dc229944a512` | **SOURCE-READY / FIXTURE-QUALIFIED / LIVE-EXECUTOR-UNQUALIFIED**. Deterministic risk policy, explicit authority evidence, stale-plan checks, cancellation, denial/unavailable/ambiguous states, no ambiguous retry, and read-back-gated receipts. |
+| 0.7 Evidence Center | `feature/durable-evidence-center-0.7` / `88f22c9537df11d1340380a446df74c146f2b9be` | **EVIDENCE-CONTRACT/UI SOURCE-READY / PERSISTENCE BACKEND UNQUALIFIED**. Bounded redacted session evidence, filtering, and JSON/Markdown export; no durable IRIS provider. |
+| 0.8 Applications → Packages | `feature/applications-packages-0.8` / `ed490e94af92fce52c2d564cc95377a9f3baee38` | **WORKSPACE SOURCE-READY / PLANNING-FIXTURE FLOW QUALIFIED / LIVE IPM EXECUTION UNQUALIFIED**. Package rows are visibly synthetic; plans are HIGH risk and confirmation remains disabled. |
 
-### Named-source logs and packaging
+Local regression results at those source commits: 0.6 **95/95**, 0.7 **100/100**, and 0.8 **104/104**. The current integrated branch passes **141/141** tests, JavaScript syntax checks, module XML parsing, and `git diff --check`. Tests prove the local contracts and fixture behavior only.
 
-The local files were observed by metadata only. No source implementation was found in the OpsDeck tree, and no fixed-source bridge was deployed. Continue only after identifying a supported IRIS-owned reader and an exact bounded API; do not expose arbitrary paths.
+## Unverified / deferred boundaries
 
-The root `module.xml` is a static candidate only. It copies the four package-owned browser files individually, avoiding the unrelated `proof/` content in the local CSP directory, and declares the Password-authenticated `/opsdeck` application. XML parsing, application tests, syntax checks, and whitespace checks pass. No IPM command was executed: the local authenticated Terminal runner was rejected by the active automation execution policy before reaching IRIS, so even `%IPM.Main` availability/version in `%SYS` remains unknown. The installed `iris.exe` CLI documents instance/routine execution but no direct ObjectScript expression mode; no existing local routine that invokes IPM was identified. The existing OpsDeck REST surface is read-only and `/api/atelier` is disabled. There was no load, install, uninstall, application deletion, or runtime/security change.
+- The exact integrated lifecycle outside this one disposable container, public-registry installation, and normal vendor entrypoint wrapper path.
+- Audit async result schema beyond the observed bounded empty result.
+- Cross-identity fixed-log denial mapping and minimum required privileges.
+- A disposable fixture for any live 0.6 mutation and a real qualified write executor.
+- A persistent, redacted IRIS-backed 0.7 Evidence provider.
+- Read-only IPM available-catalog discovery, live package operation executor, and public-registry package fixture for 0.8.
+- Real IPM install/update/remove result semantics and authoritative post-operation read-back.
+- Public registry installation of OpsDeck, public release of 0.2.1, and Open Exchange availability.
 
-**Earliest package boundary not reached:** authenticated local package-manager inspection in `%SYS` using the separate package-install identity. Continue only when that supported local Terminal action can run; then use the actual installed IPM path without changing runtime privileges or Locked Down. A manifest or unit test alone cannot admit package lifecycle claims.
+## Next qualification sequence
 
-### ObjectScript / CallIn
+1. Qualify the normal official Docker image wrapper path if its startup defect is resolved without weakening isolation.
+2. Determine fixed-log denial behavior under identities with their existing authority; do not widen privileges.
+3. Qualify the first real 0.6 mutation only against an isolated disposable fixture after the operation executor is reviewed.
+4. Keep authoritative Evidence session-scoped while implementing the separate package-owned derived Vector Search index required for 0.9.
+5. Establish read-only available-package discovery and the exact install/update/remove contracts before enabling any package mutation path.
 
-The current implementation calls official IRIS REST APIs from the browser and uses Node only for its separate reference proxy. It does not invoke ObjectScript code. CallIn service state was not tested in the current checkpoint. No execution capability should be claimed unless service availability, authorization, a bounded call, and its semantic result are independently reproduced.
+The accepted 0.2.0 and 0.2.1 historical evidence is preserved. The 0.9 continuation is active on the integration branch. No main merge, tag, release, registry claim, or Open Exchange action has been made.
 
-## Unaffected functionality
-
-- Node reference server, fixed provider routes, safe mappings, session behavior, and their automated tests.
-- Sanitized safe demo and its static Pages build workflow.
-- Historical native static hosting at `/opsdeck/index.html`, browser authentication, identity/web-app read-back, and the specifically observed native provider reads.
-- Other native UI/provider routes that do not depend on audit async completion or a fixed-source Messages/System Monitor bridge.
-
-The unaffected items above remain scoped to their own evidence. They do not imply whole-product parity, an installable package, or native ObjectScript execution.
-
-## Preservation and test record
-
-- Product source SHA qualified by the latest local suite: `daa07d1ec22a888522b7dad03d76dfff3ccd2db2`; the suite ran on merged tree `361930c`.
-- Current candidate base `64141ec7eae0e96f7b94b5d6b1f46d2346866741`: on 2026-09-25, browser authentication as `OpsDeckTest`, Applications (23 records, matched read-back), Access (12 records, matched read-back), Security (empty wallet collection, matched read-back), Tasks (16 records, matched read-back), System usage (one live object; second counter sample differed), and Logs audit status (one object, matched read-back) were observed. No audit search was started. `npm test` passed 32/32 on the candidate working tree with the current corrections; syntax checks, `git diff --check`, and `module.xml` XML parsing passed. This does not qualify the IPM lifecycle.
-- Latest sanitized audit follow-up receipt: 2026-09-24. It records `npm test` 32/32, both JavaScript syntax checks, and `git diff --check` as passing at that commit.
-- Local verification on 2026-09-25 at tree `361930c`: `npm test` (32 pass, 0 fail); `node --check public/app.js`; `node --check src/iris-provider.js`; `node --check src/server.mjs`; `node --check demo/demo-provider.js`; `git diff --check` (all passed). No live audit follow-up, package operation, CallIn test, or provider expansion was run.
-
-## Next boundary
-
-Continue package lifecycle qualification independently from the audit route-equivalence question. Keep the async response strict, and keep package, fixed-log, and ObjectScript/CallIn claims separate from already reproduced native browser capability.
+- The contextual “IRIS concepts in this view” help is a collapsed static disclosure scoped to relevant routes. Focused render assertions and the full 152-test suite pass. It does not affect authority or providers. The repository's own Pages build recipe was staged locally and the current source bundle was rendered in Edge's safe demo: Overview, Logs, and Packages showed route-specific help; the safe-demo banner and synthetic package labels remained visible. This is source browser smoke only, not connected runtime qualification. The installed disposable app was not replaced, no IRIS credentials were entered, and no IRIS state changed. Current asset sizes and delta are in the performance baseline.

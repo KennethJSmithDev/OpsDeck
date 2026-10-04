@@ -3,14 +3,34 @@
   <Document name="opsdeck.ZPM">
     <Module>
       <Name>opsdeck</Name>
-      <Version>0.2.0</Version>
+      <Version>0.5.0</Version>
       <Description>OpsDeck read-only operations console for InterSystems IRIS</Description>
       <Packaging>module</Packaging>
+      <SourcesRoot>src</SourcesRoot>
+      <Resource Name="OpsDeck.Product.PKG" />
 
       <FileCopy Name="public/app.js" Target="{$cspdir}opsdeck/app.js" />
       <FileCopy Name="public/index.html" Target="{$cspdir}opsdeck/index.html" />
       <FileCopy Name="public/styles.css" Target="{$cspdir}opsdeck/styles.css" />
       <FileCopy Name="src/iris-provider.js" Target="{$cspdir}opsdeck/iris-provider.js" />
+      <FileCopy Name="public/evidence-center.js" Target="{$cspdir}opsdeck/evidence-center.js" />
+      <FileCopy Name="public/operation-engine.js" Target="{$cspdir}opsdeck/operation-engine.js" />
+      <FileCopy Name="public/packages-workspace.js" Target="{$cspdir}opsdeck/packages-workspace.js" />
+      <FileCopy Name="public/job-center.js" Target="{$cspdir}opsdeck/job-center.js" />
+      <FileCopy Name="public/product-identity.js" Target="{$cspdir}opsdeck/product-identity.js" />
+      <FileCopy Name="public/snippet-namespace.txt" Target="{$cspdir}opsdeck/snippet-namespace.txt" />
+      <FileCopy Name="public/snippet-try-catch.txt" Target="{$cspdir}opsdeck/snippet-try-catch.txt" />
+      <FileCopy Name="public/snippet-http-read.txt" Target="{$cspdir}opsdeck/snippet-http-read.txt" />
+
+      <WebApplication
+        Name="/opsdeck-api"
+        NameSpace="%SYS"
+        DispatchClass="OpsDeck.Product.FixedLogREST"
+        Enabled="1"
+        AutheEnabled="32"
+        Recurse="0"
+        ServeFiles="0"
+      />
 
       <WebApplication
         Name="/opsdeck"

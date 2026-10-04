@@ -1,0 +1,13 @@
+// Example shape only: choose an approved TLS configuration and fixed endpoint.
+// Do not put credentials in source code or accept a caller-controlled URL.
+#include %occStatus
+
+set request = ##class(%Net.HttpRequest).%New()
+set request.Server = "iris.example.invalid"
+set request.SSLConfiguration = "approved-client-tls"
+set sc = request.Get("/api/admin/v2/web-apps")
+if $$$ISERR(sc) {
+    do $SYSTEM.Status.DisplayError(sc)
+} else {
+    write request.HttpResponse.StatusCode,!
+}

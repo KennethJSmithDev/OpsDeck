@@ -25,12 +25,20 @@ export const READ_ONLY_SOURCES = Object.freeze({
   devices: { path: "/api/admin/v2/devices", domain: "system", label: "Devices", requiredPrivilege: "%Admin_Manage:U" },
   auditEnabled: { path: "/api/admin/v2/security/audit/enabled", domain: "logs", label: "Audit status", requiredPrivilege: "%Admin_Secure:U" },
   auditEvents: { path: "/api/admin/v2/security/audit/events", domain: "logs", label: "Audit event definitions", requiredPrivilege: "%Admin_Secure:U" },
+  messagesLog: { path: "/opsdeck-api/messages", domain: "logs", label: "messages.log", requiredPrivilege: "%Admin_Operate:Use", nativeOnly: true },
+  messageRotations: { path: "/opsdeck-api/message-rotations", domain: "logs", label: "messages.log rotations", requiredPrivilege: "%Admin_Operate:Use", nativeOnly: true },
+  systemMonitorLog: { path: "/opsdeck-api/system-monitor", domain: "logs", label: "SystemMonitor.log", requiredPrivilege: "%Admin_Operate:Use", nativeOnly: true },
+  availablePackages: { path: "/opsdeck-api/available-packages", domain: "applications", label: "Available IPM packages", requiredPrivilege: "%IPM_Repo.Definition:SELECT", nativeOnly: true },
   journalFiles: { path: "/api/admin/v2/journal/files", domain: "logs", label: "Journal files", requiredPrivilege: "%Admin_Operate:U" },
   alerts: { path: "/api/monitor/alerts", domain: "logs", label: "Alerts (stateful feed)", requiredPrivilege: "provider-defined" },
 });
 
 export const AUDIT_QUERY_MAX_ROWS = 1;
-const ASYNC_RESULT_PATH = "/api/admin/v2/async-result";
+const ASYNC_RESULT_PATHS = Object.freeze({
+  "/api/admin/v1/async-result": "v1",
+  "/api/admin/v2/async-result": "v2",
+});
+const validatedAuditLocations = new WeakSet();
 const AUDIT_RECORD_SAFE_FIELDS = Object.freeze(["TimeStamp", "Event", "EventSource", "UserName", "PID", "Namespace"]);
 
 export function inspectAuditLocation(locationHeader, pageUrl) {
@@ -76,6 +84,7 @@ export function inspectAuditLocation(locationHeader, pageUrl) {
     schemeRelationship: location.protocol === base.protocol ? "same" : "different",
     portRelationship: effectivePort(location) === effectivePort(base) ? "same" : "different",
     pathname: location.pathname.slice(0, 512),
+    apiVersion: ASYNC_RESULT_PATHS[location.pathname] || null,
     pathEncodingOrNormalizationChanged: rawPath !== location.pathname,
     queryParameterNames,
     idCount: idValues.length,
@@ -90,7 +99,7 @@ export function inspectAuditLocation(locationHeader, pageUrl) {
   };
   shape.rejectionReasons = [
     !shape.sameOrigin && "origin-mismatch",
-    shape.pathname !== ASYNC_RESULT_PATH && "unexpected-path",
+    !Object.hasOwn(ASYNC_RESULT_PATHS, shape.pathname) && "unexpected-path",
     shape.fragmentPresent && "fragment-present",
     shape.userinfoPresent && "userinfo-present",
     shape.malformedPercentEscape && "malformed-percent-escape",
@@ -110,7 +119,7 @@ export function validateAuditLocation(locationHeader, pageUrl) {
   if (typeof locationHeader !== "string" || !locationHeader.trim()) throw new Error("IRIS audit query omitted its async Location.");
   const shape = inspectAuditLocation(locationHeader, pageUrl);
   if (!shape.parseable) throw new Error("IRIS returned an invalid async Location.");
-  if (!shape.sameOrigin || shape.pathname !== ASYNC_RESULT_PATH || shape.fragmentPresent || shape.userinfoPresent ||
+  if (!shape.sameOrigin || !Object.hasOwn(ASYNC_RESULT_PATHS, shape.pathname) || shape.fragmentPresent || shape.userinfoPresent ||
       shape.malformedPercentEscape || shape.pathEncodingOrNormalizationChanged || shape.queryNameEncodingChanged ||
       shape.idValuePercentEncoded || shape.queryParameterNames.length !== 1 || shape.queryParameterNames[0] !== "id" || shape.idCount !== 1 || !shape.idNonempty || !shape.idLengthValid) {
     throw new Error("IRIS returned an unsafe async Location.");
@@ -118,17 +127,34 @@ export function validateAuditLocation(locationHeader, pageUrl) {
   const base = new URL(pageUrl);
   const location = new URL(locationHeader, base);
   const id = location.searchParams.get("id");
-  return { url: `${location.pathname}${location.search}`, id };
+  const handle = Object.freeze({ url: `${location.pathname}${location.search}`, id, pathname: location.pathname, apiVersion: ASYNC_RESULT_PATHS[location.pathname] });
+  validatedAuditLocations.add(handle);
+  return handle;
 }
 
-export function mapAuditAsyncResult(payload, taskId) {
+export function mapAuditAsyncResult(payload, identity) {
   const task = requireRecord(unwrapIrisResult(payload), "IRIS async-result task");
+  const handle = requireRecord(identity, "Validated IRIS async-result Location");
+  if (!validatedAuditLocations.has(handle)) throw new Error("IRIS async-result Location was not validated.");
+  const taskId = handle.id;
+  if (typeof taskId !== "string" || !taskId) throw new Error("IRIS async-result identity was not validated.");
   const state = task.State;
   const states = ["Queued", "Running", "Finished", "Failed", "Canceled", "Paused"];
   if (!states.includes(state)) throw new Error("IRIS async-result returned an unknown state.");
-  if (typeof task.GUID !== "string" || task.GUID !== taskId) throw new Error("IRIS async-result identity did not match its Location id.");
+  let identitySource;
+  if (Object.hasOwn(task, "GUID")) {
+    if (typeof task.GUID !== "string" || task.GUID !== taskId) throw new Error("IRIS async-result identity did not match its Location id.");
+    identitySource = "response-guid";
+  } else if (handle?.apiVersion === "v1" && handle.pathname === "/api/admin/v1/async-result") {
+    // IRIS 2026.2's documented v1 resource omits GUID from its task body. The
+    // task identity is therefore bound to the exact validated Location used
+    // for this GET, rather than being represented as a body-level match.
+    identitySource = "validated-location";
+  } else {
+    throw new Error("IRIS async-result omitted its verifiable identity.");
+  }
   const fields = ["TaskName", "TimeQueued", "TimeStarted", "TimeFinished", "FailureReason"];
-  const safeTask = { idVerified: true, state };
+  const safeTask = { idVerified: true, identitySource, state };
   for (const field of fields) {
     if (Object.hasOwn(task, field) && (task[field] === null || ["string", "number", "boolean"].includes(typeof task[field]))) {
       safeTask[field] = field === "FailureReason" ? (task[field] ? "IRIS reported a task failure." : "") : task[field];
@@ -158,39 +184,126 @@ export function mapAuditAsyncResult(payload, taskId) {
 }
 
 const FIXED_LOGS = Object.freeze({
-  messagesLog: { name: "messages.log", maxBytes: 65536, maxLines: 250 },
-  systemMonitorLog: { name: "SystemMonitor.log", maxBytes: 65536, maxLines: 250 },
+  messagesLog: { name: "messages.log", maxBytes: 65536, maxLines: 250, maxProjectionUnits: 6500, maxLineUnits: 2048 },
+  systemMonitorLog: { name: "SystemMonitor.log", maxBytes: 65536, maxLines: 250, maxProjectionUnits: 6500, maxLineUnits: 2048 },
 });
 
 export function mapFixedLogResult(sourceId, payload) {
-  const source = FIXED_LOGS[sourceId];
+  const isRotation = /^messagesRotation:[0-9A-F]{64}$/u.test(sourceId);
+  const source = FIXED_LOGS[sourceId] || (isRotation ? { name: "messages.log rotation", ...FIXED_LOGS.messagesLog } : null);
   if (!source) throw new Error("IRIS log source is not enabled.");
   requireRecord(payload, "IRIS fixed log result");
-  const statuses = ["available", "unavailable", "denied", "read-failure"];
+  const statuses = ["available", "empty", "unavailable", "denied", "read-failure", "truncated"];
   if (!statuses.includes(payload.status)) throw new Error("IRIS fixed log result has an invalid status.");
-  if (payload.status !== "available") {
-    return { source: source.name, status: payload.status, lines: [], truncated: false, bytesReturned: 0 };
+  if (!["available", "empty", "truncated"].includes(payload.status)) {
+    return { source: source.name, status: payload.status, lines: [], truncated: false, bytesReturned: 0,
+      ...(isRotation ? { sourceIdentity: payload.sourceIdentity, sourceTimestamp: payload.sourceTimestamp } : {}) };
   }
   if (!Array.isArray(payload.lines) || payload.lines.some((line) => typeof line !== "string")) {
     throw new Error("IRIS fixed log lines must be an array of strings.");
   }
-  const lines = [];
+  const newestFirst = [];
   let bytesReturned = 0;
-  let truncated = payload.truncated === true;
-  for (const rawLine of payload.lines) {
-    const sanitizedLine = rawLine.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, "�");
-    const safeLine = sanitizedLine.slice(0, 2048);
-    if (safeLine.length < sanitizedLine.length) truncated = true;
+  let projectionUnits = 0;
+  let truncated = payload.truncated === true || payload.status === "truncated";
+  for (let index = payload.lines.length - 1; index >= 0; index -= 1) {
+    const rawLine = payload.lines[index];
+    const safeLine = rawLine.replace(/[\u0000-\u0008\u000a-\u001f\u007f]/gu, "�");
     const lineBytes = new TextEncoder().encode(safeLine).byteLength;
-    if (lines.length >= source.maxLines || bytesReturned + lineBytes > source.maxBytes) {
+    if (newestFirst.length >= source.maxLines || safeLine.length > source.maxLineUnits ||
+      projectionUnits + safeLine.length > source.maxProjectionUnits || bytesReturned + lineBytes > source.maxBytes) {
       truncated = true;
       break;
     }
-    lines.push(safeLine);
+    newestFirst.push(safeLine);
+    projectionUnits += safeLine.length;
     bytesReturned += lineBytes;
   }
-  if (lines.length < payload.lines.length) truncated = true;
-  return { source: source.name, status: "available", lines, truncated, bytesReturned };
+  if (newestFirst.length < payload.lines.length) truncated = true;
+  const lines = newestFirst.reverse();
+  return { source: source.name, status: truncated ? "truncated" : lines.length ? "available" : "empty", lines, truncated, bytesReturned,
+    ...(isRotation ? { sourceIdentity: payload.sourceIdentity, sourceTimestamp: payload.sourceTimestamp } : {}) };
+}
+
+const LOG_ANALYSIS_RULES = Object.freeze({
+  "explicit-error-marker": Object.freeze({
+    title: "Error marker",
+    summary: "This line contains an explicit error marker.",
+    consequence: "The source reports an error condition; this excerpt does not establish current system health.",
+    nextAction: "Inspect this line and nearby entries in the Logs workspace.",
+  }),
+  "timeout-marker": Object.freeze({
+    title: "Timeout marker",
+    summary: "This line contains a timeout term.",
+    consequence: "The source reports a timeout term; the affected operation is not inferred from this line alone.",
+    nextAction: "Review the related operation and its authoritative result.",
+  }),
+  "access-denial-marker": Object.freeze({
+    title: "Access-denial marker",
+    summary: "This line contains an access-denial term.",
+    consequence: "The text mentions access denial; it does not prove an IRIS authorization decision by itself.",
+    nextAction: "Check the source context and the identity involved.",
+  }),
+  "retry-marker": Object.freeze({
+    title: "Retry marker",
+    summary: "This line contains a retry term.",
+    consequence: "A retry is mentioned; completion or recovery is not inferred.",
+    nextAction: "Inspect the related operation outcome before taking action.",
+  }),
+  "warning-marker": Object.freeze({
+    title: "Warning marker",
+    summary: "This line contains a warning marker.",
+    consequence: "The source reports a warning marker; no health score is inferred.",
+    nextAction: "Review this line with its source context.",
+  }),
+});
+
+export function mapLogAnalysisResult(sourceId, payload, observedAt = new Date().toISOString()) {
+  if (!["messagesLog", "systemMonitorLog"].includes(sourceId) && !/^messagesRotation:[0-9A-F]{64}$/u.test(sourceId)) {
+    throw new Error("IRIS log analysis source is not enabled.");
+  }
+  requireRecord(payload, "IRIS log analysis result");
+  if (payload.provider !== "opsdeck-embedded-python-log-analysis-v1" || payload.sourceId !== sourceId) {
+    throw new Error("IRIS log analysis identity is invalid.");
+  }
+  const statuses = ["available", "empty", "truncated", "unavailable", "denied", "read-failure", "failed"];
+  if (!statuses.includes(payload.status)) throw new Error("IRIS log analysis result has an invalid status.");
+  const findings = payload.findings ?? [];
+  const lineCount = payload.lineCount ?? 0;
+  const findingCount = payload.findingCount ?? 0;
+  const truncated = payload.truncated === true;
+  const findingsTruncated = payload.findingsTruncated === true;
+  if (!Array.isArray(findings) || findings.length > 20 || !Number.isInteger(lineCount) || lineCount < 0 || lineCount > 250 ||
+    !Number.isInteger(findingCount) || findingCount < 0 || findingCount > 20 || findingCount !== findings.length ||
+    typeof payload.truncated !== "boolean" || typeof payload.findingsTruncated !== "boolean") {
+    throw new Error("IRIS log analysis result exceeds its contract.");
+  }
+  if (!(["available", "empty", "truncated"].includes(payload.status)) && findings.length !== 0) {
+    throw new Error("A failed or denied log analysis cannot publish findings.");
+  }
+  const mappedFindings = findings.map((finding, index) => {
+    requireRecord(finding, `IRIS log finding ${index + 1}`);
+    const lineNumber = finding.lineNumber;
+    if (!Number.isInteger(lineNumber) || lineNumber < 1 || lineNumber > lineCount || !Object.hasOwn(LOG_ANALYSIS_RULES, finding.ruleId)) {
+      throw new Error("IRIS log finding identity is invalid.");
+    }
+    const expectedId = `log:${sourceId}:line-${lineNumber}:${finding.ruleId}`;
+    const safeText = (value, limit) => typeof value === "string" && value.length <= limit && !/[\u0000-\u001f\u007f]/u.test(value);
+    if (finding.id !== expectedId || typeof finding.marker !== "string" || !/^(?:error|fatal|severe|time(?:d)?[ -]?out|denied|forbidden|unauthorized|retries?|retrying|warning|warn)$/iu.test(finding.marker) ||
+      !safeText(finding.marker, 48)) {
+      throw new Error("IRIS log finding projection is invalid.");
+    }
+    return Object.freeze({
+      id: expectedId, lineNumber, ruleId: finding.ruleId, marker: finding.marker,
+      ...LOG_ANALYSIS_RULES[finding.ruleId],
+    });
+  });
+  return Object.freeze({
+    sourceId, source: FIXED_LOGS[sourceId]?.name || "messages.log rotation", provider: payload.provider, observedAt,
+    status: payload.status, lineCount, findingCount, truncated, findingsTruncated,
+    reason: typeof payload.reason === "string" ? payload.reason.slice(0, 80) : null,
+    findings: Object.freeze(mappedFindings),
+  });
 }
 
 const SAFE_FIELDS = Object.freeze({
@@ -268,7 +381,7 @@ export function mapServerInfo(payload, observedAt = new Date().toISOString()) {
     username: result.username,
     serverVersion: result.serverVersion,
     product: typeof result.product === "string" ? result.product : "unknown",
-    systemMode: typeof result.systemMode === "string" ? result.systemMode : null,
+    systemMode: ["DEMO", "DEVELOPMENT", "TEST", "LIVE", "FAILOVER"].includes(result.systemMode) ? result.systemMode : null,
     namespaces,
     privileges,
     observedAt,
@@ -556,8 +669,57 @@ function displayValue(value) {
 }
 
 export function mapReadOnlySource(sourceId, payload, observedAt = new Date().toISOString()) {
-  if (!Object.hasOwn(READ_ONLY_SOURCES, sourceId)) throw new Error("Unknown IRIS read source.");
-  const source = READ_ONLY_SOURCES[sourceId];
+  const isRotation = /^messagesRotation:[0-9A-F]{64}$/u.test(sourceId);
+  if (!Object.hasOwn(READ_ONLY_SOURCES, sourceId) && !isRotation) throw new Error("Unknown IRIS read source.");
+  const source = READ_ONLY_SOURCES[sourceId] || { label: "messages.log rotation", path: "/opsdeck-api/message-rotation" };
+  if (sourceId === "messageRotations") {
+    requireRecord(payload, "IRIS rotated messages log inventory");
+    const states = ["available", "empty", "truncated", "denied", "unavailable", "failed"];
+    if (payload.provider !== "opsdeck-rotated-messages-log-v1" || !states.includes(payload.status) ||
+      !Array.isArray(payload.rotations) || payload.rotations.length > 20 || !Number.isInteger(payload.scannedCount) || payload.scannedCount < 0 || payload.scannedCount > 251 || typeof payload.truncated !== "boolean") {
+      throw new Error("IRIS rotated messages log inventory exceeds its contract.");
+    }
+    const rotations = payload.rotations.map((row) => {
+      requireRecord(row, "IRIS log rotation identity");
+      if (typeof row.sourceIdentity !== "string" || !/^messagesRotation:[0-9A-F]{64}$/u.test(row.sourceIdentity) ||
+        typeof row.sourceTimestamp !== "string" || row.sourceTimestamp.length > 64 || !Number.isFinite(Date.parse(row.sourceTimestamp)) ||
+        !Number.isInteger(row.size) || row.size < 0) throw new Error("IRIS log rotation identity is invalid.");
+      return Object.freeze({ sourceIdentity: row.sourceIdentity, sourceTimestamp: row.sourceTimestamp, size: row.size });
+    });
+    return { sourceId, provider: payload.provider, observedAt, status: payload.status, coverage: payload.coverage === "complete" || payload.coverage === "partial" ? payload.coverage : "unknown", truncated: payload.truncated, scannedCount: payload.scannedCount, count: rotations.length, rotations: Object.freeze(rotations) };
+  }
+  if (sourceId === "messagesLog" || sourceId === "systemMonitorLog" || isRotation) {
+    const mapped = mapFixedLogResult(sourceId, payload);
+    if (isRotation && ["available", "empty", "truncated"].includes(mapped.status) &&
+      (payload.sourceIdentity !== sourceId || typeof payload.sourceTimestamp !== "string" || payload.sourceTimestamp.length > 64 || !Number.isFinite(Date.parse(payload.sourceTimestamp)))) {
+      throw new Error("IRIS log rotation identity or timestamp did not match the request contract.");
+    }
+    let analysis = null;
+    if (Object.hasOwn(payload, "analysis")) {
+      try {
+        analysis = mapLogAnalysisResult(sourceId, payload.analysis, observedAt);
+        if (analysis.status !== mapped.status || analysis.lineCount !== mapped.lines.length || analysis.truncated !== mapped.truncated) {
+          throw new Error("IRIS log analysis does not match its bounded source projection.");
+        }
+      } catch {
+        analysis = Object.freeze({
+          sourceId, source: mapped.source, provider: "opsdeck-embedded-python-log-analysis-v1",
+          observedAt, status: "failed", lineCount: mapped.lines.length, findingCount: 0,
+          truncated: mapped.truncated, findingsTruncated: false, reason: "invalid-analysis-projection", findings: Object.freeze([]),
+        });
+      }
+    }
+    return {
+      sourceId, provider: "opsdeck-native-fixed-log-v1", observedAt,
+      resultType: "log-lines", count: mapped.lines.length, status: mapped.status,
+      truncated: mapped.truncated, bytesReturned: mapped.bytesReturned, analysis,
+      ...(isRotation ? { sourceIdentity: mapped.sourceIdentity, sourceTimestamp: mapped.sourceTimestamp } : {}),
+      items: mapped.lines.map((line, index) => ({
+        ref: { domain: "logs", kind: sourceId, provider: "opsdeck-native-fixed-log-v1", key: `line:${index + 1}`, scope: null, label: `Line ${index + 1}`, observedAt },
+        values: { line },
+      })),
+    };
+  }
   let result;
   if (source.path.startsWith("/api/admin/")) result = unwrapIrisResult(payload);
   else result = payload;

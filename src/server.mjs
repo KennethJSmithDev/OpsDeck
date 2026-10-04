@@ -127,8 +127,10 @@ async function readIrisJson(path, authorization, requestId = "untracked", query 
     !/[\u0000-\u001f\u007f]/u.test(query.name);
   const taskDetail = path === taskDetailPath && query && Object.keys(query).length === 1 &&
     typeof query.id === "string" && /^\d{1,10}$/u.test(query.id);
+  const rotatedMessage = path === "/opsdeck-api/message-rotation" && query && Object.keys(query).length === 1 &&
+    typeof query.id === "string" && /^messagesRotation:[0-9A-F]{64}$/u.test(query.id);
   if (!allowedApiPaths.has(path) && !webAppDetail && !securityUserDetail && !securityNamedDetail &&
-    !securityRoleOwners && !taskDetail && !safeManagementSpecPath(path)) {
+    !securityRoleOwners && !taskDetail && !rotatedMessage && !safeManagementSpecPath(path)) {
     throw new Error("The requested IRIS path is not enabled in the M0 proxy.");
   }
   let response;
@@ -403,6 +405,35 @@ async function handleApi(request, response, url) {
     return sendJson(response, status, spec.value, contentType);
   }
 
+  if (request.method === "GET" && url.pathname === "/api/read/availablePackages") {
+    const names = url.searchParams.getAll("name");
+    if (names.length !== 1 || [...url.searchParams.keys()].some((key) => key !== "name") ||
+      !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(names[0])) {
+      return sendJson(response, 400, { error: "A single exact package identity is required." });
+    }
+    const session = requestSession(request);
+    if (!session) return sendJson(response, 401, { error: "Connect to IRIS to load live data." });
+    const source = READ_ONLY_SOURCES.availablePackages;
+    const result = await readIrisJson(source.path, session.authorization, "untracked", { name: names[0] });
+    const status = result.status >= 200 && result.status < 300 ? result.status :
+      [400, 401, 403].includes(result.status) ? result.status : 502;
+    const contentType = result.contentType ? { "X-OpsDeck-Upstream-Content-Type": result.contentType } : {};
+    return sendJson(response, status, result.value, contentType);
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/read/messageRotation") {
+    const identities = url.searchParams.getAll("id");
+    if (identities.length !== 1 || [...url.searchParams.keys()].some((key) => key !== "id") || !/^messagesRotation:[0-9A-F]{64}$/u.test(identities[0])) {
+      return sendJson(response, 400, { error: "A single opaque fixed-family rotation identity is required." });
+    }
+    const session = requestSession(request);
+    if (!session) return sendJson(response, 401, { error: "Connect to IRIS to load live data." });
+    const result = await readIrisJson("/opsdeck-api/message-rotation", session.authorization, "untracked", { id: identities[0] });
+    const status = result.status >= 200 && result.status < 300 ? result.status :
+      [400, 401, 403, 404].includes(result.status) ? result.status : 502;
+    return sendJson(response, status, result.value);
+  }
+
   const sourceMatch = url.pathname.match(/^\/api\/read\/([A-Za-z][A-Za-z0-9]*)$/);
   if (request.method === "GET" && sourceMatch) {
     const source = Object.hasOwn(READ_ONLY_SOURCES, sourceMatch[1]) ? READ_ONLY_SOURCES[sourceMatch[1]] : null;
@@ -437,8 +468,12 @@ async function serveStatic(request, response, url) {
   // The provider adapter stays in src while this explicit alias exposes only its browser-safe module.
   const file = relative === "iris-provider.js"
     ? resolve(root, "../src/iris-provider.js")
+    : relative === "evidence-center.js"
+      ? resolve(root, "../public/evidence-center.js")
+      : ["operation-engine.js", "packages-workspace.js", "job-center.js"].includes(relative)
+        ? resolve(root, "../public", relative)
     : resolve(root, relative);
-  if (relative !== "iris-provider.js" && file !== root && !file.startsWith(root + sep)) {
+  if (!new Set(["iris-provider.js", "evidence-center.js", "operation-engine.js", "packages-workspace.js", "job-center.js"]).has(relative) && file !== root && !file.startsWith(root + sep)) {
     return sendJson(response, 404, { error: "Not found." });
   }
   try {

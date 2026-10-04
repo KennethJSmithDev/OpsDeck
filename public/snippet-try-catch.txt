@@ -1,0 +1,6 @@
+// Keep the operation fixed and reviewed; report an exception as a status.
+try {
+    // Call a fixed, reviewed method here.
+} catch ex {
+    write ex.DisplayString(),!
+}

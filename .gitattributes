@@ -1,6 +1,7 @@
-# Preserve the qualified package-input bytes on every checkout.
+# Canonical package-input representation.
+# v0.2.1 must be requalified from a fresh checkout using these bytes.
 module.xml text eol=lf
 public/index.html text eol=lf
-public/app.js text eol=crlf
-public/styles.css text eol=crlf
-src/iris-provider.js text eol=crlf
+public/app.js text eol=lf
+public/styles.css text eol=lf
+src/iris-provider.js text eol=lf

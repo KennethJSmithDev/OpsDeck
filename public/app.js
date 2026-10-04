@@ -1,4 +1,8 @@
-import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.2.0";
+import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, READ_ONLY_SOURCES, sameWebAppState, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, AUDIT_QUERY_MAX_ROWS } from "./iris-provider.js?v=opsdeck-0.5.0";
+import { createEvidenceCollection, exportEvidenceJSON, exportEvidenceMarkdown, filterEvidence } from "./evidence-center.js?v=opsdeck-0.5.0";
+import { comparePackageCatalogToInstalled, fixturePackageInventory, mapAvailablePackageCatalog, mapInstalledPackageInventory, preparePackagePlan } from "./packages-workspace.js?v=opsdeck-0.5.0";
+import { mapAuditJob, upsertJob } from "./job-center.js?v=opsdeck-0.5.0";
+import { ProductIdentity } from "./product-identity.js?v=opsdeck-0.5.0-about";
 
 const navItems = [
   ["overview", "Overview"], ["applications", "Applications"], ["access", "Access"],
@@ -11,8 +15,112 @@ const domainSources = {
   security: ["walletCollections", "x509Credentials", "oauthResourceServers", "oauthServerDefinitions", "oauthServer"],
   tasks: ["tasks"],
   system: ["systemUsage", "processes", "databases", "devices"],
-  logs: ["auditEnabled", "auditEvents", "taskHistory", "journalFiles", "alerts"],
+  logs: ["auditEnabled", "auditEvents", "messagesLog", "messageRotations", "systemMonitorLog", "taskHistory", "journalFiles", "alerts"],
 };
+
+// Product qualification maturity is separate from observed IRIS authority/provider results.
+const unqualifiedRouteCapabilities = Object.freeze({
+  logs: Object.freeze(["Audit records", "messages.log", "SystemMonitor.log"]),
+});
+const navigationContextRoutes = Object.freeze({
+  access: ["security"], security: ["access"], system: ["logs"], logs: ["evidence"],
+});
+
+function isAuthorityDenial(error) {
+  return /does not have authority|HTTP 403|denied/i.test(String(error || ""));
+}
+
+function providerUiEvidence(model, sourceId) {
+  if (sourceId === "identity") {
+    if (model.info) return { status: "SUPPORTED", detail: "Identity was observed in the current session." };
+    if (model.error) return { status: isAuthorityDenial(model.error) ? "DENIED" : "UNAVAILABLE", detail: model.error };
+    return { status: "UNKNOWN", detail: "Identity has not been observed in this session." };
+  }
+  if (sourceId === "webApps") {
+    if (model.verification) return model.verification.matched
+      ? { status: "SUPPORTED", detail: "The current web-application result matched its independent read-back." }
+      : { status: "PARTIAL", detail: "The current web-application result differed from its independent read-back." };
+    if (model.error) return { status: isAuthorityDenial(model.error) ? "DENIED" : "UNAVAILABLE", detail: model.error };
+    return { status: "UNKNOWN", detail: "No current web-application read-back is available." };
+  }
+  if (!Object.hasOwn(READ_ONLY_SOURCES, sourceId)) {
+    return { status: "UNSUPPORTED", detail: "No fixed provider is registered for this source." };
+  }
+  if (Object.hasOwn(model.sourceData || {}, sourceId) && model.sourceData[sourceId]) {
+    const state = model.sourceData[sourceId].status;
+    if (state === "denied") return { status: "DENIED", detail: "IRIS denied this fixed-source read." };
+    if (state === "unavailable") return { status: "UNAVAILABLE", detail: "The fixed source is unavailable." };
+    if (state === "read-failure") return { status: "FAILED", detail: "The fixed-source read failed." };
+    // A valid empty collection is still an observed, available provider result.
+    return { status: "SUPPORTED", detail: state === "empty" ? `${READ_ONLY_SOURCES[sourceId].label} returned a valid empty result.` : `${READ_ONLY_SOURCES[sourceId].label} returned a mapped result.` };
+  }
+  if (Object.hasOwn(model.sourceErrors || {}, sourceId)) {
+    const error = model.sourceErrors[sourceId];
+    return { status: isAuthorityDenial(error) ? "DENIED" : "UNAVAILABLE", detail: String(error) };
+  }
+  return {
+    status: "UNKNOWN",
+    detail: model.sourceLoading === sourceId ? `${READ_ONLY_SOURCES[sourceId].label} is being read.` : `${READ_ONLY_SOURCES[sourceId].label} has not been read in this session.`,
+  };
+}
+
+function routeUiEvidence(model, route) {
+  let sourceIds;
+  if (route === "overview") sourceIds = ["identity", "webApps"];
+  else if (route === "applications") sourceIds = ["webApps", ...domainSources.applications];
+  else if (route === "evidence") sourceIds = ["webApps"];
+  else if (domainSources[route]) sourceIds = domainSources[route];
+  else return { status: "UNSUPPORTED", sources: [], qualifications: [], detail: "No OpsDeck route or provider is registered for this destination." };
+
+  const sources = sourceIds.map((id) => ({ id, label: id === "identity" ? "Server identity" : id === "webApps" ? "Web applications" : READ_ONLY_SOURCES[id]?.label || id, ...providerUiEvidence(model, id) }));
+  const observed = sources.filter((source) => source.status !== "UNKNOWN");
+  let status = "UNKNOWN";
+  if (observed.length === sources.length && observed.every((source) => source.status === "SUPPORTED")) status = "SUPPORTED";
+  else if (observed.length === sources.length && observed.length > 0 && observed.every((source) => source.status === "DENIED")) status = "DENIED";
+  else if (observed.length === sources.length && observed.length > 0 && observed.every((source) => source.status === "UNAVAILABLE")) status = "UNAVAILABLE";
+  else if (observed.length > 0) status = "PARTIAL";
+
+  const qualifications = (unqualifiedRouteCapabilities[route] || []).map((label) => ({ label, status: "UNQUALIFIED" }));
+  const detail = [
+    ...sources.map((source) => `${source.label}: ${source.status.toLowerCase()}`),
+    ...qualifications.map((item) => `${item.label}: unqualified`),
+  ].join("; ");
+  return { status, sources, qualifications, detail };
+}
+
+function relatedNavigationRoutes(model, route) {
+  const related = [...(navigationContextRoutes[route] || [])];
+  if (route === "applications" && model.selected) related.unshift("evidence");
+  if (route === "access" && model.selectedItems?.[model.sourceTabs?.access]) related.unshift("security");
+  if (route === "tasks" && model.selectedItems?.tasks) related.unshift("logs");
+  const activeSources = domainSources[route] || [];
+  if (activeSources.some((sourceId) => Object.hasOwn(model.sourceErrors || {}, sourceId))) related.unshift("evidence");
+  return [...new Set(related)].filter((item) => item !== route && navItems.some(([id]) => id === item));
+}
+
+function projectUiNavigation(model, viewportWidth = 1024, compactLayout = viewportWidth <= 980) {
+  const activeRoute = navItems.some(([route]) => route === model.route) ? model.route : "overview";
+  const related = relatedNavigationRoutes(model, activeRoute);
+  const order = [
+    "overview",
+    ...(activeRoute === "overview" ? [] : [activeRoute]),
+    ...related,
+    ...navItems.map(([route]) => route),
+  ].filter((route, index, all) => all.indexOf(route) === index);
+  const primaryCount = compactLayout ? 3 : order.length;
+  const items = order.map((route, index) => {
+    const [, label] = navItems.find(([id]) => id === route);
+    const evidence = routeUiEvidence(model, route);
+    return { route, label, evidence, active: route === activeRoute, contextual: related.includes(route) && route !== activeRoute, primary: index < primaryCount };
+  });
+  return {
+    viewportWidth,
+    layout: compactLayout ? "compact" : "wide",
+    items,
+    primaryRoutes: items.filter((item) => item.primary).map((item) => item.route),
+    moreRoutes: items.filter((item) => !item.primary).map((item) => item.route),
+  };
+}
 const state = {
   route: location.hash.slice(1) || "overview",
   theme: localStorage.getItem("opsdeck.theme") || "dark",
@@ -24,9 +132,27 @@ const state = {
   selected: "",
   lastRead: null,
   verification: null,
-  sourceData: {}, sourceErrors: {}, sourceLoading: "", sourceVerification: {},
+  sourceData: {}, sourceErrors: {}, sourceLoading: "", sourceVerification: {}, selectedRotation: "", rotationLoading: "",
   sourceTabs: { applications: "restServices", access: "users", security: "walletCollections", tasks: "tasks", system: "systemUsage", logs: "auditEnabled" },
+  systemSection: "providers",
   selectedItems: {},
+  evidenceFilter: "",
+  evidenceStateFilter: "ALL",
+  applicationsTab: "web-apps",
+  packageFilter: "all",
+  packagePlan: null,
+  packageInventory: null,
+  packageInventoryError: "",
+  packageInventoryLoading: false,
+  availablePackageName: "",
+  availablePackageCatalog: null,
+  availablePackageError: "",
+  availablePackageErrorStatus: 0,
+  availablePackageLoading: false,
+  selectedSnippet: "",
+  snippetText: "",
+  snippetLoading: false,
+  snippetError: "",
   webAppDetails: {}, webAppDetailErrors: {}, webAppDetailLoading: "",
   userDetails: {}, userDetailErrors: {}, userDetailLoading: "", userDetailVerification: {},
   roleDetails: {}, roleDetailErrors: {}, roleDetailLoading: "", roleDetailVerification: {},
@@ -34,8 +160,8 @@ const state = {
   resourceDetails: {}, resourceDetailErrors: {}, resourceDetailLoading: "", resourceDetailVerification: {},
   taskDetails: {}, taskDetailErrors: {}, taskDetailLoading: "", taskDetailVerification: {},
   restSpecs: {}, restSpecErrors: {}, restSpecLoading: "",
-  auditQuery: null, auditQueryBusy: false,
-  mobileMoreOpen: navItems.slice(3).some(([route]) => route === location.hash.slice(1)),
+  auditQuery: null, auditQueryBusy: false, jobs: [],
+  mobileMoreOpen: false,
 };
 
 const nativeMode = location.pathname === "/opsdeck" || location.pathname?.startsWith("/opsdeck/") === true;
@@ -58,6 +184,29 @@ const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
 const fmtTime = (value) => value ? new Intl.DateTimeFormat(undefined, {
   hour: "2-digit", minute: "2-digit", second: "2-digit",
 }).format(new Date(value)) : "—";
+
+const IRIS_CONCEPTS = Object.freeze({
+  namespace: Object.freeze({ title: "Namespace", body: "A namespace is IRIS's logical view of code and data. A namespace shown on a row scopes that observation; it does not establish an all-namespace inventory." }),
+  sys: Object.freeze({ title: "%SYS", body: "%SYS exposes system and administrative code. Seeing a %SYS row does not grant this signed-in identity any additional privilege." }),
+  ipm: Object.freeze({ title: "IPM package state", body: "Installed registrations and configured-repository search are separate observations. A catalog result is not an installation, and a lower catalog version is not an update." }),
+  access: Object.freeze({ title: "DENIED and UNAVAILABLE", body: "DENIED means IRIS rejected this identity's request. UNAVAILABLE means OpsDeck could not obtain a usable response. Neither state means the source is empty." }),
+  readback: Object.freeze({ title: "Authoritative read-back", body: "After a request, a separate read from IRIS must show the requested state before OpsDeck can call the operation verified. An HTTP success alone is not proof." }),
+  job: Object.freeze({ title: "Asynchronous Job", body: "A returned job identity means work was accepted. Completion and its result are separate observations; OpsDeck does not retry an ambiguous dispatch." }),
+  logs: Object.freeze({ title: "Fixed log observation", body: "OpsDeck reads only named log sources through bounded readers. This view does not browse arbitrary files or expose the resolved source path." }),
+  evidence: Object.freeze({ title: "OperationReceipt", body: "A receipt records OpsDeck's bounded before/request/after verification projection. IRIS remains the source of truth; a receipt does not replace it." }),
+  certainty: Object.freeze({ title: "KNOWN / INFERRED / UNVERIFIED", body: "KNOWN is directly observed, INFERRED is a conclusion drawn from observations, and UNVERIFIED marks a claim that has not crossed its required qualification boundary." }),
+});
+const CONCEPTS_BY_ROUTE = Object.freeze({
+  overview: ["namespace", "sys"],
+  applications: { "web-apps": ["namespace", "readback"], packages: ["ipm"] },
+  access: ["access"], security: ["access"], tasks: ["job", "readback"],
+  system: ["namespace"], logs: ["logs", "access"], evidence: ["evidence", "certainty", "readback"],
+});
+const LEARNING_SNIPPETS = Object.freeze([
+  Object.freeze({ id: "namespace", title: "Inspect the current namespace", file: "snippet-namespace.txt" }),
+  Object.freeze({ id: "try-catch", title: "Handle an ObjectScript exception", file: "snippet-try-catch.txt" }),
+  Object.freeze({ id: "http-read", title: "Make a bounded HTTP GET", file: "snippet-http-read.txt" }),
+]);
 
 async function requestJson(path, options = {}) {
   const owner = sessionEpoch;
@@ -107,6 +256,17 @@ function badge(label, tone = "neutral") {
   return `<span class="badge ${esc(tone)}">${esc(label)}</span>`;
 }
 
+function environmentBadge(systemMode) {
+  const presentation = {
+    DEMO: ["DEMO", "warning"],
+    DEVELOPMENT: ["DEVELOPMENT", "accent"],
+    TEST: ["TEST", "warning"],
+    LIVE: ["LIVE / PRODUCTION", "error"],
+    FAILOVER: ["FAILOVER", "error"],
+  }[systemMode];
+  return presentation ? `<span class="environment-identity" aria-label="Observed IRIS system mode">${badge(presentation[0], presentation[1])}</span>` : "";
+}
+
 function shell(content) {
   const user = state.info ? esc(state.info.username) : "Not connected";
   const version = state.info ? esc(state.info.serverVersion) : "Local instance not verified";
@@ -116,7 +276,7 @@ function shell(content) {
     <div class="shell">
       <header class="topbar">
         <a class="brand" href="#overview" aria-label="OpsDeck overview"><span class="brand-mark">OD</span><span>OpsDeck</span></a>
-        <div class="instance-line"><span class="instance-label">${demoMode ? "Demo dataset" : "IRIS instance"}</span><span class="instance-value">${version}</span></div>
+        <div class="instance-line"><span class="instance-label">${demoMode ? "Demo dataset" : "IRIS instance"}</span><span class="instance-value">${version}</span>${connected ? environmentBadge(state.info?.systemMode) : ""}</div>
         <div class="top-actions">
           <span class="connection-state">${badge(connected ? (demoMode ? "Safe demo" : "Live session") : "Disconnected", connected ? (demoMode ? "warning" : "success") : "muted")}</span>
           ${connected ? `<span class="user-chip">${user}</span>` : ""}
@@ -126,11 +286,16 @@ function shell(content) {
       </header>
       <aside class="sidebar ${state.mobileMoreOpen ? "more-open" : ""}" id="mobile-secondary-nav" aria-label="Primary navigation">
         <div class="nav-caption">WORKSPACE</div>
-        ${navItems.map(([route, label], index) => {
-          const active = state.route === route;
-          return `<button class="nav-item ${index < 3 ? "nav-primary" : "nav-secondary"} ${active ? "active" : ""}" data-route="${route}" ${active ? 'aria-current="page"' : ""}><span class="nav-index">${String(index + 1).padStart(2, "0")}</span><span>${label}</span></button>`;
-        }).join("")}
-        <button class="nav-item nav-more ${navItems.slice(3).some(([route]) => route === state.route) ? "active" : ""}" id="mobile-more" type="button" aria-expanded="${state.mobileMoreOpen}" aria-controls="mobile-secondary-nav">More</button>
+        ${(() => {
+          const projection = projectUiNavigation(state, document.documentElement.clientWidth || 1024, compactNavigationQuery.matches);
+          return projection.items.map((item, index) => {
+            const stateClass = item.evidence.status.toLowerCase().replaceAll("_", "-");
+            const qualification = item.evidence.qualifications.length ? item.evidence.qualifications.map((entry) => entry.label).join(", ") : "";
+            const statusText = `${item.label}: ${item.evidence.status}${qualification ? ` · unqualified: ${qualification}` : ""}`;
+            return `<button class="nav-item ${item.primary ? "nav-primary" : "nav-secondary"} ${item.active ? "active" : ""} ${item.contextual ? "nav-contextual" : ""}" data-route="${item.route}" data-capability-state="${item.evidence.status.toLowerCase()}" data-context-priority="${item.contextual}" aria-label="${esc(`${item.label}. ${statusText}. Route visibility does not grant IRIS authority.`)}" title="${esc(`${statusText}. ${item.evidence.detail}`)}" ${item.active ? 'aria-current="page"' : ""}><span class="nav-index">${String(navItems.findIndex(([route]) => route === item.route) + 1).padStart(2, "0")}</span><span class="nav-label">${esc(item.label)}</span><span class="nav-capability badge ${item.evidence.status === "SUPPORTED" ? "success" : ["DENIED", "UNAVAILABLE"].includes(item.evidence.status) ? "error" : ["PARTIAL", "UNQUALIFIED"].includes(item.evidence.status) || qualification ? "warning" : "muted"}"><span class="nav-capability-dot" aria-hidden="true"></span><span class="nav-capability-label">${esc(item.evidence.status)}</span></span>${qualification ? `<span class="nav-qualification badge warning" title="${esc(`${qualification} remains unqualified`)}"><span class="nav-qualification-label">Unqualified</span></span>` : ""}</button>`;
+          }).join("");
+        })()}
+        ${compactNavigationQuery.matches ? `<button class="nav-item nav-more" id="mobile-more" type="button" aria-expanded="${state.mobileMoreOpen}" aria-controls="mobile-secondary-nav">More</button>` : ""}
         <div class="sidebar-note"><span class="note-dot"></span><span>${demoMode ? "Safe demo · sanitized" : "Live reads · M1"}</span></div>
       </aside>
       <main class="workspace">${content}</main>
@@ -269,10 +434,21 @@ function overviewView() {
 
 function pageHeader(title, description) {
   const demoMode = state.info?.systemMode === "DEMO";
-  return `<div class="page-header"><div><div class="eyebrow"><span class="eyebrow-rule"></span>OPSDECK WORKSPACE</div><h1>${title}</h1><p>${description}</p></div><div class="page-header-meta">${demoMode ? badge("Evaluator mode", "warning") : badge("IRIS 2026.2", "accent")}</div></div>`;
+  const routeHelp = CONCEPTS_BY_ROUTE[state.route];
+  const conceptIds = Array.isArray(routeHelp) ? routeHelp : routeHelp?.[state.applicationsTab] || [];
+  const help = conceptIds.length ? `<details class="concept-help"><summary>IRIS concepts in this view</summary><ul>${conceptIds.map((id) => `<li><strong>${esc(IRIS_CONCEPTS[id].title)}:</strong> ${esc(IRIS_CONCEPTS[id].body)}</li>`).join("")}</ul></details>` : "";
+  const snippetBody = state.selectedSnippet ? `<div class="snippet-body"><pre><code>${esc(state.snippetText || "")}</code></pre>${state.snippetLoading ? '<p role="status">Loading text…</p>' : ""}${state.snippetError ? `<p class="snippet-error" role="alert">${esc(state.snippetError)}</p>` : ""}${state.snippetText ? `<button class="button quiet" type="button" data-download-snippet="${esc(state.selectedSnippet)}">Download .txt</button>` : ""}<p class="snippet-note">Text for learning and review only. OpsDeck never executes snippets.</p></div>` : "";
+  const snippets = `<details class="concept-help snippet-library" ${state.selectedSnippet ? "open" : ""}><summary>ObjectScript snippet library</summary><p class="snippet-note">Small read-only examples. Select one to load its text.</p><ul>${LEARNING_SNIPPETS.map(item => `<li><button class="snippet-select" type="button" data-snippet="${esc(item.id)}">${esc(item.title)}</button></li>`).join("")}</ul>${snippetBody}</details>`;
+  return `<div class="page-header"><div><div class="eyebrow"><span class="eyebrow-rule"></span>OPSDECK WORKSPACE</div><h1>${title}</h1><p>${description}</p></div><div class="page-header-meta">${demoMode ? badge("Evaluator mode", "warning") : badge("IRIS 2026.2", "accent")}${help}${snippets}</div></div>`;
 }
 
 function applicationsView() {
+  if (state.applicationsTab === "packages") {
+    const description = state.info?.systemMode === "DEMO"
+      ? "Review a visibly synthetic package planning fixture."
+      : "Inspect installed packages when a bounded live IPM provider is qualified.";
+    return shell(`${pageHeader("Applications", description)}${applicationsTabs()}${packagesWorkspaceView()}`);
+  }
   const selected = state.apps.find((item, index) => recordHandle(state.apps, index) === state.selected) || state.apps[0] || null;
   const rows = state.apps.map((item, index) => `<tr class="app-row ${selected === item ? "selected" : ""}" tabindex="0" role="button" data-app="${recordHandle(state.apps, index)}" aria-label="Inspect ${esc(item.name)}"><td data-label="Web application"><span class="app-name">${esc(item.name)}</span><span class="app-sub">${esc(item.dispatchClass || item.type)}</span></td><td data-label="Namespace"><code>${esc(item.namespace)}</code></td><td data-label="State">${item.enabled ? badge("Enabled", "success") : badge("Disabled", "muted")}</td><td data-label="Type">${esc(item.type)}</td><td data-label="Authentication">${esc(item.authenticationMethods.join(", ") || "None returned")}</td></tr>`).join("");
   const detail = selected ? state.webAppDetails[selected.name] : null;
@@ -296,6 +472,7 @@ function applicationsView() {
   }).join("") : `<div class="source-message">No exact REST-service link has been observed for this web application. Check both live discovery sources; OpsDeck does not infer a relationship from dispatch-class names.</div>`;
   return shell(`
     ${pageHeader("Applications", "Live web applications from the IRIS management API.")}
+    ${applicationsTabs()}
     <div class="app-toolbar"><div><strong>${state.apps.length}</strong><span> web applications</span><span class="toolbar-divider">·</span><span>Scope <code>All returned namespaces</code></span></div><div>${state.verification ? badge(state.verification.matched ? "Authoritative read-back matched" : "Read-back mismatch", state.verification.matched ? "success" : "error") : badge("Read-back pending", "muted")}</div></div>
     ${state.error ? `<div class="notice error" role="alert">${esc(state.error)}</div>` : ""}
     <section class="apps-layout">
@@ -304,6 +481,42 @@ function applicationsView() {
     </section>
     <section class="verification-banner ${state.verification?.matched ? "verified" : state.verification ? "mismatch" : "pending"}"><div class="verification-symbol">${state.verification?.matched ? "✓" : state.verification ? "!" : "·"}</div><div><strong>${state.verification?.matched ? "Read-back confirmed" : state.verification ? "Read-back requires review" : "Waiting for authoritative read-back"}</strong><p>${state.verification ? `${state.verification.count} web-app records from the rendered list were compared with a second GET response.` : "OpsDeck performs a separate read after the initial list is rendered."}</p></div><code>GET /api/admin/v2/web-apps</code></section>
     <section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">REST DISCOVERY</div><h2>Namespace REST services</h2></div>${badge("Live source", "accent")}</div>${sourceSelector("applications")}${sourcePanel(state.sourceTabs.applications)}</section>`);
+}
+
+function applicationsTabs() {
+  return `<div class="source-tabs application-tabs" role="tablist" aria-label="Applications workspace"><button class="source-tab ${state.applicationsTab === "web-apps" ? "active" : ""}" role="tab" aria-selected="${state.applicationsTab === "web-apps"}" data-application-tab="web-apps">Web applications</button><button class="source-tab ${state.applicationsTab === "packages" ? "active" : ""}" role="tab" aria-selected="${state.applicationsTab === "packages"}" data-application-tab="packages">Packages</button></div>`;
+}
+
+function packagesWorkspaceView() {
+  const isDemo = state.info?.systemMode === "DEMO";
+  if (!isDemo) {
+    const inventory = state.packageInventory;
+    const rows = inventory?.packages.filter(item => state.packageFilter === "all" || item.state === "installed") || [];
+    const stateLabel = state.packageInventoryLoading ? "LOADING" : state.packageInventoryError ? "FAILED" : inventory?.state || "NOT READ";
+    const stateStyle = inventory?.state === "AVAILABLE" ? "accent" : "warning";
+    const catalogResult = state.availablePackageCatalog;
+    const catalog = catalogResult?.coverage === "partial" && ["AVAILABLE", "TRUNCATED"].includes(catalogResult.state)
+      ? { ...catalogResult, state: "PARTIAL COVERAGE" } : catalogResult;
+    const catalogRows = catalog ? comparePackageCatalogToInstalled(catalog, inventory) : [];
+    const catalogErrorState = state.availablePackageErrorStatus === 403 ? "DENIED" : "FAILED";
+    const catalogBadge = state.availablePackageLoading ? "LOADING" : state.availablePackageError ? catalogErrorState : catalog?.state || "NOT QUERIED";
+    const catalogBody = state.availablePackageError
+      ? state.availablePackageErrorStatus === 403
+        ? `<p class="source-message source-error" role="status">The current IRIS identity is not authorized to query the configured package catalog.</p>`
+        : `<p class="source-message source-error" role="alert">${esc(state.availablePackageError)}</p>`
+      : catalog?.state === "DENIED" ? `<p class="source-message source-error" role="status">The current IRIS identity is not authorized to read configured IPM repository definitions.</p>`
+        : catalog?.state === "FAILED" ? `<p class="source-message source-error" role="alert">The IPM catalog query failed. No available version is inferred.</p>`
+          : catalog?.state === "UNAVAILABLE" ? `<p class="source-message" role="status">Configured catalog coverage is unavailable${catalog.reason ? ` (${esc(catalog.reason)}).` : "."}</p>`
+            : catalog?.state === "EMPTY" ? `<p class="source-message" role="status">No matching package was returned by all observed enabled repositories.</p>`
+              : catalogRows.length ? `<div class="package-list">${catalogRows.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>${esc(item.description)}</small></div>${badge((item.relationship || item.state).replaceAll("_", " ").replaceAll("-", " "), ["INSTALLED_OLDER", "INSTALLED_NEWER"].includes(item.relationship) ? "warning" : item.relationship === "INSTALLED_VERSION_UNCOMPARABLE" || item.relationship === "INSTALLED_STATE_UNKNOWN" ? "muted" : "accent")}</div><dl class="detail-grid"><dt>Available</dt><dd>${esc(item.availableVersion)}</dd><dt>Installed</dt><dd>${esc(item.installedVersion || (item.installedStateKnown ? "Not installed in this namespace" : "Not observed"))}</dd><dt>Repository</dt><dd><code>${esc(item.repository)}</code></dd>${item.origin ? `<dt>Origin</dt><dd>${esc(item.origin)}</dd>` : ""}</dl><p class="source-message">Read-only catalog observation. Package install/update is not enabled.</p></article>`).join("")}</div>`
+                : `<p class="source-message">Enter one exact package identity to query configured repositories.</p>`;
+    return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Installed package inventory</h2></div>${badge(stateLabel, stateStyle)}</div><p class="source-message">Installed rows come from IPM registrations in the current namespace. Catalog lookup is a separate bounded exact-name query through configured repositories.</p><div class="evidence-toolbar"><label>Inventory <select id="package-filter"><option value="all" ${state.packageFilter === "all" ? "selected" : ""}>All installed</option><option value="installed" ${state.packageFilter === "installed" ? "selected" : ""}>Installed</option></select></label><span class="package-source">Source identity <code>${esc(inventory?.sourceIdentity || "iris-ipm-installed-v1")}</code>${inventory?.namespace ? ` · Namespace <code>${esc(inventory.namespace)}</code>` : ""}</span><button class="button secondary" data-refresh-packages ${state.packageInventoryLoading ? "disabled" : ""}>Refresh</button></div>${state.packageInventoryError ? `<p class="source-message source-error" role="alert">${esc(state.packageInventoryError)}</p>` : ""}${inventory?.state === "DENIED" ? `<p class="source-message source-error" role="status">The current IRIS identity is not authorized to read installed IPM registrations.</p>` : ""}${inventory?.state === "FAILED" ? `<p class="source-message source-error" role="alert">The installed package provider could not return inventory.</p>` : ""}<div class="package-list">${rows.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>Installed IPM registration</small></div>${badge("INSTALLED", "accent")}</div><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(item.namespace)}</code></dd><dt>Installed</dt><dd>${esc(item.installedVersion)}</dd><dt>Available</dt><dd>Not queried for this package</dd><dt>Source</dt><dd>${esc(item.source)}</dd></dl></article>`).join("") || `<p class="source-message">${inventory?.state === "EMPTY" ? "No installed package registrations were returned." : state.packageInventoryLoading ? "Reading installed package registrations…" : "No package rows are available."}</p>`}</div>${inventory?.truncated ? `<p class="source-message">Showing the first 250 registrations. Inventory is truncated.</p>` : ""}</section><section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">CONFIGURED REPOSITORIES</div><h2>Available package lookup</h2></div>${badge(catalogBadge, catalog?.state === "AVAILABLE" || catalog?.state === "TRUNCATED" ? "accent" : "warning")}</div><form class="evidence-toolbar" data-available-package-form><label>Exact package name <input id="available-package-name" name="name" maxlength="128" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,127}" value="${esc(state.availablePackageName)}" autocomplete="off" required></label><button class="button secondary" type="submit" ${state.availablePackageLoading ? "disabled" : ""}>${state.availablePackageLoading ? "Searching…" : "Search configured repositories"}</button><span class="package-source">Provider <code>iris-ipm-available-v1</code>${catalog ? ` · ${catalog.availableRepositoryCount}/${catalog.repositoryCount} repositories reachable` : ""}</span></form>${catalogBody}${catalog?.coverage === "partial" && !["UNAVAILABLE", "DENIED", "FAILED"].includes(catalog.state) ? `<p class="source-message">Only ${catalog.availableRepositoryCount} of ${catalog.repositoryCount} configured repositories responded. Results are partial; absence is not established.</p>` : ""}${catalog?.truncated ? `<p class="source-message">Catalog rows reached the 50-row cap.</p>` : ""}</section>`;
+  }
+  const inventory = fixturePackageInventory();
+  const items = inventory.packages.filter(item => state.packageFilter === "all" || (state.packageFilter === "installed" ? Boolean(item.installedVersion) : !item.installedVersion));
+  const review = state.packagePlan;
+  const plan = review?.plan;
+  return `<section class="panel packages-workspace"><div class="panel-head"><div><div class="panel-kicker">APPLICATIONS → PACKAGES</div><h2>Package inventory preview</h2></div>${badge("SYNTHETIC FIXTURE", "warning")}</div><p class="source-message">These package rows are synthetic development fixtures. No configured registry, installed IPM inventory, or Open Exchange availability was queried.</p><div class="evidence-toolbar"><label>Inventory <select id="package-filter"><option value="all" ${state.packageFilter === "all" ? "selected" : ""}>Installed and available</option><option value="installed" ${state.packageFilter === "installed" ? "selected" : ""}>Installed</option><option value="available" ${state.packageFilter === "available" ? "selected" : ""}>Available</option></select></label><span class="package-source">Source identity <code>${esc(inventory.sourceIdentity)}</code></span></div><div class="package-list">${items.map(item => `<article class="package-card"><div class="package-card-head"><div><strong>${esc(item.name)}</strong><small>${esc(item.description)}</small></div>${badge(item.state.toUpperCase(), item.state === "update-available" ? "warning" : "accent")}</div><dl class="detail-grid"><dt>Namespace</dt><dd><code>${esc(item.namespace)}</code></dd><dt>Installed</dt><dd>${esc(item.installedVersion || "Not installed")}</dd><dt>Available</dt><dd>${esc(item.availableVersion || "Not observed")}</dd><dt>Source</dt><dd>${esc(item.source)}</dd></dl><div class="package-actions">${item.installedVersion ? `<button class="button secondary" data-package-plan="update" data-package-name="${esc(item.name)}" ${item.availableVersion ? "" : "disabled"}>Prepare update plan</button><button class="button quiet" data-package-plan="remove" data-package-name="${esc(item.name)}">Prepare removal plan</button>` : `<button class="button secondary" data-package-plan="install" data-package-name="${esc(item.name)}">Prepare installation plan</button>`}</div></article>`).join("") || `<p class="source-message">No synthetic package rows match this filter.</p>`}</div><section class="panel package-catalog-example"><div class="panel-head"><div><div class="panel-kicker">CATALOG COMPARISON · SYNTHETIC</div><h3>opsdeck</h3></div>${badge("INSTALLED NEWER", "warning")}</div><p class="source-message">Demo scenario only: installed 0.2.1 is newer than the synthetic configured-catalog version 0.2.0. This is not a live registry observation or update recommendation.</p><dl class="detail-grid"><dt>Installed</dt><dd>0.2.1</dd><dt>Available example</dt><dd>0.2.0</dd><dt>Source</dt><dd>synthetic safe-demo fixture</dd></dl></section>${plan ? `<section class="package-plan-review"><div class="panel-kicker">OPERATION PLAN · REVIEW ONLY</div><h3>${esc(plan.intent)}</h3><div class="package-plan-facts"><p><strong>Risk</strong> ${esc(plan.risk)} · explicit confirmation required</p><p><strong>Target</strong> ${esc(plan.target.key)} · namespace <code>${esc(plan.target.scope)}</code></p><p><strong>Operation</strong> ${esc(plan.capability.providerOperation)}</p><p><strong>Source</strong> ${esc(plan.parameters.sourceIdentity)} · requested version ${esc(plan.parameters.requestedVersion || "current")}</p><p><strong>Current version</strong> ${esc(plan.parameters.installedVersion || "not installed")}</p><p><strong>Pre-state</strong> ${esc(plan.preStateEvidence)} · plan expires ${esc(plan.expiresAt)}</p><p><strong>Authority</strong> ${esc(plan.authorityValidation.state)} · ${esc(plan.authorityValidation.evidence)}</p><p><strong>Expected read-back</strong> ${esc(plan.expectedReadback)}</p></div><div class="notice warning"><strong>Executor unavailable.</strong> The plan is synthetic and review-only. Real IPM execution requires a qualified 0.6 executor and disposable package fixture.</div><button class="button secondary" disabled aria-disabled="true">Confirm package operation · unavailable</button></section>` : ""}</section>`;
 }
 
 function restServiceMatches(webApp) {
@@ -339,18 +552,45 @@ function cellValue(value) {
 }
 
 function sourcePanel(sourceId) {
-  const source = READ_ONLY_SOURCES[sourceId];
+  const isRotation = /^messagesRotation:[0-9A-F]{64}$/u.test(sourceId);
+  const source = READ_ONLY_SOURCES[sourceId] || (isRotation ? { label: "messages.log rotation", path: "/opsdeck-api/message-rotation" } : null);
   const data = state.sourceData[sourceId];
   const error = state.sourceErrors[sourceId];
   if (state.sourceLoading === sourceId) return `<div class="source-message">Loading the selected live source…</div>`;
   if (error) {
-    const denied = /does not have authority|HTTP 403|denied/i.test(error);
+    const denied = isAuthorityDenial(error);
     return `<div class="source-message source-error ${denied ? "source-denied" : ""}" role="alert"><strong>${denied ? (state.info?.systemMode === "DEMO" ? "Access denied by persona" : "Access denied by IRIS") : "Source unavailable"}</strong><p>${esc(error)}</p><code>GET ${esc(source.path)}</code><button class="button quiet" data-refresh-source="${sourceId}">Retry source</button></div>`;
   }
   if (sourceId === "alerts") {
     if (!data) return `<div class="source-message"><strong>Stateful alert feed</strong><p>IRIS returns alerts since the previous feed read. OpsDeck does not poll this source automatically; requesting a batch advances that read boundary.</p><button class="button secondary" data-load-alerts>Read alert batch</button><div class="panel-foot">GET <code>${esc(source.path)}</code> · ${esc(source.requiredPrivilege)} · iris-monitor-api</div></div>`;
     const fieldShapes = data.items.map((item) => `<li><strong>${esc(item.ref.label)}</strong><span>${item.values.observedFields.length ? item.values.observedFields.map((field) => `<code>${esc(field)}</code>`).join(" ") : "No fields returned"}</span></li>`).join("");
     return `<div class="source-toolbar"><div><strong>${data.count}</strong><span> alerts returned in this batch</span></div><button class="button quiet" data-load-alerts>Read next batch</button></div>${data.count ? `<p class="source-caveat">Alert values are withheld until the live record schema and safe display fields are qualified. These field names describe shape only.</p><ul class="relationship-list">${fieldShapes}</ul>` : `<div class="source-message" role="status">IRIS returned no alerts in this batch.</div>`}<div class="panel-foot">GET <code>${esc(source.path)}</code> · stateful feed · ${fmtTime(data.observedAt)}</div>`;
+  }
+  if (sourceId === "messageRotations") {
+    if (!data) return `<div class="source-message">Select the fixed rotation family to list bounded identities.</div>`;
+    const labels = { available: "Observed", empty: "No rotations", truncated: "Partial coverage", denied: "Denied", unavailable: "Unavailable", failed: "Failed" };
+    const items = data.rotations.map((item) => `<li class="owner-row"><span><strong>${esc(item.sourceTimestamp)}</strong><span class="app-sub">${item.size} bytes · <code>${esc(item.sourceIdentity)}</code></span></span><button class="button quiet" data-read-rotation="${esc(item.sourceIdentity)}" ${state.rotationLoading ? "disabled" : ""}>Read bounded observation</button></li>`).join("");
+    const selected = state.selectedRotation ? sourcePanel(state.selectedRotation) : "";
+    return `<div class="source-toolbar"><div>${badge(labels[data.status] || "Unresolved", data.status === "available" ? "success" : data.status === "denied" || data.status === "failed" ? "error" : "warning")} <strong>${data.count}</strong><span> fixed-family files · ${data.scannedCount} entries scanned</span></div><button class="button quiet" data-refresh-source="messageRotations">Rescan fixed family</button></div>${data.coverage === "partial" || data.truncated ? `<p class="source-caveat">Coverage is partial. The bounded scan may omit family members.</p>` : ""}${items ? `<ul class="relationship-list">${items}</ul>` : `<div class="source-message" role="status">${data.status === "empty" ? "No approved messages.log rotations were observed." : data.status === "denied" ? "IRIS denied fixed-family enumeration for this identity." : "The fixed-family inventory is unavailable; it is not treated as an empty catalog."}</div>`}${selected}<div class="panel-foot">GET <code>${esc(source.path)}</code> · nonrecursive · max 250 entries / 20 identities · no paths returned · ${fmtTime(data.observedAt)}</div>`;
+  }
+  if (sourceId === "messagesLog" || sourceId === "systemMonitorLog" || isRotation) {
+    if (!data) return `<div class="source-message">Select the fixed source to read its bounded recent observation.</div>`;
+    const labels = { available: "Available", empty: "Valid empty", truncated: "Truncated", unavailable: "Unavailable", denied: "Denied", "read-failure": "Read failure" };
+    const tone = data.status === "available" ? "success" : data.status === "empty" ? "accent" : ["denied", "read-failure"].includes(data.status) ? "error" : "warning";
+    const rows = data.items.map((item) => `<li id="log-${sourceId}-${esc(item.ref.key.slice(5))}"><span class="log-line-number">${esc(item.ref.key.slice(5))}</span><code>${esc(item.values.line)}</code></li>`).join("");
+    const analysis = data.analysis;
+    const analysisLabels = { available: "Observed", empty: "No markers", truncated: "Partial", unavailable: "Unavailable", denied: "Denied", "read-failure": "Read failure", failed: "Analysis failed" };
+    const analysisTone = analysis?.status === "available" ? "accent" : analysis?.status === "empty" ? "muted" : ["denied", "read-failure", "failed"].includes(analysis?.status) ? "error" : "warning";
+    const findings = analysis?.findings?.map((finding) => `<li class="log-finding"><div class="log-finding-head"><strong>${esc(finding.title)}</strong>${badge(`Line ${finding.lineNumber}`, "muted")}</div><p>${esc(finding.summary)} Marker <code>${esc(finding.marker)}</code>.</p><p><strong>Consequence:</strong> ${esc(finding.consequence)}</p><p><strong>Next step:</strong> ${esc(finding.nextAction)}</p></li>`).join("") || "";
+    const analysisPanel = analysis ? `<section class="log-analysis" aria-label="Embedded Python log interpretation"><div class="log-analysis-head"><div><div class="panel-kicker">EMBEDDED PYTHON · RULE-BASED</div><h3>Interpretation of this observation</h3></div>${badge(analysisLabels[analysis.status] || "Unresolved", analysisTone)}</div><p class="source-caveat">Fixed markers are observations from these returned lines. They do not establish overall system health or an IRIS authorization decision.</p>${findings ? `<ol class="log-findings">${findings}</ol>` : `<div class="source-message" role="status">${analysis.status === "empty" ? "The source contained no lines in this observation." : ["available", "truncated"].includes(analysis.status) ? "No configured markers were found in this bounded observation." : "The log lines remain available, but this interpretation did not complete."}</div>`}${analysis.findingsTruncated ? `<div class="source-message" role="status">The interpretation is limited to the first 20 matching lines.</div>` : ""}<div class="panel-foot">${esc(analysis.provider)} · ${analysis.lineCount} lines reviewed${analysis.truncated ? " · source observation truncated" : ""} · session only</div></section>` : "";
+    const stateMessage = {
+      empty: "The source was read successfully and contained no lines in the bounded observation.",
+      unavailable: "IRIS could not locate or open this fixed source.",
+      denied: "The current IRIS process lacks the required log-inspection authority.",
+      "read-failure": "IRIS failed while reading this fixed source.",
+    }[data.status] || "";
+    const refresh = isRotation ? `<button class="button quiet" data-read-rotation="${esc(sourceId)}">Read again</button>` : `<button class="button quiet" data-refresh-source="${sourceId}">Read again</button>`;
+    return `<div class="source-toolbar"><div>${badge(labels[data.status] || "Unresolved", tone)} <strong>${data.count}</strong><span> complete lines returned${data.truncated ? " · recent observation is truncated" : ""}</span></div>${refresh}</div>${stateMessage ? `<div class="source-message" role="status">${esc(stateMessage)}</div>` : ""}${rows ? `<ol class="fixed-log-lines" aria-label="${esc(source.label)} recent lines">${rows}</ol>` : ""}${analysisPanel}<div class="panel-foot">GET <code>${esc(source.path)}${isRotation ? "?id=…" : ""}</code> · ${esc(data.provider)} · at most 64 KiB / 250 complete lines · ${fmtTime(data.observedAt)}${isRotation ? ` · source ${esc(data.sourceIdentity || sourceId)} · ${esc(data.sourceTimestamp || "timestamp unavailable")}` : ""}</div>`;
   }
   if (!data) return `<div class="source-message">Select a source to load authoritative IRIS data.</div>`;
   const items = data.items;
@@ -466,43 +706,162 @@ function providerDomainView(route) {
     security: "Credential and OAuth configuration metadata. Secret material is never rendered.",
     tasks: "Scheduled task definitions from the live IRIS management API.",
     system: "Live system usage, processes, databases, and device inventory.",
-    logs: "Audit configuration, task history, and journal inventory. Audit record retrieval is not qualified.",
+    logs: "Audit configuration, bounded fixed log observations, task history, and journal inventory. Each reader remains qualified only within its recorded scope.",
   };
   const sourceId = state.sourceTabs[route] || domainSources[route]?.[0];
+  const systemNavigation = route === "system" ? `<div class="system-sections" role="tablist" aria-label="System sections"><button class="source-tab ${state.systemSection === "providers" ? "active" : ""}" role="tab" aria-selected="${state.systemSection === "providers"}" data-system-section="providers">System providers</button><button class="source-tab ${state.systemSection === "about" ? "active" : ""}" role="tab" aria-selected="${state.systemSection === "about"}" data-system-section="about">About</button></div>` : "";
+  if (route === "system" && state.systemSection === "about") {
+    const identity = ProductIdentity.resolve({
+      irisVersion: state.info?.serverVersion,
+      deployment: state.info?.systemMode === "DEMO" ? "demo" : nativeMode ? "native" : "reference",
+    });
+    return shell(`${pageHeader("About", "OpsDeck product identity and runtime context.")}${systemNavigation}<section class="panel about-panel"><div class="panel-kicker">${esc(identity.releaseLabel)}</div><h2>${esc(identity.name)}</h2><p class="about-version">Version ${esc(identity.publicVersion)}</p><p class="source-message">OpsDeck presents observed IRIS context separately from its public product identity. Runtime fields are shown only when supplied by the active product context.</p><details class="about-details"><summary>Technical details</summary><dl class="detail-grid"><dt>Internal version</dt><dd>${esc(identity.internalVersion)}</dd><dt>Package version</dt><dd>${esc(identity.packageVersion)}</dd><dt>Git commit</dt><dd><code>${esc(identity.gitCommit || "Not embedded in source package")}</code></dd><dt>Build timestamp</dt><dd>${esc(identity.buildTimestamp || "Not embedded in source package")}</dd><dt>IRIS version</dt><dd>${esc(identity.irisVersion)}</dd><dt>Namespace</dt><dd><code>${esc(identity.namespace)}</code></dd><dt>Deployment target</dt><dd>${esc(identity.deploymentTarget)}</dd></dl></details></section>`);
+  }
   const logTools = route === "logs" ? auditQueryPanel() : "";
-  const caveat = route === "logs" ? `<p class="source-caveat">Messages and System Monitor files require an IRIS-owned fixed-source reader. Alerts are a stateful feed and are read only when explicitly requested.</p>` : "";
-  return shell(`${pageHeader(title, descriptions[route] || "Live IRIS provider data.")}${logTools}<section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">LIVE PROVIDER DATA</div><h2>${esc(READ_ONLY_SOURCES[sourceId]?.label || title)}</h2></div>${badge("Read only", "accent")}</div>${sourceSelector(route)}${sourcePanel(sourceId)}${caveat}</section>`);
+  const jobs = route === "tasks" ? jobCenterPanel() : "";
+  const caveat = route === "logs" ? `<p class="source-caveat">Fixed log routes accept only the two semantic source identities. Returned lines preserve legitimate log text; the resolved filesystem location is never returned. Alerts are a stateful feed and are read only when explicitly requested.</p>` : "";
+  return shell(`${pageHeader(title, descriptions[route] || "Live IRIS provider data.")}${systemNavigation}${jobs}${logTools}<section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">LIVE PROVIDER DATA</div><h2>${esc(READ_ONLY_SOURCES[sourceId]?.label || title)}</h2></div>${badge("Read only", "accent")}</div>${sourceSelector(route)}${sourcePanel(sourceId)}${caveat}</section>`);
+}
+
+function jobCenterPanel() {
+  const jobs = visibleJobs();
+  const tone = status => ({ COMPLETED: "success", FAILED: "error", DENIED: "error", CANCELED: "muted", UNAVAILABLE: "warning", AMBIGUOUS: "error" })[status] || "accent";
+  const rows = jobs.slice().reverse().map(job => `<article class="job-row"><div><strong>${esc(job.operation)}</strong><small>${esc(job.provider)} · accepted ${fmtTime(job.acceptedAt)}</small></div><div>${badge(job.status, tone(job.status))}<p>${esc(job.progress || "No progress detail was returned.")}</p>${job.resultIdentity ? `<small>Result <code>${esc(job.resultIdentity.id)}</code></small>` : ""}</div></article>`).join("");
+  return `<section class="panel job-center"><div class="panel-head"><div><div class="panel-kicker">SESSION-SCOPED ASYNC WORK</div><h2>Job Center</h2></div>${badge(`${jobs.length} JOB${jobs.length === 1 ? "" : "S"}`, jobs.length ? "accent" : "muted")}</div><p class="source-message">Jobs appear only when IRIS returns an accepted asynchronous identity. Unknown or incomplete outcomes stay visible as unresolved; OpsDeck does not retry dispatch.</p>${rows ? `<div class="job-list">${rows}</div>` : `<p class="source-message">No asynchronous jobs have been observed in this session.</p>`}</section>`;
+}
+
+function visibleJobs() {
+  if (state.info?.systemMode === "DEMO" && !(state.jobs || []).length) return [{
+    identity: "fixture:job:maintenance-01", operation: "Synthetic maintenance task",
+    provider: "opsdeck-demo-v1", acceptedAt: "2026-10-02T12:00:00Z",
+    updatedAt: "2026-10-02T12:00:08Z", status: "COMPLETED",
+    progress: "Synthetic completed job shown to demonstrate Job Center projection; no IRIS task was run.",
+    resultIdentity: null,
+  }];
+  return state.jobs || [];
 }
 
 function auditQueryPanel() {
-  return `<section class="panel provider-panel audit-query-panel"><div class="panel-head"><div><div class="panel-kicker">BLOCKED / UNVERIFIED</div><h2>Audit records</h2></div></div><p class="source-message">Audit search can be accepted by IRIS, but asynchronous result retrieval is not qualified. OpsDeck does not display audit records or claim a completed read.</p></section>`;
+  const query = state.auditQuery;
+  const tone = query?.state === "denied" || query?.state === "failed" ? "error" :
+    query?.state === "finished" ? "success" : query ? "warning" : "muted";
+  const safeFields = ["TimeStamp", "Event", "EventSource", "UserName", "PID", "Namespace"];
+  const result = Array.isArray(query?.result)
+    ? query.result.length
+      ? `<div class="table-wrap"><table><thead><tr>${safeFields.map((field) => `<th>${esc(field)}</th>`).join("")}</tr></thead><tbody>${query.result.map((record) => `<tr>${safeFields.map((field) => `<td>${Object.hasOwn(record, field) ? esc(record[field]) : "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
+      : `<p class="source-message">No audit records matched this bounded query.</p>`
+    : "";
+  const task = query?.task ? `<small>Task state: ${esc(query.task.state)} · identity: ${esc(query.task.identitySource || "unverified")}</small>` : "";
+  return `<section class="panel provider-panel audit-query-panel"><div class="panel-head"><div><div class="panel-kicker">READ ONLY · BOUNDED</div><h2>Audit records</h2></div><button class="button quiet" data-run-audit-query ${state.auditQueryBusy ? "disabled" : ""}>${state.auditQueryBusy ? "Reading…" : "Read recent records · max 1"}</button></div><p class="source-message">Reads one record at most for the signed-in user over the last 10 minutes. Only reviewed audit fields are displayed.</p>${query ? `<p class="source-message"><strong>${badge(query.state.toUpperCase(), tone)}</strong> ${esc(query.message)}</p>${task}${result}` : ""}</section>`;
 }
 
 function evidenceView() {
   const isDemo = state.info?.systemMode === "DEMO";
+  const productIdentity = ProductIdentity.resolve({
+    irisVersion: state.info?.serverVersion,
+    deployment: isDemo ? "demo" : nativeMode ? "native" : "reference",
+  });
+  const audit = isDemo ? null : state.auditQuery;
   const readback = state.verification
     ? (state.verification.matched
       ? { label: "VERIFIED", tone: "success", detail: `${state.verification.count} web-app identities matched on an independent second read.` }
       : { label: "MISMATCH", tone: "error", detail: "The second web-app read differed from the displayed state." })
     : { label: "PENDING", tone: "muted", detail: "No current read-back comparison is available in this session." };
+  const auditState = { accepted: "UNVERIFIED", queued: "PARTIAL", running: "PARTIAL", finished: "PARTIAL", failed: "FAILED", canceled: "BLOCKED", denied: "DENIED", unavailable: "UNAVAILABLE", ambiguous: "UNVERIFIED" }[audit?.state] || "PENDING";
+  const auditCount = Number.isInteger(audit?.resultCount) ? `${audit.resultCount} result row${audit.resultCount === 1 ? "" : "s"}` : "an unknown number of result rows";
+  const auditDetail = audit?.state === "finished"
+    ? `A bounded audit task finished with ${auditCount}. The response remains partial evidence; full result-schema and pagination behavior are not established.`
+    : audit ? `The bounded audit task is ${audit.state}. Its state is retained in this session without raw task identifiers or unreviewed result values.`
+      : "IRIS 2026.2 returned one finished empty result through the exact same-origin v1 async-result resource. Full result-schema and pagination behavior remain unverified.";
+  const auditTone = ["FAILED", "DENIED"].includes(auditState) ? "error" : ["PENDING", "UNVERIFIED", "PARTIAL", "BLOCKED", "UNAVAILABLE"].includes(auditState) ? "warning" : "muted";
   const cards = [
     { title: "Web application read-back", state: readback.label, tone: readback.tone, detail: readback.detail, note: isDemo ? "Demo semantics only · live IRIS verification is separately qualified." : "Current session evidence." },
     { title: "Provider state semantics", state: "PRESERVED", tone: "success", detail: "Valid empty collections, unavailable providers, denied access, and mapping failures remain distinct states.", note: "No fixture fallback is substituted for a failed live provider." },
-    { title: "Audit async handoff", state: "BLOCKED", tone: "warning", detail: "The bounded native query reached HTTP 202, then stopped when IRIS returned a same-origin v1 async-result path while the strict client contract permits v2.", note: "No status GET was guessed, substituted, or followed after that mismatch." },
+    { title: "Audit async handoff", state: auditState, tone: auditTone, detail: auditDetail, note: "Current-session observation only; the query is bounded to maxRows=1 and does not establish a complete audit-result schema." },
     { title: "IPM / ZPM lifecycle", state: "QUALIFIED", tone: "success", detail: "Local-source load, uninstall, and clean same-source reload were reproduced for OpsDeck 0.2.0. Registration, /opsdeck, deployed asset hashes, operational HTTP behavior, cleanup, and unrelated-state preservation were verified.", note: "Scope: tested local-source lifecycle only. Exact core IPM version and public-registry installation remain unverified." }
   ];
+  const evidenceCollection = currentEvidenceCollection();
+  const visibleEvidence = filterEvidence(evidenceCollection, state.evidenceFilter || "", state.evidenceStateFilter || "ALL");
+  const evidencePanel = `<section class="panel durable-evidence-panel"><div class="panel-head"><div><div class="panel-kicker">BOUNDED EVIDENCE CENTER</div><h2>${isDemo ? "Fixture receipt preview" : "Current-session evidence"}</h2></div>${badge(isDemo ? "SYNTHETIC FIXTURE" : "SESSION ONLY", "warning")}</div><p class="source-message">${isDemo ? "Synthetic fixture data only. It demonstrates redacted receipt browsing and export, not IRIS execution." : "Evidence is held in session memory. No persistent IRIS evidence provider is attached; exports are explicit and bounded."}</p><div class="evidence-toolbar"><label>Filter <input id="evidence-filter" type="search" value="${esc(state.evidenceFilter || "")}" maxlength="128" placeholder="Find evidence"></label><label>State <select id="evidence-state-filter">${["ALL", "VERIFIED", "PARTIAL", "FAILED", "UNVERIFIED", "BLOCKED", "UNAVAILABLE", "DENIED"].map(item => `<option value="${item}" ${(state.evidenceStateFilter || "ALL") === item ? "selected" : ""}>${item}</option>`).join("")}</select></label><button class="button secondary" data-export-evidence="json" ${visibleEvidence.length ? "" : "disabled"}>Export JSON</button><button class="button secondary" data-export-evidence="markdown" ${visibleEvidence.length ? "" : "disabled"}>Export Markdown</button></div>${visibleEvidence.length ? `<div class="evidence-record-list">${visibleEvidence.map(item => `<article class="evidence-record"><div><strong>${esc(item.title)}</strong>${badge(item.state, item.state === "VERIFIED" ? "success" : "warning")}</div><small>${esc(item.kind)} · ${esc(item.observedAt)} · source ${esc(item.source?.identity || "unknown")} · resource ${esc(item.resource?.key || "unknown")}</small><p>${esc(item.summary)}</p></article>`).join("")}</div>` : `<p class="source-message">${evidenceCollection.state === "EMPTY" ? "No evidence records are available in this session." : `No records match the selected filter · ${evidenceCollection.state}.`}</p>`}</section>`;
   const cardHtml = cards.map((item) => `<article class="evidence-card"><div class="evidence-card-head"><strong>${esc(item.title)}</strong>${badge(item.state, item.tone)}</div><p>${esc(item.detail)}</p><small>${esc(item.note)}</small></article>`).join("");
   return shell(`
     ${pageHeader("Evidence", "What OpsDeck can prove, what it cannot, and where qualification deliberately stops.")}
+    <p class="source-message evidence-product-identity">${esc(productIdentity.name)} · ${esc(productIdentity.releaseLabel)} ${esc(productIdentity.publicVersion)}</p>
     ${isDemo ? `<div class="evidence-demo-notice"><strong>SAFE DEMO</strong><span>Sanitized deterministic data. This page demonstrates evidence semantics, not a live IRIS claim.</span></div>` : ""}
     <section class="panel evidence-flow-panel"><div class="panel-head"><div><div class="panel-kicker">EVIDENCE-GATED OPERATION</div><h2>Observed state stays tied to authority</h2></div>${badge("No shadow state", "accent")}</div>
       <div class="evidence-flow" aria-label="OpsDeck evidence flow"><div><span>01</span><strong>Request</strong><small>Known operation</small></div><b>→</b><div><span>02</span><strong>Bounded provider</strong><small>Allowlisted route</small></div><b>→</b><div><span>03</span><strong>IRIS authority</strong><small>Source of truth</small></div><b>→</b><div><span>04</span><strong>Rendered state</strong><small>Safe projection</small></div><b>→</b><div><span>05</span><strong>Read-back</strong><small>Where qualified</small></div></div>
     </section>
     <section class="evidence-grid">${cardHtml}</section>
+    ${evidencePanel}
     <section class="panel evidence-legend"><div class="panel-head"><div><div class="panel-kicker">STATE SEMANTICS</div><h2>Absence is not failure, and failure is not absence</h2></div></div>
       <div class="state-legend-grid"><div>${badge("VERIFIED", "success")}<p>Independent evidence agrees with the displayed state.</p></div><div>${badge("EMPTY", "accent")}<p>The authoritative provider returned a valid empty collection.</p></div><div>${badge("UNAVAILABLE", "warning")}<p>The source could not provide a usable result. OpsDeck does not invent one.</p></div><div>${badge("DENIED", "error")}<p>The current identity lacks authority for the source.</p></div><div>${badge("UNVERIFIED", "muted")}<p>The behavior has not crossed its required qualification boundary.</p></div></div>
       <div class="evidence-actions"><button class="button secondary" data-route="applications">Inspect applications</button><button class="button secondary" data-route="access">Inspect access relationships</button><button class="button secondary" data-route="security">Inspect provider boundaries</button></div>
     </section>`);
+}
+
+function currentEvidenceCollection() {
+  const isDemo = state.info?.systemMode === "DEMO";
+  const records = isDemo ? [{ id: "fixture:operation:application-enable", kind: "operation-receipt", state: "VERIFIED", title: "Fixture application enable", observedAt: "2026-10-02T12:00:00Z", source: { identity: "opsdeck-fixture-v1" }, resource: { key: "/opsdeck-fixture", scope: "%SYS" }, summary: "Synthetic fixture plan completed with fixture read-back; this does not qualify a live IRIS operation.", evidence: { operationId: "fixture-op-001", verification: "fixture-readback" } }] : state.verification ? [{ id: "session:applications-readback", kind: "read-observation", state: state.verification.matched ? "VERIFIED" : "FAILED", title: "Applications independent read-back", observedAt: state.verification.at, source: { identity: "iris-admin-api" }, resource: { key: "web-app-inventory", scope: "%SYS" }, summary: state.verification.matched ? `${state.verification.count} web-application identities matched the independent second read.` : "The independent second read differed from the current web-application inventory.", evidence: { matched: state.verification.matched, count: state.verification.count } }] : [];
+  const audit = isDemo ? null : state.auditQuery;
+  if (audit?.observedAt) {
+    const states = { accepted: "UNVERIFIED", queued: "PARTIAL", running: "PARTIAL", finished: "PARTIAL", failed: "FAILED", canceled: "BLOCKED", denied: "DENIED", unavailable: "UNAVAILABLE" };
+    const safeFields = ["Event", "EventSource", "Namespace", "PID", "TimeStamp", "UserName"];
+    const fields = Array.isArray(audit.result) && audit.result.length
+      ? Object.keys(audit.result[0]).filter((field) => safeFields.includes(field)).sort()
+      : [];
+    const count = Number.isInteger(audit.resultCount) && audit.resultCount >= 0 && audit.resultCount <= AUDIT_QUERY_MAX_ROWS ? audit.resultCount : null;
+    const evidence = { providerState: typeof audit.state === "string" ? audit.state : "unverified", identityBasis: audit.task?.identitySource || "unverified", fields };
+    if (count !== null) evidence.count = count;
+    if (typeof audit.truncatedToMaxRows === "boolean") evidence.truncated = audit.truncatedToMaxRows;
+    records.push({
+      id: "session:audit-query",
+      kind: "read-observation",
+      state: states[audit.state] || "UNVERIFIED",
+      title: "Bounded audit query",
+      observedAt: audit.observedAt,
+      source: { identity: "iris-admin-api" },
+      resource: { domain: "security", kind: "audit-query", provider: "iris-admin-api", key: "bounded-audit-records", label: "Bounded audit records", observedAt: audit.observedAt },
+      summary: count === null ? `Bounded audit query state: ${audit.state}.` : `Bounded audit query state: ${audit.state}; ${count} reviewed row${count === 1 ? "" : "s"} returned.`,
+      evidence,
+    });
+  }
+  for (const job of visibleJobs()) {
+    const states = { ACCEPTED: "UNVERIFIED", QUEUED: "PARTIAL", RUNNING: "PARTIAL", COMPLETED: "PARTIAL", FAILED: "FAILED", CANCELED: "BLOCKED", PAUSED: "PARTIAL", DENIED: "DENIED", UNAVAILABLE: "UNAVAILABLE", AMBIGUOUS: "UNVERIFIED" };
+    records.push({
+      id: job.identity,
+      kind: "read-observation",
+      state: states[job.status] || "UNVERIFIED",
+      title: "Asynchronous job observation",
+      observedAt: job.updatedAt || job.acceptedAt,
+      source: { identity: job.provider },
+      resource: { domain: "tasks", kind: "async-job", provider: job.provider, key: job.identity, label: job.operation, observedAt: job.updatedAt || job.acceptedAt },
+      summary: `${job.operation}: ${job.status}. ${job.progress || "No additional progress was returned."}`,
+      evidence: { providerState: job.status, identityBasis: job.resultIdentity ? "validated-location" : "session-correlation" },
+    });
+  }
+  const logObservations = Object.entries(state.sourceData).filter(([sourceId]) =>
+    ["messagesLog", "systemMonitorLog"].includes(sourceId) || /^messagesRotation:[0-9A-F]{64}$/u.test(sourceId));
+  for (const [sourceId, observation] of logObservations) {
+    const analysis = observation?.analysis;
+    for (const finding of analysis?.findings || []) {
+      records.push({
+        id: finding.id,
+        kind: "read-observation",
+        state: "PARTIAL",
+        title: finding.title,
+        observedAt: observation.observedAt,
+        source: { identity: observation.provider, provider: analysis.provider },
+        resource: { domain: "logs", kind: sourceId, provider: observation.provider, key: `line:${finding.lineNumber}`, label: `${analysis.source} line ${finding.lineNumber}`, observedAt: observation.observedAt },
+        summary: `${finding.summary} ${finding.consequence} Suggested next step: ${finding.nextAction}`,
+        evidence: { providerState: analysis.status, fields: ["ruleId", "lineNumber", "marker"], identityBasis: "bounded-fixed-log-line", truncated: observation.truncated, bytesReturned: observation.bytesReturned },
+      });
+    }
+  }
+  if (state.packagePlan?.plan) {
+    const plan = state.packagePlan.plan;
+    records.push({ id: plan.id, kind: "operation-plan", state: "UNVERIFIED", title: plan.intent, observedAt: plan.createdAt, source: { identity: state.packagePlan.executorIdentity || "not-attached" }, resource: { key: plan.target.key, scope: plan.target.scope }, summary: "Synthetic package plan preview. No package operation was executed; live IPM execution remains unavailable.", evidence: { risk: plan.risk, capability: plan.capability.id, preStateEvidence: plan.preStateEvidence } });
+  }
+  return createEvidenceCollection(records, records.length ? "AVAILABLE" : "EMPTY");
 }
 
 function render() {
@@ -520,10 +879,46 @@ function render() {
   });
   app.querySelectorAll("[data-route]").forEach((button) => button.addEventListener("click", () => {
     state.route = button.dataset.route;
-    state.mobileMoreOpen = navItems.slice(3).some(([route]) => route === state.route);
+    state.mobileMoreOpen = false;
     location.hash = state.route;
     render();
     ensureRouteSource();
+  }));
+  app.querySelectorAll("[data-snippet]").forEach((button) => button.addEventListener("click", async () => {
+    const item = LEARNING_SNIPPETS.find(entry => entry.id === button.dataset.snippet);
+    if (!item) return;
+    state.selectedSnippet = item.id;
+    state.snippetText = "";
+    state.snippetError = "";
+    state.snippetLoading = true;
+    render();
+    try {
+      const base = nativeMode ? "/opsdeck/" : "./";
+      const response = await fetch(`${base}${encodeURIComponent(item.file)}`, { headers: { Accept: "text/plain" }, cache: "force-cache" });
+      if (state.selectedSnippet !== item.id) return;
+      if (!response.ok) throw new Error(`Snippet text unavailable (HTTP ${response.status}).`);
+      state.snippetText = (await response.text()).slice(0, 12000);
+    } catch (error) {
+      if (state.selectedSnippet !== item.id) return;
+      state.snippetError = error.message || "Snippet text unavailable.";
+    } finally {
+      if (state.selectedSnippet === item.id) {
+        state.snippetLoading = false;
+        render();
+      }
+    }
+  }));
+  app.querySelectorAll("[data-download-snippet]").forEach((button) => button.addEventListener("click", () => {
+    if (!state.snippetText || button.dataset.downloadSnippet !== state.selectedSnippet) return;
+    const item = LEARNING_SNIPPETS.find(entry => entry.id === state.selectedSnippet);
+    if (!item) return;
+    const blob = new Blob([state.snippetText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = item.file;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }));
   app.querySelectorAll("[data-source]").forEach((button) => button.addEventListener("click", () => {
     const route = state.route;
@@ -531,8 +926,41 @@ function render() {
     render();
     if (button.dataset.source !== "alerts") loadSource(button.dataset.source);
   }));
+  app.querySelectorAll("[data-system-section]").forEach((button) => button.addEventListener("click", () => {
+    state.systemSection = button.dataset.systemSection;
+    render();
+  }));
   app.querySelectorAll("[data-load-alerts]").forEach((button) => button.addEventListener("click", () => loadSource("alerts", true)));
+  app.querySelectorAll("[data-read-rotation]").forEach((button) => button.addEventListener("click", () => loadMessageRotation(button.dataset.readRotation)));
   app.querySelectorAll("[data-run-audit-query]").forEach((button) => button.addEventListener("click", () => runAuditQuery()));
+  app.querySelectorAll("[data-application-tab]").forEach((button) => button.addEventListener("click", () => { state.applicationsTab = button.dataset.applicationTab; render(); if (button.dataset.applicationTab === "packages" && !state.packageInventory) loadPackageInventory(); }));
+  app.querySelector("[data-refresh-packages]")?.addEventListener("click", () => loadPackageInventory(true));
+  app.querySelector("[data-available-package-form]")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const name = app.querySelector("#available-package-name")?.value?.trim() || "";
+    state.availablePackageName = name;
+    loadAvailablePackageCatalog(name);
+  });
+  app.querySelector("#package-filter")?.addEventListener("change", (event) => { state.packageFilter = event.target.value; render(); });
+  app.querySelectorAll("[data-package-plan]").forEach((button) => button.addEventListener("click", () => {
+    state.packagePlan = preparePackagePlan(fixturePackageInventory(), button.dataset.packageName, button.dataset.packagePlan);
+    render();
+  }));
+  app.querySelector("#evidence-filter")?.addEventListener("change", (event) => { state.evidenceFilter = event.target.value.slice(0, 128); render(); });
+  app.querySelector("#evidence-state-filter")?.addEventListener("change", (event) => { state.evidenceStateFilter = event.target.value; render(); });
+  app.querySelectorAll("[data-export-evidence]").forEach((button) => button.addEventListener("click", () => {
+    const collection = currentEvidenceCollection();
+    const records = filterEvidence(collection, state.evidenceFilter, state.evidenceStateFilter);
+    const markdown = button.dataset.exportEvidence === "markdown";
+    const content = markdown ? exportEvidenceMarkdown(collection, records) : exportEvidenceJSON(collection, records);
+    const blob = new Blob([content], { type: markdown ? "text/markdown;charset=utf-8" : "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = markdown ? "opsdeck-evidence.md" : "opsdeck-evidence.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }));
   app.querySelectorAll("[data-item]").forEach((row) => row.addEventListener("click", () => {
     const [sourceId, key] = row.dataset.item.split("::");
     state.selectedItems[sourceId] = key;
@@ -577,6 +1005,7 @@ function clearSession() {
   nativeAuthorization = null;
   state.connected = false;
   state.auditQuery = null;
+  state.jobs = [];
   state.auditQueryBusy = false;
   state.busy = false;
   state.error = "";
@@ -594,6 +1023,19 @@ function clearSession() {
   ]) state[key] = {};
   for (const key of ["sourceLoading", "webAppDetailLoading", "userDetailLoading", "roleDetailLoading", "roleOwnerLoading", "resourceDetailLoading", "taskDetailLoading", "restSpecLoading"]) state[key] = "";
   state.sourceTabs = { applications: "restServices", access: "users", security: "walletCollections", tasks: "tasks", system: "systemUsage", logs: "auditEnabled" };
+  state.applicationsTab = "web-apps";
+  state.packageFilter = "all";
+  state.packagePlan = null;
+  state.packageInventory = null;
+  state.packageInventoryError = "";
+  state.packageInventoryLoading = false;
+  state.availablePackageName = "";
+  state.availablePackageCatalog = null;
+  state.availablePackageError = "";
+  state.availablePackageErrorStatus = 0;
+  state.availablePackageLoading = false;
+  state.evidenceFilter = "";
+  state.evidenceStateFilter = "ALL";
   state.route = "overview";
   history.replaceState(null, "", "#overview");
 }
@@ -694,7 +1136,15 @@ function nativeApiPath(path) {
     const url = new URL(path, location.origin || "http://localhost");
     const route = url.pathname.slice("/api/read/".length);
     const source = READ_ONLY_SOURCES[route];
-    if (source) return source.path;
+    if (source && route !== "availablePackages") return source.path;
+    if (route === "availablePackages") {
+      const names = url.searchParams.getAll("name");
+      if (names.length !== 1 || [...url.searchParams.keys()].some((key) => key !== "name") || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(names[0])) {
+        throw new Error("Enter one exact package identity for catalog lookup.");
+      }
+      return `${source.path}?name=${encodeURIComponent(names[0])}`;
+    }
+    if (route === "packages") return "/opsdeck-api/packages";
     const details = {
       webAppDetail: ["/api/admin/v2/web-app", "name"],
       userDetail: ["/api/admin/v2/security/user", "name"],
@@ -797,6 +1247,76 @@ async function loadSource(sourceId, force = false) {
   }
 }
 
+async function loadMessageRotation(identity) {
+  if (!state.connected || !/^messagesRotation:[0-9A-F]{64}$/u.test(identity) || state.rotationLoading) return;
+  const owner = sessionEpoch;
+  state.rotationLoading = identity;
+  render();
+  try {
+    const payload = await readJson(`/api/read/messageRotation?id=${encodeURIComponent(identity)}`);
+    if (owner !== sessionEpoch) return;
+    state.sourceData[identity] = mapReadOnlySource(identity, payload);
+    state.selectedRotation = identity;
+    state.lastRead = state.sourceData[identity].observedAt;
+  } catch (error) {
+    if (owner !== sessionEpoch) return;
+    state.sourceErrors[identity] = error.message;
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) expireSession(error.message);
+  } finally {
+    if (owner !== sessionEpoch) return;
+    state.rotationLoading = "";
+    render();
+  }
+}
+
+async function loadPackageInventory(force = false) {
+  if (!state.connected || (state.packageInventoryLoading && !force)) return;
+  const owner = sessionEpoch;
+  state.packageInventoryLoading = true;
+  state.packageInventoryError = "";
+  render();
+  try {
+    const payload = await readJson("/api/read/packages");
+    if (owner !== sessionEpoch) return;
+    state.packageInventory = mapInstalledPackageInventory(payload);
+    state.lastRead = new Date().toISOString();
+  } catch (error) {
+    if (owner !== sessionEpoch) return;
+    state.packageInventoryError = error.message;
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) expireSession(error.message);
+  } finally {
+    if (owner !== sessionEpoch) return;
+    state.packageInventoryLoading = false;
+    render();
+  }
+}
+
+async function loadAvailablePackageCatalog(name) {
+  if (!state.connected || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(name) || state.availablePackageLoading) return;
+  const owner = sessionEpoch;
+  state.availablePackageLoading = true;
+  state.availablePackageError = "";
+  state.availablePackageErrorStatus = 0;
+  state.availablePackageCatalog = null;
+  render();
+  try {
+    const query = new URLSearchParams({ name });
+    const payload = await readJson(`/api/read/availablePackages?${query}`);
+    if (owner !== sessionEpoch) return;
+    state.availablePackageCatalog = mapAvailablePackageCatalog(payload);
+    state.lastRead = new Date().toISOString();
+  } catch (error) {
+    if (owner !== sessionEpoch) return;
+    state.availablePackageError = error.message;
+    state.availablePackageErrorStatus = Number(error.status) || 0;
+    if (error.status === 401 || /connect to IRIS|session|credentials|authentication/i.test(error.message)) expireSession(error.message);
+  } finally {
+    if (owner !== sessionEpoch) return;
+    state.availablePackageLoading = false;
+    render();
+  }
+}
+
 async function runAuditQuery() {
   if (!state.connected) return;
   const owner = sessionEpoch;
@@ -805,8 +1325,22 @@ async function runAuditQuery() {
   let httpStatus = null;
   let currentTask = null;
   let locationShape = null;
+  let jobIdentity = null;
+  let resultIdentity = null;
+  const observedAt = new Date().toISOString();
+  const publishAuditQuery = (query) => {
+    const fullQuery = { ...query, observedAt };
+    if (fullQuery.jobIdentity) jobIdentity = fullQuery.jobIdentity;
+    else if (jobIdentity) fullQuery.jobIdentity = jobIdentity;
+    if (fullQuery.resultIdentity) resultIdentity = fullQuery.resultIdentity;
+    else if (resultIdentity) fullQuery.resultIdentity = resultIdentity;
+    state.auditQuery = fullQuery;
+    if (fullQuery.jobIdentity) {
+      try { state.jobs = upsertJob(state.jobs, mapAuditJob(fullQuery, state.jobs.find(job => job.identity === fullQuery.jobIdentity))); } catch { /* keep the source observation visible if its Job projection is incomplete */ }
+    }
+  };
   state.auditQueryBusy = true;
-  state.auditQuery = { state: "accepted", message: "Submitting one filtered query for the current account, bounded to maxRows=1." };
+  publishAuditQuery({ state: "accepted", message: "Submitting one filtered query for the current account, bounded to maxRows=1." });
   render();
   try {
     const now = Date.now();
@@ -826,65 +1360,68 @@ async function runAuditQuery() {
     if (response.status === 401) { clearSession(); state.error = "Authentication failed (HTTP 401). Sign in again."; render(); return; }
     httpStatus = response.status;
     if (response.status === 401 || response.status === 403) {
-      state.auditQuery = { state: "denied", stage, httpStatus, message: `IRIS denied the bounded audit query (HTTP ${response.status}).` };
+      publishAuditQuery({ state: "denied", stage, httpStatus, message: `IRIS denied the bounded audit query (HTTP ${response.status}).` });
       return;
     }
     if (response.status !== 202) {
-      state.auditQuery = { state: "unavailable", stage, httpStatus, message: `Audit query handoff was unavailable (HTTP ${response.status}).` };
+      publishAuditQuery({ state: "unavailable", stage, httpStatus, message: `Audit query handoff was unavailable (HTTP ${response.status}).` });
       return;
     }
     stage = "validate Location";
     locationShape = inspectAuditLocation(response.headers.get("Location"), location.href);
-    state.auditQuery = { state: "accepted", stage, httpStatus, locationShape, message: "IRIS accepted the query (HTTP 202). Validating the returned Location." };
+    jobIdentity = `session:audit-job:${observedAt}`;
+    publishAuditQuery({ state: "accepted", stage, httpStatus, locationShape, jobIdentity, message: "IRIS accepted the query (HTTP 202). Validating the returned Location." });
     render();
     const handle = validateAuditLocation(response.headers.get("Location"), location.href);
+    resultIdentity = handle;
     currentTask = { idVerified: true };
     stage = "async result read";
-    state.auditQuery = { state: "queued", stage, httpStatus, locationShape, message: "IRIS accepted the query. Reading the exact same-origin async resource from Location.", task: currentTask };
+    publishAuditQuery({ state: "queued", stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: "IRIS accepted the query. Reading the exact same-origin async resource from Location.", task: currentTask });
     render();
     const deadline = Date.now() + 30000;
     for (let attempt = 0; attempt < 40 && Date.now() < deadline; attempt += 1) {
-      const payload = await requestJson(handle.url, { signal: AbortSignal.timeout(Math.min(5000, Math.max(1, deadline - Date.now()))) });
+      const payload = await requestJson(handle.url, { redirect: "error", signal: AbortSignal.timeout(Math.min(5000, Math.max(1, deadline - Date.now()))) });
     if (owner !== sessionEpoch) return;
       httpStatus = 200;
       stage = "async task contract";
-      const mapped = mapAuditAsyncResult(payload, handle.id);
+      const mapped = mapAuditAsyncResult(payload, handle);
       currentTask = mapped.task;
       const taskState = mapped.task.state.toLowerCase();
       if (taskState === "queued" || taskState === "running") {
-        state.auditQuery = {
-          state: taskState, stage, httpStatus, locationShape, message: taskState === "queued" ? "Async task is queued; waiting for a live state update." : "Async task is running; waiting for a terminal state.",
+        publishAuditQuery({
+          state: taskState, stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: taskState === "queued" ? "Async task is queued; waiting for a live state update." : "Async task is running; waiting for a terminal state.",
           task: mapped.task,
-        };
+        });
         render();
         await new Promise((resolve) => setTimeout(resolve, 500));
         if (owner !== sessionEpoch) return;
         continue;
       }
       if (taskState === "finished") {
-        state.auditQuery = { state: "finished", stage, httpStatus, locationShape, message: "Async task finished. Only the bounded Result and reviewed fields are shown.", ...mapped };
+        publishAuditQuery({ state: "finished", stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: "Async task finished. Only the bounded Result and reviewed fields are shown.", ...mapped });
       } else if (taskState === "failed") {
-        state.auditQuery = { state: "failed", stage, httpStatus, locationShape, message: "Async audit query failed.", task: mapped.task, failure: "IRIS reported a task failure." };
+        publishAuditQuery({ state: "failed", stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: "Async audit query failed.", task: mapped.task, failure: "IRIS reported a task failure." });
       } else if (taskState === "canceled") {
-        state.auditQuery = { state: "canceled", stage, httpStatus, locationShape, message: "Async audit query was canceled by IRIS.", task: mapped.task };
+        publishAuditQuery({ state: "canceled", stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: "Async audit query was canceled by IRIS.", task: mapped.task });
       } else {
-        state.auditQuery = { state: "unavailable", stage, httpStatus, locationShape, message: "Async task is paused; no completion is inferred.", task: mapped.task };
+        publishAuditQuery({ state: "unavailable", stage, httpStatus, locationShape, jobIdentity, resultIdentity: handle, message: "Async task is paused; no completion is inferred.", task: mapped.task });
       }
       return;
     }
-    state.auditQuery = { state: "unavailable", message: "Async task remained nonterminal during the bounded wait. No completion is inferred.", task: state.auditQuery?.task };
+    publishAuditQuery({ state: "unavailable", jobIdentity, resultIdentity, message: "Async task remained nonterminal during the bounded wait. No completion is inferred.", task: state.auditQuery?.task });
   } catch (error) {
     if (owner !== sessionEpoch) return;
     const denied = error.status === 401 || error.status === 403;
-    state.auditQuery = {
-      state: denied ? "denied" : "unavailable",
-      message: denied ? `IRIS denied the async audit read (HTTP ${error.status}).` : "Audit query or async result is unavailable.",
+    const ambiguous = httpStatus === 202 && ["validate Location", "async result read", "async task contract"].includes(stage);
+    publishAuditQuery({
+      state: denied ? "denied" : ambiguous ? "ambiguous" : "unavailable",
+      message: denied ? `IRIS denied the async audit read (HTTP ${error.status}).` : ambiguous ? "IRIS accepted the query, but its async identity or result could not be verified. No retry was attempted." : "Audit query or async result is unavailable.",
       stage,
       httpStatus: error.status || httpStatus,
       task: currentTask,
       locationShape,
       failure: ["validate Location", "async task contract"].includes(stage) ? error.message : "The request did not produce a usable async result.",
-    };
+    });
   } finally {
     if (owner !== sessionEpoch) return;
     state.auditQueryBusy = false;
@@ -1128,10 +1665,16 @@ addEventListener("hashchange", () => {
   const route = location.hash.slice(1);
   if (navItems.some(([item]) => item === route)) {
     state.route = route;
-    state.mobileMoreOpen = navItems.slice(3).some(([item]) => item === route);
+    // The active route is promoted into the visible primary set by the projection.
+    state.mobileMoreOpen = false;
   }
   render();
   ensureRouteSource();
+});
+const compactNavigationQuery = matchMedia("(max-width: 980px)");
+compactNavigationQuery.addEventListener("change", (event) => {
+  if (!event.matches) state.mobileMoreOpen = false;
+  render();
 });
 if (state.theme === "system") matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => setTheme("system"));
 setTheme(state.theme);

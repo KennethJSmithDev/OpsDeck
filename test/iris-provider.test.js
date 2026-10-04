@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mapServerInfo, mapWebApps, mapWebAppDetail, mapSecurityUserDetail, sameSecurityUserRelationships, mapSecurityRoleDetail, sameSecurityRoleDetail, mapSecurityRoleOwners, sameSecurityRoleOwners, mapSecurityResourceDetail, sameSecurityResourceDetail, mapTaskDetail, sameTaskDetail, mapRestServiceSpec, mapReadOnlySource, sameReadOnlySource, sameWebAppState, READ_ONLY_SOURCES, inspectAuditLocation, validateAuditLocation, mapAuditAsyncResult, mapFixedLogResult, AUDIT_QUERY_MAX_ROWS } from "../src/iris-provider.js";
 
 const envelope = (result, errors = []) => ({ status: { errors, summary: "" }, console: [], result });
+const auditHandle = (id) => validateAuditLocation(`/api/admin/v2/async-result?id=${id}`, "http://127.0.0.1:52773/opsdeck/index.html");
 
 const infoPayload = {
   status: { errors: [], summary: "" },
@@ -39,6 +40,11 @@ test("maps observed server identity and privilege flags to the compact view mode
   assert.equal(info.serverVersion, "IRIS 2026.2 (Build 221U)");
   assert.deepEqual(info.namespaces, [{ name: "%SYS" }, { name: "USER" }]);
   assert.equal(info.privileges.Secure, true);
+  assert.equal(info.systemMode, null);
+  for (const systemMode of ["DEMO", "DEVELOPMENT", "TEST", "LIVE", "FAILOVER"]) {
+    assert.equal(mapServerInfo(envelope({ ...infoPayload.result, systemMode })).systemMode, systemMode);
+  }
+  assert.equal(mapServerInfo(envelope({ ...infoPayload.result, systemMode: "production-east" })).systemMode, null);
 });
 
 test("maps observed web-app identity, scope, and state without changing provider names", () => {
@@ -220,10 +226,16 @@ test("maps direct REST discovery arrays and object-valued monitor results", () =
 
 test("validates the async audit Location and extracts its documented id", () => {
   assert.deepEqual(validateAuditLocation("/api/admin/v2/async-result?id=abc-123", "http://127.0.0.1:52773/opsdeck/index.html"), {
-    url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123",
+    url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123", pathname: "/api/admin/v2/async-result", apiVersion: "v2",
   });
   assert.deepEqual(validateAuditLocation("http://127.0.0.1:52773/api/admin/v2/async-result?id=abc-123", "http://127.0.0.1:52773/opsdeck/index.html"), {
-    url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123",
+    url: "/api/admin/v2/async-result?id=abc-123", id: "abc-123", pathname: "/api/admin/v2/async-result", apiVersion: "v2",
+  });
+  assert.deepEqual(validateAuditLocation("/api/admin/v1/async-result?id=iris-task-7", "http://127.0.0.1:52773/opsdeck/index.html"), {
+    url: "/api/admin/v1/async-result?id=iris-task-7", id: "iris-task-7", pathname: "/api/admin/v1/async-result", apiVersion: "v1",
+  });
+  assert.deepEqual(validateAuditLocation("http://127.0.0.1:52773/api/admin/v1/async-result?id=iris-task-7", "http://127.0.0.1:52773/opsdeck/index.html"), {
+    url: "/api/admin/v1/async-result?id=iris-task-7", id: "iris-task-7", pathname: "/api/admin/v1/async-result", apiVersion: "v1",
   });
   assert.throws(() => validateAuditLocation(null, "http://127.0.0.1:52773/opsdeck/index.html"), /omitted/);
   assert.throws(() => validateAuditLocation("", "http://127.0.0.1:52773/opsdeck/index.html"), /omitted/);
@@ -253,6 +265,10 @@ test("inspects only sanitized async Location structure and never returns the id 
     idParameterState: "single-nonempty", fragmentPresent: false, userinfoPresent: false, rejectionReasons: [],
   });
   assert.equal(JSON.stringify(shape).includes("secret-task-id"), false);
+  const legacyShape = inspectAuditLocation("/api/admin/v1/async-result?id=private-id", "http://127.0.0.1:52773/opsdeck/index.html");
+  assert.equal(legacyShape.apiVersion, "v1");
+  assert.deepEqual(legacyShape.rejectionReasons, []);
+  assert.equal(JSON.stringify(legacyShape).includes("private-id"), false);
 });
 
 test("rejects unsafe async Location identity and origin structures", () => {
@@ -266,15 +282,15 @@ test("rejects unsafe async Location identity and origin structures", () => {
 });
 
 test("maps queued, running, and finished-empty async audit tasks without inventing completion", () => {
-  const queued = mapAuditAsyncResult(envelope({ GUID: "g-1", TaskName: "ListAuditRecords", State: "Queued", TimeQueued: "now" }), "g-1");
+  const queued = mapAuditAsyncResult(envelope({ GUID: "g-1", TaskName: "ListAuditRecords", State: "Queued", TimeQueued: "now" }), auditHandle("g-1"));
   assert.equal(queued.task.state, "Queued");
   assert.equal(queued.task.idVerified, true);
   assert.equal(JSON.stringify(queued).includes("g-1"), false);
   assert.equal(queued.result, null);
-  const running = mapAuditAsyncResult(envelope({ GUID: "g-1", State: "Running", TimeStarted: "now" }), "g-1");
+  const running = mapAuditAsyncResult(envelope({ GUID: "g-1", State: "Running", TimeStarted: "now" }), auditHandle("g-1"));
   assert.equal(running.task.state, "Running");
   assert.equal(running.result, null);
-  const empty = mapAuditAsyncResult(envelope({ GUID: "g-1", State: "Finished", Result: [], TimeFinished: "now" }), "g-1");
+  const empty = mapAuditAsyncResult(envelope({ GUID: "g-1", State: "Finished", Result: [], TimeFinished: "now" }), auditHandle("g-1"));
   assert.equal(empty.task.state, "Finished");
   assert.deepEqual(empty.result, []);
   assert.equal(empty.resultCount, 0);
@@ -288,25 +304,44 @@ test("maps a finished audit result to one bounded row and reviewed safe fields",
       { TimeStamp: "now", Event: "Login", EventSource: "System", UserName: "OpsDeckTest", PID: 12, Namespace: "%SYS", Description: "withheld", Password: "secret" },
       { Event: "extra" },
     ],
-  }), "g-2");
+  }), auditHandle("g-2"));
   assert.equal(result.resultCount, 1);
   assert.equal(result.truncatedToMaxRows, true);
   assert.deepEqual(result.result[0], { TimeStamp: "now", Event: "Login", EventSource: "System", UserName: "OpsDeckTest", PID: 12, Namespace: "%SYS" });
   assert.equal(JSON.stringify(result).includes("secret"), false);
-  const continued = mapAuditAsyncResult(envelope({ GUID: "g-2", State: "Finished", Result: [], nextCursor: "never-render-this" }), "g-2");
+  const continued = mapAuditAsyncResult(envelope({ GUID: "g-2", State: "Finished", Result: [], nextCursor: "never-render-this" }), auditHandle("g-2"));
   assert.deepEqual(continued.continuationFields, ["nextCursor"]);
   assert.equal(continued.classification, null);
   assert.equal(JSON.stringify(continued).includes("never-render-this"), false);
 });
 
 test("maps failed/canceled async tasks and rejects identity or Result contract drift", () => {
-  const failed = mapAuditAsyncResult(envelope({ GUID: "g-3", State: "Failed", FailureReason: "private detail" }), "g-3");
+  const failed = mapAuditAsyncResult(envelope({ GUID: "g-3", State: "Failed", FailureReason: "private detail" }), auditHandle("g-3"));
   assert.equal(failed.task.state, "Failed");
   assert.equal(failed.task.FailureReason, "IRIS reported a task failure.");
   assert.equal(JSON.stringify(failed).includes("private detail"), false);
-  assert.equal(mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Canceled" }), "g-4").task.state, "Canceled");
-  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "other", State: "Finished", Result: [] }), "g-4"), /identity/);
-  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Finished", Result: {} }), "g-4"), /array/);
+  assert.equal(mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Canceled" }), auditHandle("g-4")).task.state, "Canceled");
+  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "other", State: "Finished", Result: [] }), auditHandle("g-4")), /identity/);
+  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "g-4", State: "Finished", Result: {} }), auditHandle("g-4")), /array/);
+});
+
+test("maps the documented IRIS 2026.2 v1 task shape using its validated Location identity", () => {
+  const base = "http://127.0.0.1:52773/opsdeck/index.html";
+  const handle = validateAuditLocation("/api/admin/v1/async-result?id=opaque-task-42", base);
+  assert.throws(() => { handle.url = "/api/admin/v1/async-result?id=other"; }, TypeError);
+  const mapped = mapAuditAsyncResult(envelope({
+    TaskName: "ListAuditRecords", State: "Finished", Result: [], TimeFinished: "now",
+  }), handle);
+  assert.deepEqual(mapped.task, { idVerified: true, identitySource: "validated-location", state: "Finished", TaskName: "ListAuditRecords", TimeFinished: "now" });
+  assert.deepEqual(mapped.result, []);
+  assert.equal(mapped.resultCount, 0);
+  assert.equal(JSON.stringify(mapped).includes("opaque-task-42"), false);
+
+  const v2Handle = validateAuditLocation("/api/admin/v2/async-result?id=opaque-task-42", base);
+  assert.throws(() => mapAuditAsyncResult(envelope({ State: "Finished", Result: [] }), v2Handle), /omitted its verifiable identity/);
+  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "different-task", State: "Finished", Result: [] }), handle), /did not match/);
+  assert.throws(() => mapAuditAsyncResult(envelope({ State: "Finished", Result: [] }), { id: "opaque-task-42", pathname: "/api/admin/v1/async-result", apiVersion: "v1" }), /was not validated/);
+  assert.throws(() => mapAuditAsyncResult(envelope({ GUID: "g-5", State: "Finished", Result: [] }), "g-5"), /must be a JSON object/);
 });
 
 test("enforces fixed log source identities and bounded sanitized output", () => {
@@ -318,19 +353,48 @@ test("enforces fixed log source identities and bounded sanitized output", () => 
   assert.equal(result.bytesReturned <= 65536, true);
   assert.equal(result.lines[0].includes("\u0000"), false);
   assert.equal(JSON.stringify(result).includes("arbitrary"), false);
+  assert.equal(result.status, "truncated");
+  assert.equal(result.lines[0].includes("�"), true);
   assert.throws(() => mapFixedLogResult("arbitraryPath", { status: "available", lines: [] }), /not enabled/);
   assert.throws(() => mapFixedLogResult("..\\messages.log", { status: "available", lines: [] }), /not enabled/);
 });
 
 test("distinguishes empty, unavailable, denied, and failed fixed log reads", () => {
   assert.deepEqual(mapFixedLogResult("systemMonitorLog", { status: "available", lines: [], truncated: false }), {
-    source: "SystemMonitor.log", status: "available", lines: [], truncated: false, bytesReturned: 0,
+    source: "SystemMonitor.log", status: "empty", lines: [], truncated: false, bytesReturned: 0,
   });
   for (const status of ["unavailable", "denied", "read-failure"]) {
     const result = mapFixedLogResult("systemMonitorLog", { status, lines: ["must not escape"] });
     assert.equal(result.status, status);
     assert.deepEqual(result.lines, []);
   }
+});
+
+test("fixed log UTF-8 byte cap, explicit truncation, and stable provider identities hold", () => {
+  const oversized = Array.from({ length: 100 }, () => "🙂".repeat(300));
+  const result = mapFixedLogResult("messagesLog", { status: "available", lines: oversized, truncated: false });
+  assert.equal(result.status, "truncated");
+  assert.equal(result.truncated, true);
+  assert.equal(result.bytesReturned <= 65536, true);
+  assert.equal(result.source, "messages.log");
+  assert.equal(mapFixedLogResult("systemMonitorLog", { status: "truncated", lines: ["partial"], truncated: true }).status, "truncated");
+});
+
+test("fixed log JSON projection keeps complete newest lines within the conservative escape budget", () => {
+  const payloadLines = Array.from({ length: 250 }, (_, index) => `${String(index).padStart(3, "0")}${"\\\"".repeat(18)}`);
+  const result = mapFixedLogResult("messagesLog", { status: "available", lines: payloadLines });
+  assert.equal(result.status, "truncated");
+  assert.equal(result.lines.length, 166);
+  assert.equal(result.lines[0].slice(0, 3), "084");
+  assert.equal(result.lines.at(-1).slice(0, 3), "249");
+  assert.ok(result.lines.reduce((sum, line) => sum + line.length, 0) <= 6500);
+  assert.ok(new TextEncoder().encode(JSON.stringify({ status: result.status, lines: result.lines, truncated: result.truncated })).byteLength < 65_536);
+
+  const overBudget = Array.from({ length: 250 }, (_, index) => `${index}|${"x".repeat(80)}`);
+  const suffix = mapFixedLogResult("systemMonitorLog", { status: "available", lines: overBudget });
+  assert.equal(suffix.status, "truncated");
+  assert.equal(suffix.lines[0], overBudget.at(-suffix.lines.length), "when the projection fills, keep the most recent complete-line suffix");
+  assert.match(suffix.lines.at(-1), /^249\|/u);
 });
 
 test("maps the stateful IRIS alert feed without exposing unqualified alert values", () => {

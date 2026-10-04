@@ -3,10 +3,13 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import * as provider from '../src/iris-provider.js';
-const source=(await readFile(new URL('../public/app.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/,'');
+import * as evidence from '../public/evidence-center.js';
+import * as packages from '../public/packages-workspace.js';
+import * as jobs from '../public/job-center.js';
+const source=(await readFile(new URL('../public/app.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/gm,'');
 function fixture(fetch,pathname='/opsdeck/index.html'){
  const rows=[]; const el={innerHTML:'',querySelector:()=>null,querySelectorAll:sel=>sel==='[data-item]'?rows.filter(r=>'item' in r.dataset):sel==='[data-app]'?rows.filter(r=>'app' in r.dataset):[]};
- const c=vm.createContext({...provider,AbortSignal,TextEncoder,URL,URLSearchParams,btoa,setTimeout,fetch,
+ const c=vm.createContext({...provider,...evidence,...packages,...jobs,AbortSignal,TextEncoder,URL,URLSearchParams,btoa,setTimeout,fetch,
  document:{querySelector:()=>el,documentElement:{dataset:{}}},location:{pathname,hash:'',origin:'http://fixture.test',href:'http://fixture.test/opsdeck/index.html'},localStorage:{getItem:()=> 'dark',setItem(){}},history:{replaceState(){}},matchMedia:()=>({matches:false,addEventListener(){}}),addEventListener(){}});
  vm.runInContext(source.replace(/\nrestoreSession\(\);\s*$/, ''),c); vm.runInContext('state.connected=true;state.info={username:"Old"}',c);
  return {c,el,rows,run:s=>vm.runInContext(s,c)};
@@ -22,8 +25,8 @@ test('old source failure cannot alter new session errors or loading',async()=>{
  assert.equal(f.run('Object.keys(state.sourceErrors).length'),0);assert.equal(f.run('state.sourceLoading'),'roles');
 });
 test('401 clears identity caches and audit state',async()=>{
- const f=fixture(async()=>response({},401));f.run('state.userDetails={old:{}};state.sourceVerification={old:{}};state.auditQuery={state:"finished"}');await f.run('loadSource("users",true)');
- assert.equal(f.run('Object.keys(state.userDetails).length'),0);assert.equal(f.run('Object.keys(state.sourceVerification).length'),0);assert.equal(f.run('state.auditQuery'),null);
+ const f=fixture(async()=>response({},401));f.run('state.userDetails={old:{}};state.sourceVerification={old:{}};state.auditQuery={state:"finished"};state.jobs=[{identity:"session:job:old"}]');await f.run('loadSource("users",true)');
+ assert.equal(f.run('Object.keys(state.userDetails).length'),0);assert.equal(f.run('Object.keys(state.sourceVerification).length'),0);assert.equal(f.run('state.auditQuery'),null);assert.equal(f.run('state.jobs.length'),0);
 });
 test('logout clears audit and outstanding submission cannot publish',async()=>{
  const d=deferred(),f=fixture(()=>d.promise);const p=f.run('runAuditQuery()');await f.run('disconnect()');assert.equal(f.run('state.auditQuery'),null);d.resolve({status:403});await p;assert.equal(f.run('state.auditQuery'),null);
@@ -56,8 +59,8 @@ test('old request cannot publish into a genuinely reauthenticated session',async
  const d=deferred();const f=fixture(path=>path.includes('security/users')?d.promise:Promise.resolve(response(path.includes('/info')?{username:'New',serverVersion:'Fixture',apiVersion:2,namespaces:[]}:[])));
  const old=f.run('loadSource("users",true)');f.c.event={preventDefault(){},currentTarget:{elements:{username:{value:'New'},password:{value:'synthetic-only'}}}};await f.run('connect(event)');assert.equal(f.run('state.info.username'),'New');const before=f.run('JSON.stringify(state)');d.resolve(response([{Name:'Old'}]));await old;assert.equal(f.run('JSON.stringify(state)'),before);
 });
-test('outstanding audit poll cannot replace new audit work after logout',async()=>{
- const d=deferred();let count=0;const f=fixture(()=>++count===1?Promise.resolve({status:202,headers:{get:()=>'/api/admin/v2/async-result?id=fixture'}}):d.promise);const p=f.run('runAuditQuery()');await new Promise(r=>setTimeout(r,0));assert.equal(count,2);await f.run('disconnect()');f.run('state.connected=true;state.info={username:"New"};state.auditQuery={state:"new"};state.auditQueryBusy=true');const before=f.run('JSON.stringify(state)');d.resolve(response({GUID:'fixture',State:'Finished',Result:[]}));await p;assert.equal(f.run('JSON.stringify(state)'),before);
+test('outstanding v1 audit poll cannot replace new audit work after logout',async()=>{
+ const d=deferred();let count=0;const f=fixture(()=>++count===1?Promise.resolve({status:202,headers:{get:()=>'/api/admin/v1/async-result?id=fixture'}}):d.promise);const p=f.run('runAuditQuery()');await new Promise(r=>setTimeout(r,0));assert.equal(count,2);await f.run('disconnect()');f.run('state.connected=true;state.info={username:"New"};state.auditQuery={state:"new"};state.auditQueryBusy=true');const before=f.run('JSON.stringify(state)');d.resolve(response({TaskName:'ListAuditRecords',State:'Finished',Result:[]}));await p;assert.equal(f.run('JSON.stringify(state)'),before);
 });
 test('web-app scoped duplicate names select exact snapshot and refuse ambiguous detail',async()=>{
  const f=fixture(async()=>{throw Error('No provider request permitted')});f.c.payload={status:{errors:[]},result:['FIRST','SECOND'].map(Namespace=>({Name:'/same',Namespace,Enabled:true,AuthenticationMethods:[]}))};f.run('state.apps=mapWebApps(payload)');const html=f.run('applicationsView()');const handles=[...html.matchAll(/data-app="([^"]+)"/g)].map(m=>m[1]);assert.equal(handles.length,2);
@@ -73,7 +76,7 @@ test('delayed independent read-back cannot publish verification after logout',as
  const d=deferred();let lists=0;const f=fixture(path=>path.includes('/info')?Promise.resolve(response({username:'Old',serverVersion:'Fixture',apiVersion:2,namespaces:[]})):++lists===1?Promise.resolve(response([])):d.promise);const p=f.run('refreshLive(true)');await new Promise(r=>setTimeout(r,0));assert.equal(lists,2);await f.run('disconnect()');f.run('state.connected=true;state.info={username:"New"};state.verification={newOwner:true};state.busy=true');const before=f.run('JSON.stringify(state)');d.resolve(response([]));await p;assert.equal(f.run('JSON.stringify(state)'),before);
 });
 test('proxy logout clears local audit and caches before its response, ignoring stale 401',async()=>{
- const d=deferred();const f=fixture(()=>d.promise,'/');f.run('state.auditQuery={state:"finished"};state.userDetails={old:{}}');const p=f.run('disconnect()');assert.equal(f.run('state.auditQuery'),null);assert.equal(f.run('Object.keys(state.userDetails).length'),0);f.run('clearSession();state.connected=true;state.info={username:"New"}');const before=f.run('JSON.stringify(state)');d.resolve(response({},401));await p;assert.equal(f.run('JSON.stringify(state)'),before);
+ const d=deferred();const f=fixture(()=>d.promise,'/');f.run('state.auditQuery={state:"finished"};state.userDetails={old:{}};state.packagePlan={plan:{id:"old"}};state.applicationsTab="packages";state.evidenceFilter="old"');const p=f.run('disconnect()');assert.equal(f.run('state.auditQuery'),null);assert.equal(f.run('Object.keys(state.userDetails).length'),0);assert.equal(f.run('state.packagePlan'),null);assert.equal(f.run('state.applicationsTab'),"web-apps");assert.equal(f.run('state.evidenceFilter'),"");f.run('clearSession();state.connected=true;state.info={username:"New"}');const before=f.run('JSON.stringify(state)');d.resolve(response({},401));await p;assert.equal(f.run('JSON.stringify(state)'),before);
 });
 test('old restored proxy session cannot publish into newer session',async()=>{
  const d=deferred(),f=fixture(()=>d.promise,'/');const p=f.run('restoreSession()');f.run('clearSession();state.connected=true;state.info={username:"New"}');const before=f.run('JSON.stringify(state)');d.resolve(response({}));await p;assert.equal(f.run('JSON.stringify(state)'),before);
