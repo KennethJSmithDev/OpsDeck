@@ -257,10 +257,13 @@ test("contextual IRIS help is collapsed, route-scoped, and read-only learning co
 });
 
 test("ObjectScript learning snippets load on selection as inert text and have a text-only export", () => {
-  const { context } = contextFor();
-  const header = vm.runInContext('state.route="overview"; pageHeader("Title", "Description")', context);
-  assert.match(header, /ObjectScript examples · 3/u);
+  const { context } = contextFor("/opsdeck/index.html");
+  const header = vm.runInContext('state.route="overview"; state.info={systemMode:"NORMAL"}; pageHeader("Title", "Description")', context);
+  const [conceptCount, exampleCount] = JSON.parse(vm.runInContext('JSON.stringify([CONCEPTS_BY_ROUTE.overview.length, LEARNING_SNIPPETS.length])', context));
+  assert.match(header, new RegExp(`IRIS concepts · ${conceptCount}`, "u"));
+  assert.match(header, new RegExp(`ObjectScript examples · ${exampleCount}`, "u"));
   assert.match(header, /<div class="page-title-row"><h1>Title<\/h1>[\s\S]*ObjectScript examples · 3/u);
+  assert.doesNotMatch(header, /Evaluator mode/u, "native workspaces keep the product badge rather than demo presentation");
   assert.doesNotMatch(header, /ObjectScript snippet library/u);
   assert.match(header, /Inspect the current namespace/u);
   assert.doesNotMatch(header, /\$NAMESPACE|ex\.DisplayString|%Net\.HttpRequest/u);
@@ -279,7 +282,11 @@ test("snippet body is fetched from its product asset only after a selection", as
   });
   const button = { dataset: { snippet: "namespace" }, addEventListener(type, handler) { context.snippetHandler = handler; } };
   element.querySelectorAll = (selector) => selector === "[data-snippet]" ? [button] : [];
-  vm.runInContext('state.connected=true; state.info={systemMode:"DEMO"}; render()', context);
+  vm.runInContext('state.connected=true; state.info={username:"fixture",systemMode:"NORMAL"}; render()', context);
+  assert.equal(vm.runInContext("nativeMode", context), true);
+  assert.match(element.innerHTML, /IRIS concepts · 2/u);
+  assert.match(element.innerHTML, /ObjectScript examples · 3/u);
+  assert.doesNotMatch(element.innerHTML, /Evaluator mode/u);
   assert.equal(requests.length, 0);
   assert.doesNotMatch(element.innerHTML, /write &quot;Selected/u);
   await vm.runInContext("snippetHandler()", context);
