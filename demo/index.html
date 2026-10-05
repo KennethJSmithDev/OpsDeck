@@ -11,7 +11,19 @@
   <script type="module" src="./app.js"></script>
 </head>
 <body>
+  <header id="opsdeck-demo-shell">
+    <div id="opsdeck-safe-demo-banner" role="status">SAFE DEMO · SANITIZED SAMPLE DATA · NO IRIS CONNECTION</div>
+    <div id="opsdeck-demo-access-anchor">
+      <div id="opsdeck-demo-access-row">
+        <label id="opsdeck-demo-persona">
+          <span class="demo-access-full-label">DEMO ACCESS:</span>
+          <span class="demo-access-compact-label" aria-hidden="true">Demo</span>
+          <select aria-label="Demo access persona"></select>
+        </label>
+        <a class="demo-repo-link" href="https://github.com/KennethJSmithDev/OpsDeck" aria-label="Return to the OpsDeck GitHub repository">↗ GitHub Repository</a>
+      </div>
+    </div>
+  </header>
   <div id="app" aria-live="polite"></div>
-  <a class="demo-repo-link" href="https://github.com/KennethJSmithDev/OpsDeck" aria-label="Return to the OpsDeck GitHub repository">← Return to GitHub repository</a>
 </body>
 </html>
