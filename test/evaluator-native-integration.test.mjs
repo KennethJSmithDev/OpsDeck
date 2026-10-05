@@ -238,7 +238,7 @@ test("contextual IRIS help is collapsed, route-scoped, and read-only learning co
   const header = (route, tab = "web-apps") => vm.runInContext(`state.route=${JSON.stringify(route)}; state.applicationsTab=${JSON.stringify(tab)}; pageHeader("Title", "Description")`, context);
 
   const overview = header("overview");
-  assert.match(overview, /<div class="page-title-row"><h1>Title<\/h1><details class="concept-help concept-help-primary"><summary>IRIS concepts · 2<\/summary>/u);
+  assert.match(overview, /<div class="page-title-row"><h1>Title<\/h1><details class="concept-help concept-help-primary"><summary>IRIS concepts · 2<\/summary>[\s\S]*<details class="concept-help snippet-library concept-help-primary"\s*><summary>ObjectScript examples · 3<\/summary>/u);
   assert.match(overview, /Namespace/u);
   assert.match(overview, /%SYS/u);
   assert.doesNotMatch(overview, /<details[^>]*open/u);
@@ -259,7 +259,9 @@ test("contextual IRIS help is collapsed, route-scoped, and read-only learning co
 test("ObjectScript learning snippets load on selection as inert text and have a text-only export", () => {
   const { context } = contextFor();
   const header = vm.runInContext('state.route="overview"; pageHeader("Title", "Description")', context);
-  assert.match(header, /ObjectScript snippet library/u);
+  assert.match(header, /ObjectScript examples · 3/u);
+  assert.match(header, /<div class="page-title-row"><h1>Title<\/h1>[\s\S]*ObjectScript examples · 3/u);
+  assert.doesNotMatch(header, /ObjectScript snippet library/u);
   assert.match(header, /Inspect the current namespace/u);
   assert.doesNotMatch(header, /\$NAMESPACE|ex\.DisplayString|%Net\.HttpRequest/u);
   assert.doesNotMatch(header, /<script|eval\(|%Execute/iu);
@@ -285,7 +287,7 @@ test("snippet body is fetched from its product asset only after a selection", as
   assert.equal(requests[0].path, "/opsdeck/snippet-namespace.txt");
   assert.equal(requests[0].options.headers.Accept, "text/plain");
   assert.match(element.innerHTML, /write &quot;Selected&quot;,!/u);
-  assert.match(element.innerHTML, /<details class="concept-help snippet-library" open>/u);
+  assert.match(element.innerHTML, /<details class="concept-help snippet-library concept-help-primary" open>/u);
   assert.match(element.innerHTML, /Text for learning and review only\. OpsDeck never executes snippets/u);
 });
 
