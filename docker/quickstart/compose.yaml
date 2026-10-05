@@ -1,0 +1,31 @@
+services:
+  iris:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opsdeck-iris-quickstart:2026.2
+    container_name: opsdeck-iris-quickstart
+    entrypoint: ["/iris-main"]
+    environment:
+      ISC_DATA_DIRECTORY: /durable/iris
+      ISC_CPF_MERGE_FILE: /opsdeck-setup/merge.cpf
+    ports:
+      - "127.0.0.1:51972:1972"
+      - "127.0.0.1:52774:52773"
+    volumes:
+      - iris-data:/durable
+      - type: bind
+        source: ./.local
+        target: /opsdeck-artifact
+        read_only: true
+      - type: bind
+        source: ./.secrets/merge.cpf
+        target: /opsdeck-setup/merge.cpf
+        read_only: true
+    shm_size: 64m
+    stop_grace_period: 30s
+
+volumes:
+  iris-data:
+    name: opsdeck-quickstart_iris-data
+    external: true
