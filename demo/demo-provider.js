@@ -210,23 +210,6 @@
     return realFetch(input, options);
   };
 
-  const style = document.createElement("style");
-  style.textContent = `
-    #opsdeck-safe-demo-banner{position:fixed;z-index:1000;left:50%;top:7px;transform:translateX(-50%);padding:6px 12px;border:1px solid #f3c56f;border-radius:999px;background:#17140c;color:#f3c56f;font:700 10px/1.2 ui-monospace,monospace;letter-spacing:.08em;box-shadow:0 4px 18px rgba(0,0,0,.35)}
-    #opsdeck-demo-persona{position:fixed;z-index:1000;left:50%;top:39px;transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:5px 8px;border:1px solid rgba(243,197,111,.45);border-radius:8px;background:rgba(23,20,12,.94);color:#f3c56f;font:700 9px/1.2 ui-monospace,monospace;box-shadow:0 4px 18px rgba(0,0,0,.28)}
-    #opsdeck-demo-persona select{appearance:auto;border:0;border-radius:5px;padding:3px 5px;background:#221d10;color:#f7d991;font:700 10px/1.2 ui-monospace,monospace;cursor:pointer}
-    html[data-theme="light"] #opsdeck-safe-demo-banner{background:#fff8e8;color:#7a4d00}
-    html[data-theme="light"] #opsdeck-demo-persona{background:rgba(255,248,232,.96);color:#7a4d00}
-    html[data-theme="light"] #opsdeck-demo-persona select{background:#fff;color:#7a4d00}
-    body:has(#opsdeck-demo-persona){display:flex;flex-direction:column}
-    #opsdeck-safe-demo-banner,#opsdeck-demo-persona{position:static;transform:none;align-self:center;max-width:calc(100% - 12px);margin:5px auto 0}
-    body:has(#opsdeck-demo-persona) #app{order:2;min-width:0}
-    body:has(#opsdeck-demo-persona) .demo-repo-link{order:3;position:fixed;right:18px;bottom:50px;align-self:auto;margin:0;min-height:44px;display:flex;align-items:center}
-    @media(max-width:820px){
-      #opsdeck-demo-persona select{min-width:0;max-width:100%;min-height:44px;font-size:16px}
-    }
-  `;
-  document.head.appendChild(style);
   function applyPersonaNavigation() {
     document.querySelectorAll("[data-route]").forEach((button) => {
       const route = button.getAttribute("data-route");
@@ -237,23 +220,43 @@
   }
 
   addEventListener("DOMContentLoaded", () => {
-    const banner = document.createElement("div");
-    banner.id = "opsdeck-safe-demo-banner";
-    banner.setAttribute("role", "status");
-    banner.textContent = "SAFE DEMO · SANITIZED SAMPLE DATA · NO IRIS CONNECTION";
-    document.body.appendChild(banner);
-
-    const picker = document.createElement("label");
-    picker.id = "opsdeck-demo-persona";
-    picker.innerHTML = '<span>DEMO ACCESS:</span><select aria-label="Demo access persona">' +
-      Object.entries(personas).map(([key, item]) => '<option value="' + key + '"' + (key === personaKey ? ' selected' : '') + '>' + item.label + '</option>').join("") +
-      '</select>';
-    picker.querySelector("select").addEventListener("change", (event) => {
+    const banner = document.querySelector("#opsdeck-safe-demo-banner");
+    const select = document.querySelector("#opsdeck-demo-persona select");
+    const accessAnchor = document.querySelector("#opsdeck-demo-access-anchor");
+    if (!banner || !select || !accessAnchor) return;
+    select.innerHTML = Object.entries(personas).map(([key, item]) =>
+      '<option value="' + key + '"' + (key === personaKey ? ' selected' : '') + '>' + item.label + '</option>',
+    ).join("");
+    select.addEventListener("change", (event) => {
       localStorage.setItem("opsdeck.demo.persona", event.target.value);
       location.hash = "#overview";
       location.reload();
     });
-    document.body.appendChild(picker);
+
+    const setPersistentAccess = (persistent) => document.body.classList.toggle("demo-access-persistent", persistent);
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(([entry]) => setPersistentAccess(!entry.isIntersecting), { threshold: 0 })
+        .observe(accessAnchor);
+    } else {
+      let pending = false;
+      const updateAccess = () => {
+        pending = false;
+        setPersistentAccess(accessAnchor.getBoundingClientRect().bottom <= 0);
+      };
+      addEventListener("scroll", () => {
+        if (!pending) {
+          pending = true;
+          requestAnimationFrame(updateAccess);
+        }
+      }, { passive: true });
+      updateAccess();
+    }
+
+    const updateBannerOffset = () => document.documentElement.style.setProperty(
+      "--opsdeck-safe-banner-height", banner.getBoundingClientRect().height + "px",
+    );
+    updateBannerOffset();
+    if ("ResizeObserver" in window) new ResizeObserver(updateBannerOffset).observe(banner);
 
     applyPersonaNavigation();
     new MutationObserver(applyPersonaNavigation).observe(document.body, { childList: true, subtree: true });
