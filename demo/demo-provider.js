@@ -221,7 +221,7 @@
     body:has(#opsdeck-demo-persona){display:flex;flex-direction:column}
     #opsdeck-safe-demo-banner,#opsdeck-demo-persona{position:static;transform:none;align-self:center;max-width:calc(100% - 12px);margin:5px auto 0}
     body:has(#opsdeck-demo-persona) #app{order:2;min-width:0}
-    body:has(#opsdeck-demo-persona) .demo-repo-link{order:3;position:static;align-self:center;margin:12px auto;min-height:44px}
+    body:has(#opsdeck-demo-persona) .demo-repo-link{order:3;position:fixed;right:18px;bottom:50px;align-self:auto;margin:0;min-height:44px;display:flex;align-items:center}
     @media(max-width:820px){
       #opsdeck-demo-persona select{min-width:0;max-width:100%;min-height:44px;font-size:16px}
     }
