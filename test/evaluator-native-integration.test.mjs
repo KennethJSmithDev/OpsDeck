@@ -238,7 +238,7 @@ test("contextual IRIS help is collapsed, route-scoped, and read-only learning co
   const header = (route, tab = "web-apps") => vm.runInContext(`state.route=${JSON.stringify(route)}; state.applicationsTab=${JSON.stringify(tab)}; pageHeader("Title", "Description")`, context);
 
   const overview = header("overview");
-  assert.match(overview, /<details class="concept-help"><summary>IRIS concepts in this view<\/summary>/u);
+  assert.match(overview, /<div class="page-title-row"><h1>Title<\/h1><details class="concept-help concept-help-primary"><summary>IRIS concepts · 2<\/summary>/u);
   assert.match(overview, /Namespace/u);
   assert.match(overview, /%SYS/u);
   assert.doesNotMatch(overview, /<details[^>]*open/u);
