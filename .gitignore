@@ -41,3 +41,5 @@ docs/evidence/*
 !docs/evidence/phase9-generic-readbacks.json
 scripts/qualify-*
 scripts/deploy-qualification-assets.mjs
+/docker/quickstart/.local/
+/docker/quickstart/.secrets/
