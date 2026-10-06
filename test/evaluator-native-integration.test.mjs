@@ -253,7 +253,65 @@ test("contextual IRIS help is collapsed, route-scoped, and read-only learning co
   assert.doesNotMatch(logs, /<script|%Execute|terminal/iu);
 
   const unknown = header("not-a-route");
-  assert.doesNotMatch(unknown, /IRIS concepts in this view/u);
+  assert.doesNotMatch(unknown, /IRIS concepts ·/u);
+});
+
+test("beginner concepts cover the exposed workspace sources identically in native and demo modes", () => {
+  const { context } = contextFor();
+  const expected = {
+    overview: ["namespace", "sys"],
+    applications: { "web-apps": ["webapp", "namespace", "rest", "readback"], packages: ["ipm"] },
+    access: ["user", "role", "resource", "access"], security: ["wallet", "x509", "oauth", "access"],
+    tasks: ["task", "namespace", "job", "readback"], system: ["namespace", "database", "process", "usage", "device"],
+    logs: ["logs", "audit", "diagnostics", "history", "journal", "access"], evidence: ["evidence", "certainty", "readback"],
+  };
+  assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify(CONCEPTS_BY_ROUTE)", context)), expected);
+  const catalogue = JSON.parse(vm.runInContext("JSON.stringify(IRIS_CONCEPTS)", context));
+  for (const [route, mapping] of Object.entries(expected)) {
+    for (const [tab, ids] of Array.isArray(mapping) ? [["web-apps", mapping]] : Object.entries(mapping)) {
+      const headers = ["NORMAL", "DEMO"].map(mode => vm.runInContext(`state.route=${JSON.stringify(route)};state.applicationsTab=${JSON.stringify(tab)};state.info={systemMode:${JSON.stringify(mode)}};pageHeader("Title","Description")`, context));
+      for (const header of headers) {
+        assert.equal((header.match(/<summary>IRIS concepts ·/gu) || []).length, 1);
+        assert.match(header, new RegExp(`IRIS concepts · ${ids.length}`, "u"));
+        assert.equal((header.match(/<ul class="concept-explanations">/gu) || []).length, 1);
+        assert.doesNotMatch(header, /<details[^>]*open/u);
+        for (const id of ids) assert.ok(header.includes(`<strong>${catalogue[id].title}`), `${route}/${tab}: ${id}`);
+        assert.match(header, /ObjectScript examples · 3/u);
+      }
+      const learning = header => header.match(/<details class="concept-help concept-help-primary">[\s\S]*?<\/details>/u)[0];
+      assert.equal(learning(headers[0]), learning(headers[1]), `${route}/${tab} uses one product catalogue`);
+    }
+  }
+});
+
+test("beginner mental models explain IRIS identity, storage and permissions with official documentation links", () => {
+  const { context } = contextFor();
+  const catalogue = JSON.parse(vm.runInContext("JSON.stringify(IRIS_CONCEPTS)", context));
+  assert.match(catalogue.sys.body, /workspace for managing the server itself/u);
+  assert.match(catalogue.sys.body, /Application code usually works in other namespaces/u);
+  assert.match(catalogue.sys.body, /does not give your account permission/u);
+  assert.match(catalogue.namespace.body, /named workspace[\s\S]*more than one database/u);
+  assert.match(catalogue.database.body, /stores data and code on disk/u);
+  assert.match(catalogue.role.body, /groups permissions/u);
+  assert.match(catalogue.resource.body, /Read, Write or Use/u);
+  assert.match(catalogue.readback.body, /acknowledgement[\s\S]*reads the state from IRIS again/u);
+  const verifiedKeys = new Set(["GORIENT_enviro", "GSA_manage_applications", "GREST", "AIPM", "AAUTHZ", "ROARS_secrets_mgmt", "GSOAPSEC_common", "ROARS_iam_oauth_rserv_demo", "GSA_manage_taskmgr", "GCM_dashboard", "GIOD_intro", "AAUDIT", "GCDI_journal"]);
+  for (const concept of Object.values(catalogue)) {
+    assert.ok(concept.body.length > 120 && concept.body.length < 450, concept.title);
+    if (concept.doc) assert.ok(verifiedKeys.has(concept.doc), concept.doc);
+  }
+  const header = vm.runInContext('state.route="access";pageHeader("Access", "Description")', context);
+  const links = [...header.matchAll(/<a href="([^"]+)" target="_blank" rel="noopener noreferrer" aria-label="Official InterSystems documentation: ([^"]+)">Learn more ↗<\/a>/gu)];
+  assert.equal(links.length, 3);
+  for (const [, href] of links) {
+    const url = new URL(href);
+    assert.equal(url.protocol, "https:");
+    assert.equal(url.hostname, "docs.intersystems.com");
+    assert.equal(url.searchParams.get("KEY"), "AAUTHZ");
+  }
+  const about = vm.runInContext('state.route="system";state.systemSection="about";pageHeader("About", "Description")', context);
+  assert.match(about, /IRIS concepts · 1/u);
+  assert.doesNotMatch(about, /System usage counters|<strong>Device/u, "About does not expose the System provider inventories");
 });
 
 test("ObjectScript learning snippets load on selection as inert text and have a text-only export", () => {
