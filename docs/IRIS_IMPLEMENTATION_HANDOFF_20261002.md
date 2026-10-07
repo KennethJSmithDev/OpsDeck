@@ -1,5 +1,24 @@
 # IRIS implementation handoff — 2026-10-02
 
+## Current mobile routing — 2026-10-07
+
+Routing revision: 1. Observed 2026-10-07 18:17 UTC. Last writer: dot, through the GitHub connector. This section is the current navigation point; the original October 2 handoff remains intact below as historical evidence, not an active execution instruction.
+
+- **Protocol:** [accepted EGEHAR mobile handoff](https://github.com/KennethJSmithDev/EGEHAR/blob/bbbd943218f2345e93926f030a1dfff62a9e1332/docs/MOBILE_HANDOFF_PROTOCOL.md).
+- **Current work context:** “Build OpsDeck capability parity” and “Review Issue 10 Progress” refer to this repository. Roles are not fixed to a product: Chat may review and make authorized repository/document changes directly when capable.
+- **Current issue boundary:** [Issue #10, guided contextual learning](https://github.com/KennethJSmithDev/OpsDeck/issues/10), observed open with no comments. Read its preservation rules, required evidence and stop conditions before reviewing that work. Its existence does not grant fresh execution authority.
+- **Latest remotely accessible learning receipt located:** [beginner contextual learning qualification](https://github.com/KennethJSmithDev/OpsDeck/blob/2624376dd6cdf0402e152ed62dc59766524f5eae/docs/CONTEXTUAL_LEARNING_20261006.md). Preserve its exact source/test/browser scope; it is not proof that the broader Issue #10 is complete.
+- **Remote observation before this documentation change:** `main` at `8a808f6f14385eef7ecdd3046caf8834598ad204`; `feature/beginner-contextual-learning` at `2624376dd6cdf0402e152ed62dc59766524f5eae`. The remote branch listing did not contain `feature/guided-contextual-learning`.
+- **Local-only receipt supplied in the conversation:** at the October 7 16:32 checkpoint, `feature/guided-contextual-learning` was reported at `10f880496194ad563d94a58f820fb57a8966a1ee`, parent `2624376dd6cdf0402e152ed62dc59766524f5eae`, locally passed and not pushed. This is an attributed checkpoint, not a current local inspection or remotely verified implementation/qualification claim. Local HEAD, dirty files, later work and evidence accessibility remain unobserved here.
+- **Existing project records:** [README](../README.md) and [1.0 qualification](RC_1_0_0_QUALIFICATION_20261004.md) retain release evidence; the [durable 1.0 roadmap](OPSDECK_DREAM_1_0_EXECUTION_PLAN.md) and [acceptance ledger](EXECUTION_PLAN_20261004.md) retain their original scope. Older roadmaps, qualification status and the October 2 instructions below do not reopen accepted work or override newer user directions.
+- **Authority for this routing update:** documentation-only protocol pointers and handoff wiring. No new implementation, build/test execution, separate execution task, computer use, merge, deployment or external communication is authorized by this update. Any existing project authority must be checked against the latest user instructions; do not infer usage approval or zero cost.
+- **Next responsible role / exact action:** the capable reviewer in the current project context reads Issue #10 and the linked receipt, rechecks remote state, then reviews only evidence available to that surface. If the required guided-learning receipt remains local-only, identify that evidence gap and request the smallest accessible receipt or authorized handoff; do not recreate or overwrite the local UI work. Starting new execution requires the missing bounded authority and usage approval.
+- **Writeback and stopping:** preserve receipt identities and accepted boundaries, recheck the handoff revision and branch head before authorized writeback, and stop only the dependent action for missing evidence, authority, capability or an active hold. Never force-pull/reset/clean a local checkout to match this snapshot. Return result, evidence, actual revision and one exact next instruction.
+
+## Historical October 2 handoff
+
+The content below is preserved for provenance. Do not execute it merely because this file is the mobile entrypoint.
+
 Use this after remote review. The goal is to attach and qualify the smallest IRIS-native seams without reopening accepted 0.2.1 / bounded 0.3 evidence.
 
 ## Remote inputs
