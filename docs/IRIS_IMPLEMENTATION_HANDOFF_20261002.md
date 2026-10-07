@@ -2,9 +2,10 @@
 
 ## Current mobile routing — 2026-10-07
 
-Routing revision: 1. Observed 2026-10-07 18:17 UTC. Last writer: dot, through the GitHub connector. This section is the current navigation point; the original October 2 handoff remains intact below as historical evidence, not an active execution instruction.
+Routing revision: 2. Protocol-pointer refresh: 2026-10-07 19:38 UTC; project-state observations below are unchanged. Observed 2026-10-07 18:17 UTC. Last writer: dot, through the GitHub connector. This section is the current navigation point; the original October 2 handoff remains intact below as historical evidence, not an active execution instruction.
 
-- **Protocol:** [accepted EGEHAR mobile handoff](https://github.com/KennethJSmithDev/EGEHAR/blob/bbbd943218f2345e93926f030a1dfff62a9e1332/docs/MOBILE_HANDOFF_PROTOCOL.md).
+- **Protocol:** [accepted EGEHAR mobile handoff, revision 2](https://github.com/KennethJSmithDev/EGEHAR/blob/1417b6db7816805d9e566780acdd5f05185d7de7/docs/MOBILE_HANDOFF_PROTOCOL.md).
+- **Shared writeback:** After a meaningful authorized receipt or state change, follow revision 2's shared writeback step for the [opsdeck registry record](https://github.com/KennethJSmithDev/CompDocs/blob/main/Project-Registry/projects/opsdeck.md), after reading the [registry instructions](https://github.com/KennethJSmithDev/CompDocs/blob/main/Project-Registry/AGENTS.md). Keep the canonical project handoff authoritative; unavailable or unauthorized writeback is UNSAVED/PENDING. Existing sessions must explicitly read the updated guidance; publication is not hot reload.
 - **Current work context:** “Build OpsDeck capability parity” and “Review Issue 10 Progress” refer to this repository. Roles are not fixed to a product: Chat may review and make authorized repository/document changes directly when capable.
 - **Current issue boundary:** [Issue #10, guided contextual learning](https://github.com/KennethJSmithDev/OpsDeck/issues/10), observed open with no comments. Read its preservation rules, required evidence and stop conditions before reviewing that work. Its existence does not grant fresh execution authority.
 - **Latest remotely accessible learning receipt located:** [beginner contextual learning qualification](https://github.com/KennethJSmithDev/OpsDeck/blob/2624376dd6cdf0402e152ed62dc59766524f5eae/docs/CONTEXTUAL_LEARNING_20261006.md). Preserve its exact source/test/browser scope; it is not proof that the broader Issue #10 is complete.
