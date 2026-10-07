@@ -28,7 +28,7 @@ Ownership traced through `applicationsView`, `webAppOperationPanel`, `planReview
 
 Before generalizing: optional Learning control → Applications orientation → selected application → namespace/authentication/resource/dispatch help → enable/disable action → rehearsal with zero PUTs → REVIEW_REQUIRED / forecast → Observe Only blocks confirmation → existing exact-confirmation dialog → one existing dispatch → authoritative fixture read-back → VERIFIED explanation → existing Session Ledger receipt.
 
-Focused integration passed 39/39 after the first slice. Learning OFF/ON make identical requests and preserve confirmation/receipt Evidence. Browser used existing `preview-operation-fixture.mjs`: native `/opsdeck` rendering, `SyntheticUX`, disposable in-memory data, explicitly **NO IRIS CONNECTION**. This proves native UI integration, not new native IRIS execution qualification.
+Focused integration passed 39/39 after the first slice. Learning OFF/ON make identical request paths, methods and bodies, with matching confirmation counts and VERIFIED-receipt outcomes. This does not compare every normalized Evidence field across separate runs. Browser used existing `preview-operation-fixture.mjs`: native `/opsdeck` rendering, `SyntheticUX`, disposable in-memory data, explicitly **NO IRIS CONNECTION**. This proves native UI integration, not new native IRIS execution qualification.
 
 The first 320px check found expanded field text confined to the inspector label column. Owner correction: an open teaching field and adjacent value span the detail grid's full row. Recheck: document client/scroll width 305/305; explanation width 243px. Controls remain progressive disclosures, with a 44px minimum target and contextual accessible name.
 
@@ -68,7 +68,7 @@ The plan-review explanation includes a static ordered lifecycle: request sent �
 - Full `npm test`: **270/270 PASS**, zero failures/skips; final run approximately 15.9s.
 - `node --check public/app.js`, working/staged `git diff --check`: **PASS**.
 - Tests cover native/demo catalogue equivalence, all primary workspace mappings, valid source/field/operation IDs, ON/OFF persistence and compactness, unmapped suppression, lifecycle distinctions, source refusal/empty states, Evidence kind, immutable operational request/Evidence behavior, and existing concepts/snippets/dialogs/packages/workflows/intelligence.
-- Applications OFF/ON exercise the same existing fixture operation and produce identical request sequences and confirmation/receipt Evidence. Rehearsal sends no PUT; the executor dispatches only after its existing exact confirmation. Observe Only blocks confirmation.
+- Applications OFF/ON exercise the same existing fixture operation with identical request paths, methods and bodies, plus matching confirmation counts and VERIFIED-receipt outcomes. A separate presentation-toggle test preserves the currently collected Evidence; cross-run equality of every normalized Evidence field is not asserted. Rehearsal sends no PUT; the executor dispatches only after its existing exact confirmation. Observe Only blocks confirmation.
 - Browser native mode: existing loopback `preview-operation-fixture.mjs`, `/opsdeck/index.html`, `SyntheticUX`, explicitly synthetic in-memory data. Browser demonstrated rehearsal, forecast, exact confirmation, authoritative **fixture** read-back, VERIFIED explanation and existing Session Ledger receipt. No real IRIS endpoint was contacted or state mutated.
 - Safe Demo: existing `preview.mjs`, same product assets/teaching; Operations persona retained. Restricted User preserved its known identity and DENIED inventory without fixture substitution. Learning preference survived normal demo reload. Provenance/persona/provider source files unchanged.
 - At **1440 / 768 / 390 / 320**, inspected OFF/ON, orientation, concepts, selected field help, action teaching, selected inert snippet text/download, Command and FX Studio. Native fixture additionally inspected rehearsal/state and final VERIFIED view. Final Tasks suspension/completion and Evidence checks reran after their content changes; final field polish reran at every width in both renderers.
@@ -99,3 +99,39 @@ KNOWN: shared native/demo product ownership, bounded contextual coverage and all
 There is no mandatory wizard, new IDE or snippet execution. Fine-grained technical properties not mapped retain ordinary rendering and official reference depth rather than invented meanings. Provider intermediate states remain unobserved where existing UI reports only IN_FLIGHT. Existing desktop concepts/examples retain their popover behavior: simultaneous expansion can overlap; individual disclosures were qualified, and this milestone does not redesign that existing boundary.
 
 Operational providers/engine, Evidence model, target/workflow/AI authority semantics, Demo provider, package/release/install files and accepted catalogue are unchanged. Unrelated untracked Docker/helper/contest paths remain untouched. Issue #10 and PR #11 are not closed or merged; no remote push/deployment/release. Next boundary is review of this local child-branch milestone, followed only by separately authorized publication or specifically identified coverage/usability follow-up.
+
+
+## Bounded review corrections — 2026-10-07
+
+Reviewed parent: `10f880496194ad563d94a58f820fb57a8966a1ee`, tree `d9bd2f6f5fdca31e5f076ed0642114a2a1e9e7f6`. Branch: `feature/guided-contextual-learning`. This section supersedes the earlier field accessible-name wording and touch-target claim for the two buttons, while preserving the earlier 43/43 and 270/270 as historical results.
+
+### Findings and owner fixes
+
+1. Action teaching used stale inventory while rehearsal plans use fresh pre-state. In `webAppOperationPanel`, a matching current plan now owns teaching identity through `current.plan.capability.id`; inventory is the fallback before a plan exists. Provider, executor, confirmation, dispatch, authority, Evidence and refresh behavior are unchanged.
+2. Existing `.button.quiet` specificity defeated the intended button height. Only `.button.quiet.learning-toggle` and `.learning-heading .button.quiet` now enforce the 44px minimum. Field Help and global buttons are unchanged.
+3. Field Help's accessible name omitted its visible word. It now reads `Help for Namespace`, `Help for Suspended`, and equivalent field-specific names. Visible label remains Help.
+
+### Rerun qualification
+
+- Focused/native integration: **45/45 PASS** (43 existing plus two focused tests). The new stale-state test covers disabled inventory/fresh enabled → disable; enabled inventory/fresh disabled → enable; matching disabled → enable. Teaching ID equals the plan capability and confirmation action. OFF suppresses teaching. This uses disposable in-memory provider data and does not dispatch a real IRIS operation.
+- New accessible-name test checks Namespace and Suspended labels, including the visible Help word.
+- Existing OFF/ON operational parity and presentation/Evidence preservation assertions rerun as part of the focused suite. Claims are limited to the precise strengths described above.
+- Full `npm test`: **272/272 PASS**, no failures/skips, approximately 16.0s. JS syntax and `git diff --check`: PASS.
+- Affected browser surfaces retested using existing synthetic native `/opsdeck` fixture and Safe Demo, at exact inner widths **1440 / 768 / 390 / 320**. Learning ON/OFF, dismissal and header/orientation wrapping inspected. No external IRIS state was changed.
+
+| Width | Client / scroll (both modes, ON and OFF) | Toggle ON/OFF height | Orientation dismissal height |
+| --- | --- | --- | --- |
+| 1440 | 1425 / 1425 | 44px | 44px |
+| 768 | 753 / 753 | 44px | 44px |
+| 390 | 375 / 375 | 44px | 44px |
+| 320 | 305 / 305 | 44px | 44px |
+
+ON toggle widths: 85.30px desktop/tablet, 77.30px portrait; dismissal 105.20px. Actual DOM labels include Help plus their field context in both modes. OFF removes orientation, retains a 44px toggle and preserves document width. The increased target height wraps cleanly and does not obscure the evaluator badge or overlap Command in the inspected header/orientation views.
+
+New evidence: `%TEMP%/opsdeck-guided-review-20261007/measurements.json`, `native-{width}-top.png`, `demo-{width}-top.png`. Final captures explicitly validate inner width; an initial browser viewport mismatch was corrected before final evidence. The original evidence directory remains unchanged. Full regression output: `%TEMP%/opsdeck-guided-review-tests.txt`.
+
+### Precision, preservation and remaining limits
+
+This correction does not add teaching records/mappings or revise accepted concepts. Existing native fixture/synthetic proof remains synthetic; fresh real-IRIS execution and novice comprehension remain UNVERIFIED. The earlier simultaneous desktop concepts/examples popover overlap limitation remains. No broader visual/state qualification is claimed from this focused rerun. Unrelated untracked Docker/helper/contest paths and supplied review attachments remain untouched.
+
+The correction commit is the child of the reviewed parent that contains this receipt; obtain its immutable commit/tree with `git log -1 --format="%H %T %P"`. Exact post-commit identities are also recorded in the external review evidence receipt to avoid a self-referential commit hash. Stop boundary: local correction review; no push, merge, deployment, release or issue closure.

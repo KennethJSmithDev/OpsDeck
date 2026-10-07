@@ -371,7 +371,7 @@ test("guided Applications slice teaches the existing operation without changing 
     const selected = vm.runInContext("applicationsView()", context);
     if (learning) {
       assert.match(selected, /Learning path · Applications/u);
-      assert.match(selected, /Learn: Namespace/u);
+      assert.match(selected, /Help for Namespace/u);
       assert.match(selected, /data-teaching="action:webapp.enable"/u);
     } else assert.doesNotMatch(selected, /learning-orientation|data-teaching=/u);
     await vm.runInContext('prepareWebAppOperation("/learning-fixture")', context);
@@ -387,6 +387,32 @@ test("guided Applications slice teaches the existing operation without changing 
     runs.push(calls);
   }
   assert.deepEqual(runs[0], runs[1], "Learning projects truth without introducing requests or changing dispatch");
+});
+
+test("action teaching follows the fresh plan across stale inventory directions and matching state", async () => {
+  for (const [inventory, fresh] of [[false,true],[true,false],[false,false]]) {
+    const { context } = contextFor("/opsdeck/index.html", async (path) => ({ok:true,status:200,json:async()=>vm.runInContext(path === "/api/admin/info" ? '({status:{errors:[]},result:{username:"fixture",privileges:{Secure:{use:true}}}})' : `({status:{errors:[]},result:{Enabled:${fresh},NameSpace:"%SYS"}})`,context)}));
+    vm.runInContext(`state.learning=true;state.connected=true;state.info={username:"fixture",systemMode:"NORMAL"};state.route="applications";state.apps=mapWebApps({status:{errors:[]},result:[{Name:"/learning-fixture",Namespace:"%SYS",Enabled:${inventory},Type:"CSP",AuthenticationMethods:["Password"]}]});state.selected="/learning-fixture"`,context);
+    const inventoryAction=inventory?"disable":"enable";
+    assert.match(vm.runInContext("applicationsView()",context),new RegExp(`data-teaching="action:webapp.${inventoryAction}"`));
+    await vm.runInContext('prepareWebAppOperation("/learning-fixture")',context);
+    const action=fresh?"disable":"enable", opposite=fresh?"enable":"disable";
+    assert.equal(vm.runInContext("state.webAppOperation.plan.capability.id",context),`webapp.${action}`);
+    const html=vm.runInContext("applicationsView()",context);
+    assert.match(html,new RegExp(`data-teaching="action:webapp.${action}"`));
+    assert.doesNotMatch(html,new RegExp(`data-teaching="action:webapp.${opposite}"`));
+    assert.match(html,new RegExp(`Confirm ${action} /learning-fixture`));
+    vm.runInContext("state.learning=false",context);
+    assert.doesNotMatch(vm.runInContext("applicationsView()",context),/data-teaching=/u);
+  }
+});
+
+test("field Help accessible names include the visible label and field context", () => {
+  const {context}=contextFor();
+  vm.runInContext("state.learning=true",context);
+  for(const [source,field] of [["webApps","Namespace"],["tasks","Suspended"]]) {
+    assert.match(vm.runInContext(`teachingField(${JSON.stringify(source)},${JSON.stringify(field)})`,context),new RegExp(`<summary aria-label="Help for ${field}">Help</summary>`));
+  }
 });
 
 test("learning toggle is optional, persistent, keyboard-focusable and does not alter authority", () => {

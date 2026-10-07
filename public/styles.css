@@ -70,7 +70,7 @@ a { color:inherit; text-decoration:none; }
 .concept-help li+li { margin-top:7px; }
 .concept-help .concept-explanations { max-height:min(440px,60dvh); overflow-y:auto; overflow-wrap:anywhere; font-size:12px; }
 .concept-explanations a { color:var(--accent); white-space:nowrap; }
-.learning-toggle { min-height:44px; }
+.button.quiet.learning-toggle { min-height:44px; }
 .learning-toggle[aria-pressed="true"] { border-color:var(--border-strong); background:var(--raised); }
 .learning-orientation { margin:-8px 0 24px; padding:14px 16px; border:1px solid var(--border); border-inline-start:3px solid var(--subtle); border-radius:12px; background:var(--surface); font-size:13px; }
 .learning-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
@@ -90,7 +90,7 @@ a { color:inherit; text-decoration:none; }
 .detail-grid .learning-help > summary, .identity-grid .learning-help > summary { padding-inline:6px; font-size:11px; }
 .detail-grid .learning-help > summary::before, .identity-grid .learning-help > summary::before { margin-inline-end:4px; }
 .learning-lifecycle { border-inline-start:2px solid var(--border); }
-.learning-heading button { min-height:44px; }
+.learning-heading .button.quiet { min-height:44px; }
 .snippet-library { margin-top:0; }
 .snippet-library.concept-help-primary summary::before { content:"</>"; display:inline; width:auto; height:auto; margin-right:7px; border:0; border-radius:0; font-family:"DM Mono",monospace; font-size:10px; }
 .snippet-select { border:0; padding:0; color:var(--accent); background:transparent; text-align:left; cursor:pointer; font:inherit; }
