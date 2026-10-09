@@ -1,3 +1,5 @@
+> Current source target: **OpsDeck 1.1.0 - Guided Contextual Learning** (unpublished). Claims below retain their historical 1.0 package scope. Open Exchange lists 1.0.1 but links an IPM 1.0.0 archive. See [baseline reconciliation and 1.1.0 release notes](RELEASE_NOTES_1_1_0.md); do not treat the historical quick-start as installing 1.1.0.
+
 # OpsDeck 1.0.0 Evaluator Guide
 
 Current release: **OpsDeck 1.0.0**, qualified on the exact Main commit [`be35ed89c21e91079b0152ba4572f0700839b515`](https://github.com/KennethJSmithDev/OpsDeck/commit/be35ed89c21e91079b0152ba4572f0700839b515). The published native archive is [`opsdeck-1.0.0-rc.tgz`](https://github.com/KennethJSmithDev/OpsDeck/releases/download/v1.0.0/opsdeck-1.0.0-rc.tgz), SHA-256 `178bf6ea3809b023ed76a39ea313cfaf33ff3f5e91a5afbfc2627cadf3faf798`.

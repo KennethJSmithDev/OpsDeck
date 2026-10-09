@@ -1,9 +1,9 @@
 const PRODUCT = Object.freeze({
   name: "OpsDeck",
-  releaseLabel: "Release Candidate",
-  publicVersion: "1.0.0",
-  internalVersion: "1.0.0",
-  packageVersion: "1.0.0",
+  releaseLabel: "Guided Contextual Learning",
+  publicVersion: "1.1.0",
+  internalVersion: "1.1.0",
+  packageVersion: "1.1.0",
   gitCommit: null,
   buildTimestamp: null,
   packageNamespace: "%SYS",

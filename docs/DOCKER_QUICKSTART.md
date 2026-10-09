@@ -1,3 +1,5 @@
+> Current source target: **OpsDeck 1.1.0 - Guided Contextual Learning** (unpublished). Claims below retain their historical 1.0 package scope. Open Exchange lists 1.0.1 but links an IPM 1.0.0 archive. See [baseline reconciliation and 1.1.0 release notes](RELEASE_NOTES_1_1_0.md); do not treat the historical quick-start as installing 1.1.0.
+
 # Docker quick start (IRIS 2026.2)
 
 This quick start keeps the native product topology: one official IRIS Community 2026.2 container, IPM, and OpsDeck served by IRIS at `/opsdeck/index.html`. It adds no Node container, proxy, or second web server.

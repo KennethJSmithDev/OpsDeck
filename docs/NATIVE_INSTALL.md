@@ -1,6 +1,6 @@
-# Native installation — OpsDeck 1.0.0
+# Native installation — OpsDeck 1.1.0
 
-Current product label and IPM package version are OpsDeck 1.0.0. The exact archive attached to the [v1.0.0 release](https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v1.0.0) passed the qualification in [RC_1_0_0_QUALIFICATION_20261004.md](RC_1_0_0_QUALIFICATION_20261004.md). Public registry availability and `zpm install opsdeck` are not yet verified; install the release archive directly.
+Current source product identity and IPM manifest version are **OpsDeck 1.1.0 — Guided Contextual Learning**, not yet published. See [RELEASE_NOTES_1_1_0.md](RELEASE_NOTES_1_1_0.md) for baseline reconciliation. The following archive qualification belongs to the earlier 1.0.0 package. The exact archive attached to the [v1.0.0 release](https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v1.0.0) passed the qualification in [RC_1_0_0_QUALIFICATION_20261004.md](RC_1_0_0_QUALIFICATION_20261004.md). Public registry availability and `zpm install opsdeck` are not yet verified; install the release archive directly.
 
 ## Scope and prerequisites
 
@@ -12,13 +12,13 @@ Before changing an installation, capture existing app definitions, package regis
 
 ## Load current local source
 
-Select a verified Main checkout containing module.xml. In the IRIS %SYS IPM shell:
+Select the reviewed 1.1.0 source checkout containing module.xml; Main/publication status is not inferred. In the IRIS %SYS IPM shell:
 
 ```text
 load /absolute/path/to/OpsDeck
 ```
 
-Verify registration as opsdeck 1.0.0, both application definitions, compiled classes, store ownership/schema validation and every FileCopy source/deployed hash. Open /opsdeck/index.html on your instance's configured origin; the owned qualification target uses http://127.0.0.1:52774/opsdeck/index.html.
+Verify registration as opsdeck 1.1.0, both application definitions, compiled classes, store ownership/schema validation and every FileCopy source/deployed hash. Open /opsdeck/index.html on your instance's configured origin; the owned qualification target uses http://127.0.0.1:52774/opsdeck/index.html.
 
 ## Session and authority
 
