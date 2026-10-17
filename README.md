@@ -29,13 +29,13 @@ Built for the **InterSystems Programming Contest: Build Your Own Management Port
 
 > **v1.0.0:** 117 IRIS operations exposed · 56 runtime-observed · 37 reproduced · 34 independently verified · 7 mutation endpoints · 12 qualified mutation workflows · 259 tests · 610,382 runtime-manifest bytes
 
-## Current source target: v1.1.0 — Guided Contextual Learning
+## Current main source: v1.1.0 — Guided Contextual Learning
 
-This branch targets **OpsDeck v1.1.0**, with accepted product-owned optional Learning ON/OFF, workspace orientation, mapped field Help, action explanations and receipt/state teaching. Safe Demo consumes the same capability. See [1.1.0 release notes and baseline reconciliation](docs/RELEASE_NOTES_1_1_0.md).
+**OpsDeck v1.1.0 is integrated into `main`** with optional, product-owned Learning ON/OFF, workspace orientation, mapped field Help, action explanations and receipt/state teaching. The Safe Demo consumes the same code and is published from `main` through the test-gated Pages workflow. See [1.1.0 release notes and baseline reconciliation](docs/RELEASE_NOTES_1_1_0.md).
 
 The [October 8 published-baseline observation](docs/RELEASE_NOTES_1_1_0.md#published-baseline-reconciliation--2026-10-08) records the **Open Exchange listing as v1.0.1 (October 4, 2026)** and its linked IPM archive registering **opsdeck 1.0.0**. Listing and package versions are distinct facts. Existing v1.0.0 release links, hashes and qualification results below remain historical.
 
-The 1.1.0 source branch is available for review; it is not a released 1.1.0 product. [October 16 scoped acceptance](docs/GUIDED_LEARNING_ACCEPTANCE_20261016.md) records native package build/install, the observed **1.0.0-registration → 1.1.0** upgrade, preservation, uninstall and restart checks. Authenticated guided-learning checks used the exact 1.1.0 presentation assets on a separate quick-start backend registered as 1.0.0. They do not establish full installed-1.1.0 native UI qualification or full native RC PASS. Main, public Safe Demo and release/publication remain separate boundaries.
+The **1.1.0 source is merged**, but a versioned GitHub/IPM/OEX 1.1.0 release has not been published. [October 16 scoped acceptance](docs/GUIDED_LEARNING_ACCEPTANCE_20261016.md) records native IPM package build/install, an observed **1.0.0-registration → 1.1.0** upgrade, preservation, uninstall and restart checks. Authenticated guided-learning checks used exact 1.1.0 presentation assets on a separate quick-start backend registered as 1.0.0. This does **not** establish full authenticated browser qualification of the installed 1.1.0 package or full native RC PASS. Source merge, Safe Demo deployment and package publication are separate boundaries.
 
 ## Why OpsDeck
 
@@ -69,11 +69,12 @@ The same semantics survive from desktop down to a 320-pixel mobile viewport. IRI
 
 No IRIS instance or credentials are required for the public demo.
 
-1. Open the **[Live Safe Demo](https://kennethjsmithdev.github.io/OpsDeck/)**.
-2. Switch **Demo Access** personas to see authority change the visible workspace.
-3. Inspect **Applications** and the difference between supported, denied, unavailable, empty, failed, and unverified states.
-4. Open **Evidence** to see what OpsDeck can prove and where qualification stops.
-5. Try **FX Studio** or shrink the browser to see the same semantic UI adapt rather than become a horizontally scrolling desktop page.
+1. Open the **[Live Safe Demo](https://kennethjsmithdev.github.io/OpsDeck/)** and switch **Learning ON**.
+2. Open **Applications**, select a web application, then try field **Help** and **Walk through this workspace**.
+3. Review a read-only rehearsal and forecast to see why preparing an action is not executing it.
+4. Switch **Demo Access** personas to see why visible objects do not automatically grant authority.
+5. Open **Evidence** to distinguish scoped read-back from an executed, verified operation.
+6. Turn Learning OFF for the compact operator view; try **FX Studio** or resize to mobile width.
 
 The demo uses deterministic sanitized sample data and says so explicitly. It never substitutes sample records for a failed live IRIS read.
 
