@@ -1,3 +1,5 @@
+> Current source target: **OpsDeck 1.1.0 - Guided Contextual Learning** (unpublished). Claims below retain their historical 1.0 package scope. Open Exchange lists 1.0.1 but links an IPM 1.0.0 archive. See [baseline reconciliation and 1.1.0 release notes](RELEASE_NOTES_1_1_0.md); do not treat the historical quick-start as installing 1.1.0.
+
 # Community ideas status — OpsDeck 1.0.0
 
 Product state and all claims below are reconciled to qualified release commit `be35ed89c21e91079b0152ba4572f0700839b515`. The release reports 117 exposed, 56 runtime-observed, 37 reproduced, and 34 independently verified SysAdmin operations, with 7 exposed mutation endpoints and 12 qualified mutation workflows. Full regression is 259 tests; shipped manifest is 610,382 bytes. No Community Ideas bonus, award, or unverified submission is claimed by these product capabilities.

@@ -187,7 +187,7 @@ test("integrated native shell and Evidence view report only qualified lifecycle 
   assert.doesNotMatch(demo, /Sign out|Live session|IRIS connection active/);
 
   const evidence = vm.runInContext('evidenceView()', context);
-  assert.match(evidence, /OpsDeck · Release Candidate 1\.0\.0/u);
+  assert.match(evidence, /OpsDeck · Guided Contextual Learning 1\.1\.0/u);
   assert.match(evidence, /IPM \/ ZPM lifecycle[\s\S]*?QUALIFIED/u);
   assert.match(evidence, /Local-source load, uninstall, and clean same-source reload were reproduced for OpsDeck 0\.2\.0/u);
   assert.match(evidence, /Scope: tested local-source lifecycle only[\s\S]*?Exact core IPM version and public-registry installation remain unverified/u);
@@ -218,9 +218,9 @@ test("System About uses canonical product identity and leaves provider view inta
     state.systemSection = "about";
     providerDomainView("system")
   `, context);
-  assert.match(identity, /Release Candidate[\s\S]*OpsDeck[\s\S]*Version 1\.0\.0/u);
-  assert.match(identity, /Internal version[\s\S]*1\.0\.0/u);
-  assert.match(identity, /Package version[\s\S]*1\.0\.0/u);
+  assert.match(identity, /Guided Contextual Learning[\s\S]*OpsDeck[\s\S]*Version 1\.1\.0/u);
+  assert.match(identity, /Internal version[\s\S]*1\.1\.0/u);
+  assert.match(identity, /Package version[\s\S]*1\.1\.0/u);
   assert.match(identity, /IRIS Fixture 2026\.2/u);
   assert.match(identity, /Namespace[\s\S]*%SYS/u);
   assert.match(identity, /Native IRIS CSP application/u);
@@ -354,6 +354,163 @@ test("snippet body is fetched from its product asset only after a selection", as
   assert.match(element.innerHTML, /write &quot;Selected&quot;,!/u);
   assert.match(element.innerHTML, /<details class="concept-help snippet-library concept-help-primary" open>/u);
   assert.match(element.innerHTML, /Text for learning and review only\. OpsDeck never executes snippets/u);
+});
+
+test("guided Applications slice teaches the existing operation without changing its request or Evidence semantics", async () => {
+  const runs = [];
+  for (const learning of [false, true]) {
+    let enabled = false;
+    const calls = [];
+    const { context } = contextFor("/opsdeck/index.html", async (path, options) => {
+      calls.push([path, options.method || "GET", options.body || ""]);
+      if (options.method === "PUT") enabled = JSON.parse(options.body).Enabled;
+      const result = path === "/api/admin/info" ? { username: "Qualification", privileges: { Secure: { use: true } } } : { Enabled: enabled, NameSpace: "%SYS" };
+      return { ok: true, status: 200, json: async () => vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify({status:{errors:[]},result}))})`, context) };
+    });
+    vm.runInContext(`state.learning=${learning};state.connected=true;state.info={username:"Qualification",systemMode:"NORMAL"};state.route="applications";state.apps=mapWebApps({status:{errors:[]},result:[{Name:"/learning-fixture",Namespace:"%SYS",Enabled:false,Type:"CSP",AuthenticationMethods:["Password"]}]});state.selected="/learning-fixture"`, context);
+    const selected = vm.runInContext("applicationsView()", context);
+    if (learning) {
+      assert.match(selected, /Learning path · Applications/u);
+      assert.match(selected, /Help for Namespace/u);
+      assert.match(selected, /data-teaching="action:webapp.enable"/u);
+    } else assert.doesNotMatch(selected, /learning-orientation|data-teaching=/u);
+    await vm.runInContext('prepareWebAppOperation("/learning-fixture")', context);
+    assert.equal(calls.filter(call => call[1] === "PUT").length, 0);
+    const plan = vm.runInContext("applicationsView()", context);
+    if (learning) assert.match(plan, /data-teaching="state:REVIEW_REQUIRED"[\s\S]*forecast is an inference/u);
+    await vm.runInContext("confirmWebAppOperation(state.webAppOperation.plan.id)", context);
+    assert.equal(vm.runInContext("state.webAppOperation.state", context), "VERIFIED");
+    if (learning) assert.match(vm.runInContext("applicationsView()", context), /Understand VERIFIED[\s\S]*authoritative read-back matched/u);
+    const ledger = vm.runInContext("sessionLedger(currentEvidenceCollection())", context);
+    assert.equal(ledger.categories.confirmations.length, 1);
+    assert.ok(vm.runInContext("currentEvidenceCollection().records.some(item=>item.kind==='operation-receipt'&&item.state==='VERIFIED')", context));
+    runs.push(calls);
+  }
+  assert.deepEqual(runs[0], runs[1], "Learning projects truth without introducing requests or changing dispatch");
+});
+
+test("action teaching follows the fresh plan across stale inventory directions and matching state", async () => {
+  for (const [inventory, fresh] of [[false,true],[true,false],[false,false]]) {
+    const { context } = contextFor("/opsdeck/index.html", async (path) => ({ok:true,status:200,json:async()=>vm.runInContext(path === "/api/admin/info" ? '({status:{errors:[]},result:{username:"fixture",privileges:{Secure:{use:true}}}})' : `({status:{errors:[]},result:{Enabled:${fresh},NameSpace:"%SYS"}})`,context)}));
+    vm.runInContext(`state.learning=true;state.connected=true;state.info={username:"fixture",systemMode:"NORMAL"};state.route="applications";state.apps=mapWebApps({status:{errors:[]},result:[{Name:"/learning-fixture",Namespace:"%SYS",Enabled:${inventory},Type:"CSP",AuthenticationMethods:["Password"]}]});state.selected="/learning-fixture"`,context);
+    const inventoryAction=inventory?"disable":"enable";
+    assert.match(vm.runInContext("applicationsView()",context),new RegExp(`data-teaching="action:webapp.${inventoryAction}"`));
+    await vm.runInContext('prepareWebAppOperation("/learning-fixture")',context);
+    const action=fresh?"disable":"enable", opposite=fresh?"enable":"disable";
+    assert.equal(vm.runInContext("state.webAppOperation.plan.capability.id",context),`webapp.${action}`);
+    const html=vm.runInContext("applicationsView()",context);
+    assert.match(html,new RegExp(`data-teaching="action:webapp.${action}"`));
+    assert.doesNotMatch(html,new RegExp(`data-teaching="action:webapp.${opposite}"`));
+    assert.match(html,new RegExp(`Confirm ${action} /learning-fixture`));
+    vm.runInContext("state.learning=false",context);
+    assert.doesNotMatch(vm.runInContext("applicationsView()",context),/data-teaching=/u);
+  }
+});
+
+test("field Help accessible names include the visible label and field context", () => {
+  const {context}=contextFor();
+  vm.runInContext("state.learning=true",context);
+  for(const [source,field] of [["webApps","Namespace"],["tasks","Suspended"]]) {
+    assert.match(vm.runInContext(`teachingField(${JSON.stringify(source)},${JSON.stringify(field)})`,context),new RegExp(`<summary aria-label="Help for ${field}">Help</summary>`));
+  }
+});
+
+test("learning toggle is optional, persistent, keyboard-focusable and does not alter authority", () => {
+  const { context, element } = contextFor();
+  const stored = [];
+  context.localStorage.setItem = (key, value) => stored.push([key, value]);
+  vm.runInContext('state.connected=true;state.info={username:"fixture",systemMode:"NORMAL"};state.route="applications";state.observeOnly=true;setLearning(true)', context);
+  assert.match(element.innerHTML, /id="learning-toggle"[^>]*aria-pressed="true"/u);
+  assert.match(element.innerHTML, /Learning path · Applications/u);
+  assert.match(element.innerHTML, /data-learning-off/u);
+  assert.equal(vm.runInContext("state.observeOnly", context), true);
+  vm.runInContext("setLearning(false)", context);
+  assert.match(element.innerHTML, /Learning OFF/u);
+  assert.doesNotMatch(element.innerHTML, /learning-orientation|data-teaching=/u);
+  assert.match(element.innerHTML, /IRIS concepts · 4/u);
+  assert.match(element.innerHTML, /ObjectScript examples · 3/u);
+  assert.deepEqual(stored.filter(([key]) => key === "opsdeck.learning"), [["opsdeck.learning", "on"], ["opsdeck.learning", "off"]]);
+  const empty = vm.runInContext('state.learning=true;state.route="unknown";learningOrientation()+teaching("concept","unknown")+teachingOutcome("unknown")', context);
+  assert.equal(empty, "");
+});
+
+test("lifecycle teaching preserves acceptance, completion, verification and authority distinctions", () => {
+  const { context } = contextFor();
+  vm.runInContext("state.learning=true", context);
+  const text = id => vm.runInContext(`teachingOutcome(${JSON.stringify(id)})`, context);
+  assert.match(text("ACCEPTED"), /not completed[\s\S]*may still be pending/u);
+  assert.match(text("COMPLETED"), /not independently verified/u);
+  assert.match(text("VERIFIED"), /scoped comparison[\s\S]*synthetic evidence remains synthetic/u);
+  assert.match(text("IN_FLIGHT"), /does not observe each intermediate step separately/u);
+  assert.match(text("DENIED"), /Seeing the object is separate from authority/u);
+  assert.match(text("UNAVAILABLE"), /different from an explicit authority denial/u);
+  assert.match(text("AMBIGUOUS"), /automatic retry could repeat a change/u);
+});
+
+test("guided workspace and source mappings use one native/demo teaching catalogue", () => {
+  for (const [pathname, mode] of [["/opsdeck/index.html", "NORMAL"], ["/index.html", "DEMO"]]) {
+    const { context } = contextFor(pathname);
+    vm.runInContext(`state.learning=true;state.connected=true;state.info={username:"fixture",systemMode:${JSON.stringify(mode)}}`, context);
+    for (const route of ["overview", "applications", "access", "security", "tasks", "system", "logs", "evidence"]) {
+      const html = vm.runInContext(`state.route=${JSON.stringify(route)};state.applicationsTab="web-apps";state.systemSection="providers";learningOrientation()`, context);
+      assert.equal((html.match(/class="learning-orientation"/gu) || []).length, 1, `${mode}: ${route}`);
+      assert.match(html, /Walk through this workspace/u);
+    }
+    assert.match(vm.runInContext('state.route="applications";state.applicationsTab="packages";learningOrientation()', context), /Learning path · Packages/u);
+    assert.match(vm.runInContext('state.route="system";state.systemSection="about";learningOrientation()', context), /Learning path · About/u);
+    assert.equal(vm.runInContext('Object.values(SOURCE_TEACHING).every(id=>IRIS_CONCEPTS[id]) && Object.values(FIELD_TEACHING).every(fields=>Object.values(fields).every(id=>IRIS_CONCEPTS[id]||FIELD_EXPLANATIONS[id]))', context), true);
+    assert.equal(vm.runInContext('Object.keys(SOURCE_TEACHING).every(id=>READ_ONLY_SOURCES[id])', context), true);
+    assert.equal(vm.runInContext('Object.keys(ACTION_TEACHING).filter(id=>id.includes(".")).every(id=>OPERATION_POLICIES[id])', context), true);
+    assert.match(vm.runInContext('teachingField("tasks","Namespace")', context), /data-teaching="concept:namespace"/u);
+    assert.equal(vm.runInContext('teachingField("tasks","Unknown")+sourceTeaching("Unknown")', context), "");
+    assert.match(vm.runInContext('state.route="tasks";providerDomainView("tasks")', context), /Learning path · Tasks[\s\S]*data-teaching="concept:job"/u);
+  }
+});
+
+test("source teaching retains denial, valid-empty and unavailable without granting authority", () => {
+  const { context } = contextFor();
+  vm.runInContext('state.learning=true;state.sourceErrors.users="Request denied (HTTP 403)."', context);
+  assert.match(vm.runInContext('sourceTeaching("users")', context), /state:DENIED/u);
+  vm.runInContext('state.sourceErrors.users="Network unavailable"', context);
+  assert.match(vm.runInContext('sourceTeaching("users")', context), /state:UNAVAILABLE/u);
+  vm.runInContext('delete state.sourceErrors.users;state.sourceData.users={status:"empty"}', context);
+  assert.match(vm.runInContext('sourceTeaching("users")', context), /state:EMPTY/u);
+  assert.match(vm.runInContext('sourceTeaching("alerts")', context), /action:alerts[\s\S]*advances that boundary/u);
+  assert.match(vm.runInContext('teachingOutcome("finished")', context), /state:COMPLETED/u);
+  assert.match(vm.runInContext('teachingOutcome("AWAITING_CONFIRMATION")', context), /state:REVIEW_REQUIRED/u);
+  assert.match(vm.runInContext('teachingField("tasks","Suspended")', context), /field:suspended[\s\S]*pauses the scheduling[\s\S]*not proof that a running job was canceled/u);
+  assert.match(vm.runInContext('teachingField("tasks","NextScheduled")', context), /field:nextScheduled[\s\S]*intention, not a promise/u);
+  assert.match(vm.runInContext('evidenceTeaching({kind:"read-observation",state:"VERIFIED"})', context), /action:verify/u);
+  assert.match(vm.runInContext('evidenceTeaching({kind:"refusal",state:"DENIED"})', context), /state:DENIED/u);
+});
+
+test("teaching distinguishes operation receipts from observation evidence and preserves compact mode", () => {
+  const { context } = contextFor();
+  vm.runInContext('state.connected=true;state.info={username:"fixture",systemMode:"DEMO"};state.learning=true;state.route="evidence"', context);
+  const html = vm.runInContext('evidenceView()', context);
+  assert.match(html, /Understand the ledger/u);
+  assert.match(html, /data-teaching="concept:certainty"/u);
+  assert.match(html, /action:intent/u);
+  assert.match(html, /action:search/u);
+  const review = vm.runInContext('teaching("action","review")', context);
+  assert.match(review, /Separate operation proof boundaries[\s\S]*Request sent[\s\S]*Accepted is not completed[\s\S]*Completed is not independently verified[\s\S]*Authoritative state read again/u);
+  const before = vm.runInContext('JSON.stringify(currentEvidenceCollection())', context);
+  vm.runInContext('state.learning=false', context);
+  assert.doesNotMatch(vm.runInContext('evidenceView()', context), /learning-orientation|data-teaching=/u);
+  assert.equal(vm.runInContext('JSON.stringify(currentEvidenceCollection())', context), before);
+  assert.match(vm.runInContext('evidenceView()', context), /IRIS concepts · 3[\s\S]*ObjectScript examples · 3/u);
+});
+
+test("learning uses native keyboard disclosures, bounded field layout and no new motion or demo ownership", async () => {
+  const css = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+  const demo = await readFile(new URL('../demo/demo-provider.js', import.meta.url), 'utf8');
+  assert.match(css, /\.learning-help summary[^}]*min-height:44px/u);
+  assert.match(css, /\.learning-help summary:focus-visible/u);
+  assert.match(css, /\.detail-grid dt:has\(\.learning-help\[open\]\)[^}]*grid-column:1 \/ -1/u);
+  assert.doesNotMatch(css.match(/\.learning-[^}]+\}/gu)?.join('') || '', /animation:|overflow-x:\s*hidden/u);
+  assert.doesNotMatch(demo, /WORKSPACE_TEACHING|ACTION_TEACHING|STATE_TEACHING/u);
+  assert.match(source, /aria-pressed="\$\{state.learning\}"/u);
+  assert.match(source, /localStorage.getItem\("opsdeck.learning"\) === "on"/u);
 });
 
 test("live Packages stays empty before an installed IPM read and never substitutes fixtures", () => {

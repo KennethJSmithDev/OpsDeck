@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://kennethjsmithdev.github.io/OpsDeck/"><strong>🚀 LIVE SAFE DEMO</strong></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v1.0.0"><strong>📦 v1.0.0 RELEASE</strong></a>
+  <a href="https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v1.0.0"><strong>📦 PRIOR GITHUB RELEASE (v1.0.0)</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/NATIVE_INSTALL.md"><strong>🛠️ INSTALL</strong></a>
   &nbsp;·&nbsp;
@@ -23,11 +23,17 @@
   <img src="assets/OpsDeckLogo.png" alt="OpsDeck — Operations Console for InterSystems IRIS" width="720">
 </p>
 
-**OpsDeck 1.0.0** is an open-source operations environment for InterSystems IRIS. It combines live management views, evidence-scoped verification, reviewed mutation workflows, semantic investigation, adaptive mobile UX, and bounded intelligence in one native IRIS-hosted interface.
+**OpsDeck 1.1.0 — Guided Contextual Learning** is an open-source operations environment for InterSystems IRIS. It combines live management views, evidence-scoped verification, reviewed mutation workflows, semantic investigation, adaptive mobile UX, and bounded intelligence in one native IRIS-hosted interface.
 
 Built for the **InterSystems Programming Contest: Build Your Own Management Portal (2026)**.
 
 > **v1.0.0:** 117 IRIS operations exposed · 56 runtime-observed · 37 reproduced · 34 independently verified · 7 mutation endpoints · 12 qualified mutation workflows · 259 tests · 610,382 runtime-manifest bytes
+
+## Current source target: v1.1.0 — Guided Contextual Learning
+
+This branch targets **OpsDeck v1.1.0**, with accepted product-owned optional Learning ON/OFF, workspace orientation, mapped field Help, action explanations and receipt/state teaching. Safe Demo consumes the same capability. See [1.1.0 release notes and baseline reconciliation](docs/RELEASE_NOTES_1_1_0.md).
+
+The authoritative published **Open Exchange listing is v1.0.1 (October 4, 2026)**. Its currently linked IPM archive registers **opsdeck 1.0.0**; listing version and package version are distinct observed facts. Existing v1.0.0 release links, hashes and qualification results below are historical and remain unchanged. The 1.1.0 source target has not been published; native upgrade qualification remains pending.
 
 ## Why OpsDeck
 
