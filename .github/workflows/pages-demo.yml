@@ -1,7 +1,11 @@
 name: Deploy safe demo to GitHub Pages
 
 on:
-  # Publication requires an explicit manual dispatch; Main checkpoints do not deploy.
+  # Sync the Safe Demo when reviewed source reaches main.
+  push:
+    branches:
+      - main
+  # Allow an explicit main re-deploy when needed.
   workflow_dispatch:
 
 permissions:
@@ -15,6 +19,8 @@ concurrency:
 
 jobs:
   test-and-deploy:
+    # Manual runs from feature refs must not replace the public main demo.
+    if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
