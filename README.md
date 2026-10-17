@@ -33,7 +33,9 @@ Built for the **InterSystems Programming Contest: Build Your Own Management Port
 
 This branch targets **OpsDeck v1.1.0**, with accepted product-owned optional Learning ON/OFF, workspace orientation, mapped field Help, action explanations and receipt/state teaching. Safe Demo consumes the same capability. See [1.1.0 release notes and baseline reconciliation](docs/RELEASE_NOTES_1_1_0.md).
 
-The authoritative published **Open Exchange listing is v1.0.1 (October 4, 2026)**. Its currently linked IPM archive registers **opsdeck 1.0.0**; listing version and package version are distinct observed facts. Existing v1.0.0 release links, hashes and qualification results below are historical and remain unchanged. The 1.1.0 source target has not been published; native upgrade qualification remains pending.
+The [October 8 published-baseline observation](docs/RELEASE_NOTES_1_1_0.md#published-baseline-reconciliation--2026-10-08) records the **Open Exchange listing as v1.0.1 (October 4, 2026)** and its linked IPM archive registering **opsdeck 1.0.0**. Listing and package versions are distinct facts. Existing v1.0.0 release links, hashes and qualification results below remain historical.
+
+The 1.1.0 source branch is available for review; it is not a released 1.1.0 product. [October 16 scoped acceptance](docs/GUIDED_LEARNING_ACCEPTANCE_20261016.md) records native package build/install, the observed **1.0.0-registration → 1.1.0** upgrade, preservation, uninstall and restart checks. Authenticated guided-learning checks used the exact 1.1.0 presentation assets on a separate quick-start backend registered as 1.0.0. They do not establish full installed-1.1.0 native UI qualification or full native RC PASS. Main, public Safe Demo and release/publication remain separate boundaries.
 
 ## Why OpsDeck
 
