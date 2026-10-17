@@ -1,6 +1,17 @@
 # OpsDeck v1.1.0 — Guided Contextual Learning
 
-Status: locally prepared source target; **not published**. Accepted guided-learning correction: `f43660b2978f08e8738603d83d3c7f077206482d`, preserving parent `10f880496194ad563d94a58f820fb57a8966a1ee` and beginner substrate `2624376dd6cdf0402e152ed62dc59766524f5eae`.
+Status: **v1.1.0 source merged into main**; test-gated Safe Demo deployment is a separate publication step. **No tagged GitHub/IPM/OEX 1.1.0 release or full native RC PASS is claimed**. Accepted guided-learning correction: `f43660b2978f08e8738603d83d3c7f077206482d`, preserving parent `10f880496194ad563d94a58f820fb57a8966a1ee` and beginner substrate `2624376dd6cdf0402e152ed62dc59766524f5eae`.
+
+## Current evidence — 2026-10-16
+
+The [scoped acceptance receipt](GUIDED_LEARNING_ACCEPTANCE_20261016.md) reconciles the following evidence against product source `bdda41acdf89769129f23fdc48223ebdd15fd063`:
+
+- [Native package qualification](NATIVE_1_1_0_QUALIFICATION_20261016.md) records package build/install, the actual linked **1.0.0-registration → 1.1.0** upgrade, owned-state preservation, uninstall isolation, fresh install, restart and exact deployed-asset checks. This advances the October 8 lifecycle blocker for that scoped target.
+- [Authenticated learning qualification](CONTEXTUAL_LEARNING_NATIVE_20261016.md) records exact 1.1.0 presentation assets temporarily served by a separate quick-start backend registered as **1.0.0**, including Learning ON/OFF, eight main workspaces plus Packages/About, four viewport widths and restart/read-back. The original assets were restored. This does not prove authenticated UI behavior on the independently installed 1.1.0 target.
+- The October 16 source suite records **272/272 PASS**. Browser-download completion, exhaustive teaching and actual novice comprehension remain unverified; the receipt also records a minor glyph artifact.
+- The accepted 1.1.0 source and qualification receipts are merged into `main`. The public Safe Demo follows `main` only after a successful Pages test/deploy job. Demo delivery does not independently qualify an installed IPM package. Versioned GitHub/IPM/OEX publication and Issue #10 closure remain separate boundaries.
+
+The October 8 sections below are retained as dated preparation evidence. Their unavailable-Docker and pending-build statements describe that checkpoint, not the October 16 lifecycle result. The historical missing native 320px Learning OFF screenshot is not backfilled by later scoped evidence.
 
 ## Published baseline reconciliation — 2026-10-08
 
@@ -24,7 +35,7 @@ The local distributable is `opsdeck-1.1.0-source.tgz`: a bounded IPM source-layo
 
 On an existing authorized disposable IRIS/IPM target, stage the archive and use the standard `%SYS` IPM command `load /absolute/path/to/opsdeck-1.1.0-source.tgz`, then verify `opsdeck 1.1.0` registration, native HTTP bytes, sign-in/read paths, owned derived-state preservation and unrelated-state preservation. Do not run this against IRISTesting or overwrite an unrelated installation. Source packaging alone does not prove native installation.
 
-## Upgrade compatibility
+## Upgrade compatibility at preparation — 2026-10-08
 
 Source comparison against the **actually OEX-linked** archive confirms all eight native product classes unchanged, including DerivedStorage's ownership/schema checks. The module's resource/web-application ownership is unchanged; only its version changes. No storage migration is introduced. These observations support compatibility, but are not native upgrade proof.
 
@@ -32,7 +43,7 @@ Source comparison against the **actually OEX-linked** archive confirms all eight
 
 The earlier public Docker quick-start deliberately remains pinned to its historically qualified 1.0.0 archive and hash; it does not install 1.1.0. Advancing that pin requires a separately qualified 1.1.0 native artifact and its exact SHA, not a guessed release URL.
 
-## Evidence limits and publication hold
+## Evidence limits and publication hold at preparation — 2026-10-08
 
 Independent acceptance covers the bounded guided-learning correction. Native 320px Learning OFF screenshot remains **UNVERIFIED**; existing measurements do not replace it. Actual novice comprehension and exhaustive long-tail teaching remain unverified. No push, merge, tag, release, Pages/IPM/OEX publication or Issue #10 closure is performed or implied.
 
@@ -46,4 +57,8 @@ Independent acceptance covers the bounded guided-learning correction. Native 320
 - Native upgrade is blocked by unavailable Docker daemon and absent publicly downloadable 1.0.1-registration artifact. No existing installation was changed.
 - Historic learning screenshots/receipts and unrelated untracked Docker/helper/contest paths remain untouched.
 
-This is a version-preparation checkpoint, not v1.1.0 native RC PASS. The next dependent boundary is native IPM build/install/upgrade qualification on an existing authorized disposable target, using the actual OEX-linked baseline and recording its 1.0.0 package registration separately from the OEX 1.0.1 listing. A literal 1.0.1-registration upgrade requires its exact published archive first.
+At this October 8 version-preparation checkpoint, v1.1.0 native RC PASS was not claimed. The then-next dependent boundary is native IPM build/install/upgrade qualification on an existing authorized disposable target, using the actual OEX-linked baseline and recording its 1.0.0 package registration separately from the OEX 1.0.1 listing. A literal 1.0.1-registration upgrade requires its exact published archive first.
+
+## Current next boundary
+
+Review the scoped October 16 acceptance and verify authenticated UI behavior on the exact installed 1.1.0 package before making a full native RC claim. A literal 1.0.1-registration upgrade remains unverified without that exact archive; the successful linked-baseline upgrade is from registration 1.0.0. Source is merged into `main`; package release, OEX publication and a full installed-1.1.0 browser RC claim remain separate decisions. Pages publishes the Safe Demo only through its test-gated workflow.
