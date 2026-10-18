@@ -1,6 +1,10 @@
 # OpsDeck qualification status
 
-Current authority (2026-10-04): **Main — OpsDeck 1.0 Pre-RC**, with all-nine-phase bounded acceptance and mutation accounting **117 / 56 / 37 / 34 / 7 / 12**. Package/internal identity remains 0.8.0; no new tag or release. [Current Main state](MAIN_PRE_RC_STATE_20261004.md) supersedes the historical snapshots below for current product status. Task Description HTTP 500 is known debt, excluded from dispatch/counts.
+Current source authority (reconciled 2026-10-18): **`main` — OpsDeck 1.1.0, Guided Contextual Learning**. The [1.1.0 release notes](RELEASE_NOTES_1_1_0.md) and [October 16 scoped acceptance](GUIDED_LEARNING_ACCEPTANCE_20261016.md) own the current source and qualification boundaries. Native IPM 1.1.0 package build/install/upgrade/lifecycle checks passed at their recorded scope; authenticated teaching used exact 1.1.0 presentation assets on a separate backend registered as 1.0.0. Full authenticated browser RC qualification of the independently installed 1.1.0 package remains **UNVERIFIED**.
+
+The latest published GitHub release remains **[v1.0.0](https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v1.0.0)**; merged 1.1.0 source and Safe Demo deployment do not establish a versioned GitHub/IPM/OEX 1.1.0 release. See the release notes for the distinct OEX listing 1.0.1 and linked IPM registration 1.0.0 observations.
+
+The sections below are **historical qualification snapshots**. Their versions, test counts, branch names, next steps and `UNVERIFIED` statements describe their dated checkpoints, not the current product frontier. The [October 4 Pre-RC state](MAIN_PRE_RC_STATE_20261004.md) remains historical evidence.
 
 ## Historical qualification and roadmap snapshots
 
