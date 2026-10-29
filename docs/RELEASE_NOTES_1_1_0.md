@@ -1,6 +1,12 @@
 # OpsDeck v1.1.0 — Guided Contextual Learning
 
-Status: **v1.1.0 source merged into main**; test-gated Safe Demo deployment is a separate publication step. **No tagged GitHub/IPM/OEX 1.1.0 release or full native RC PASS is claimed**. Accepted guided-learning correction: `f43660b2978f08e8738603d83d3c7f077206482d`, preserving parent `10f880496194ad563d94a58f820fb57a8966a1ee` and beginner substrate `2624376dd6cdf0402e152ed62dc59766524f5eae`.
+Status: **v1.1.0 source merged into main**; test-gated Safe Demo deployment is a separate publication step. **The latest published GitHub release remains v1.0.0; current Open Exchange listing/link evidence is recorded below, separately from unverified registry installation and full installed-1.1.0 browser RC**. Accepted guided-learning correction: `f43660b2978f08e8738603d83d3c7f077206482d`, preserving parent `10f880496194ad563d94a58f820fb57a8966a1ee` and beginner substrate `2624376dd6cdf0402e152ed62dc59766524f5eae`.
+
+## Public listing and download link — 2026-10-29
+
+The [Open Exchange listing](https://openexchange.intersystems.com/package/OpsDeck) displays **1.1.0, October 17, 2026**. Its [download archive link](https://pm.community.intersystems.com/download/opsdeck/-/opsdeck-1.1.0.tgz) now names `opsdeck-1.1.0.tgz`. This supersedes the October 8 listing/link observation for current navigation, without rewriting the earlier inspected archive's identity or qualification.
+
+**KNOWN:** the displayed listing version/date and linked filename; the latest published [GitHub release](https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v1.0.0) remains v1.0.0. **UNVERIFIED in this reconciliation:** linked archive contents, package registration/version, byte identity, download integrity and registry-route installation. A listing or filename is not proof of any of those boundaries. No archive inspection, install or runtime test was performed for this update.
 
 ## Current evidence — 2026-10-16
 
@@ -9,7 +15,7 @@ The [scoped acceptance receipt](GUIDED_LEARNING_ACCEPTANCE_20261016.md) reconcil
 - [Native package qualification](NATIVE_1_1_0_QUALIFICATION_20261016.md) records package build/install, the actual linked **1.0.0-registration → 1.1.0** upgrade, owned-state preservation, uninstall isolation, fresh install, restart and exact deployed-asset checks. This advances the October 8 lifecycle blocker for that scoped target.
 - [Authenticated learning qualification](CONTEXTUAL_LEARNING_NATIVE_20261016.md) records exact 1.1.0 presentation assets temporarily served by a separate quick-start backend registered as **1.0.0**, including Learning ON/OFF, eight main workspaces plus Packages/About, four viewport widths and restart/read-back. The original assets were restored. This does not prove authenticated UI behavior on the independently installed 1.1.0 target.
 - The October 16 source suite records **272/272 PASS**. Browser-download completion, exhaustive teaching and actual novice comprehension remain unverified; the receipt also records a minor glyph artifact.
-- The accepted 1.1.0 source and qualification receipts are merged into `main`. The public Safe Demo follows `main` only after a successful Pages test/deploy job. Demo delivery does not independently qualify an installed IPM package. Versioned GitHub/IPM/OEX publication and Issue #10 closure remain separate boundaries.
+- The accepted 1.1.0 source and qualification receipts are merged into `main`. The public Safe Demo follows `main` only after a successful Pages test/deploy job. Demo delivery does not independently qualify an installed IPM package. Versioned GitHub/IPM/OEX publication remains a separate boundary. [Issue #10](https://github.com/KennethJSmithDev/OpsDeck/issues/10) was closed on October 17, 2026; its closure does not establish full installed-package browser RC qualification or versioned publication.
 
 The October 8 sections below are retained as dated preparation evidence. Their unavailable-Docker and pending-build statements describe that checkpoint, not the October 16 lifecycle result. The historical missing native 320px Learning OFF screenshot is not backfilled by later scoped evidence.
 
@@ -61,4 +67,4 @@ At this October 8 version-preparation checkpoint, v1.1.0 native RC PASS was not 
 
 ## Current next boundary
 
-Review the scoped October 16 acceptance and verify authenticated UI behavior on the exact installed 1.1.0 package before making a full native RC claim. A literal 1.0.1-registration upgrade remains unverified without that exact archive; the successful linked-baseline upgrade is from registration 1.0.0. Source is merged into `main`; package release, OEX publication and a full installed-1.1.0 browser RC claim remain separate decisions. Pages publishes the Safe Demo only through its test-gated workflow.
+Review the scoped October 16 acceptance and verify authenticated UI behavior on the exact installed 1.1.0 package before making a full native RC claim. A literal 1.0.1-registration upgrade remains unverified without that exact archive; the successful linked-baseline upgrade is from registration 1.0.0. Source is merged into `main`; the observed OEX listing/link does not establish a GitHub 1.1.0 release, exact registry-package identity or a full installed-1.1.0 browser RC claim. Pages publishes the Safe Demo only through its test-gated workflow.
