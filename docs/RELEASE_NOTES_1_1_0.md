@@ -1,6 +1,12 @@
 # OpsDeck v1.1.0 — Guided Contextual Learning
 
-Status: **v1.1.0 source merged into main**; test-gated Safe Demo deployment is a separate publication step. **No tagged GitHub/IPM/OEX 1.1.0 release or full native RC PASS is claimed**. Accepted guided-learning correction: `f43660b2978f08e8738603d83d3c7f077206482d`, preserving parent `10f880496194ad563d94a58f820fb57a8966a1ee` and beginner substrate `2624376dd6cdf0402e152ed62dc59766524f5eae`.
+Status: **v1.1.0 source merged into main**; test-gated Safe Demo deployment is a separate publication step. **The latest published GitHub release remains v1.0.0; current Open Exchange listing/link evidence is recorded below, separately from unverified registry installation and full installed-1.1.0 browser RC**. Accepted guided-learning correction: `f43660b2978f08e8738603d83d3c7f077206482d`, preserving parent `10f880496194ad563d94a58f820fb57a8966a1ee` and beginner substrate `2624376dd6cdf0402e152ed62dc59766524f5eae`.
+
+## Public listing and download link — 2026-10-29
+
+The [Open Exchange listing](https://openexchange.intersystems.com/package/OpsDeck) displays **1.1.0, October 17, 2026**. Its [download archive link](https://pm.community.intersystems.com/download/opsdeck/-/opsdeck-1.1.0.tgz) now names `opsdeck-1.1.0.tgz`. This supersedes the October 8 listing/link observation for current navigation, without rewriting the earlier inspected archive's identity or qualification.
+
+**KNOWN:** the displayed listing version/date and linked filename; the latest published [GitHub release](https://github.com/KennethJSmithDev/OpsDeck/releases/tag/v1.0.0) remains v1.0.0. **UNVERIFIED in this reconciliation:** linked archive contents, package registration/version, byte identity, download integrity and registry-route installation. A listing or filename is not proof of any of those boundaries. No archive inspection, install or runtime test was performed for this update.
 
 ## Current evidence — 2026-10-16
 
@@ -61,4 +67,4 @@ At this October 8 version-preparation checkpoint, v1.1.0 native RC PASS was not 
 
 ## Current next boundary
 
-Review the scoped October 16 acceptance and verify authenticated UI behavior on the exact installed 1.1.0 package before making a full native RC claim. A literal 1.0.1-registration upgrade remains unverified without that exact archive; the successful linked-baseline upgrade is from registration 1.0.0. Source is merged into `main`; package release, OEX publication and a full installed-1.1.0 browser RC claim remain separate decisions. Pages publishes the Safe Demo only through its test-gated workflow.
+Review the scoped October 16 acceptance and verify authenticated UI behavior on the exact installed 1.1.0 package before making a full native RC claim. A literal 1.0.1-registration upgrade remains unverified without that exact archive; the successful linked-baseline upgrade is from registration 1.0.0. Source is merged into `main`; the observed OEX listing/link does not establish a GitHub 1.1.0 release, exact registry-package identity or a full installed-1.1.0 browser RC claim. Pages publishes the Safe Demo only through its test-gated workflow.
