@@ -257,7 +257,7 @@ const LEARNING_SNIPPETS = Object.freeze([
 // Teaching projects existing product truth. It owns no provider or execution state.
 const WORKSPACE_TEACHING = Object.freeze({
   overview: { title: "Overview", body: "Identify the connected target and account first. The returned namespaces and privilege flags describe this observation, not unrestricted access to IRIS.", steps: ["Check the target and identity before interpreting any row.", "Inspect namespace context; %SYS is the system workspace.", "Refresh reads the application inventory again and compares a second response. A match is scoped to those observed fields."] },
-  applications: { title: "Applications", body: "Start with an application row. Inspect its namespace and access settings, then rehearse an availability change before considering confirmation.", steps: ["Select a row to inspect the observed application.", "Load authoritative detail to inspect the provider's current definition.", "Rehearse an existing operation: review its target, effect and authority without dispatch.", "If a change is confirmed, inspect the read-back outcome and its Session Ledger record."] },
+  applications: { title: "Applications", body: "Start with an application row. Learn what its fields mean, compare web and REST configuration, and explain the access settings using the observations available in this session.", steps: ["Select a row to inspect the observed application.", "Load authoritative detail to inspect the provider's current definition.", "Rehearse an existing operation: review its target, effect and authority without dispatch.", "If a change is confirmed, inspect the read-back outcome and its Session Ledger record."] },
   packages: { title: "Packages", body: "An installed registration describes a package in this namespace. A repository offering describes something available to install; it is not evidence that it is installed or that an update is safe.", steps: ["Read installed inventory and inspect its namespace/version.", "Query the configured catalog separately; compare only versions actually returned.", "For a supported install/remove, rehearse the pinned intent and review the effect before confirmation.", "Inspect the resulting inventory read-back and receipt; a successful IPM call alone does not prove registration changed."] },
   access: { title: "Access", body: "Follow users to their direct roles, then roles to resource permissions. These visible relationships help explain access but do not grant you authority or establish every effective permission.", steps: ["Select Users, Roles or Resources, then inspect one returned object.", "Load direct detail or holders when needed; bounded rows are not a complete inherited-access calculation.", "A denied request concerns the current identity. An unavailable source is a different state."] },
   security: { title: "Security", body: "Inspect credential and OAuth metadata, not secret material. A visible collection or credential name does not let this account use it or change its configuration.", steps: ["Select the credential or OAuth source relevant to your investigation.", "Read its contextual concept before interpreting returned metadata.", "Keep denied, unavailable and empty results distinct; do not infer missing secrets or permissions."] },
@@ -301,18 +301,190 @@ const STATE_TEACHING = Object.freeze({
   TRUNCATED: { title: "Only part of the source is shown", body: "The bounded response stopped at its limit. Returned items are observations; omitted items are unknown. Do not treat this as a complete inventory." },
   AVAILABLE: { title: "An observation is available", body: "A usable source response is available for its recorded scope and time. This does not establish modification authority, completeness or a verified mutation." },
 });
+// Field lessons stay in the shared catalogue so demo and live use the same explanations.
+const APPLICATION_SYSTEM_FIELDS = Object.freeze({
+  "appType": {
+    "title": "Application type",
+    "body": "Type is the classification returned by IRIS. CSP refers to its web application framework; CSP,System also marks a system application. REST services use a dispatch class to route HTTP requests to code. Check the dispatch class and REST inventory rather than inferring service behavior from Type alone.",
+    "example": "A REST application may route /orders requests to an Orders.Dispatch class. This is an illustrative name, not a discovered endpoint.",
+    "tryThis": "Compare Type and Dispatch class on two applications. A missing value means it was not returned.",
+    "doc": "GSA_manage_applications"
+  },
+  "appEnabled": {
+    "title": "Application enabled",
+    "body": "Enabled is the switch that makes this application available, subject to authentication and permissions.",
+    "example": "Enabled = Yes means the switch is on. A request can still be refused by access rules.",
+    "tryThis": "Read the selected application’s Enabled value and its authentication settings without changing either.",
+    "doc": "GSA_manage_applications"
+  },
+  "appDefault": {
+    "title": "Namespace default application",
+    "body": "This flag identifies the default web application for a namespace. IRIS can use that default when importing a page without an associated application.",
+    "example": "Several applications can share a namespace while only one is its default.",
+    "tryThis": "Compare this flag with Namespace. It does not select your browser’s home page.",
+    "doc": "GSA_manage_applications"
+  },
+  "appSystem": {
+    "title": "System application",
+    "body": "This flag identifies a web application designated as a system application. It describes the application, not the privileges of the signed-in user.",
+    "example": "A server administration application may be marked as a system application.",
+    "tryThis": "Read the flag separately from Namespace and Resource; one value does not establish the others.",
+    "doc": "GSA_manage_applications"
+  },
+  "restEnabled": {
+    "title": "REST application enabled",
+    "body": "This value reports whether the listed REST application is enabled. It does not test its routes.",
+    "example": "An enabled service can still require authentication before returning data.",
+    "tryThis": "Compare this setting with the service namespace and dispatch class.",
+    "doc": "GREST"
+  },
+  "apiSpec": {
+    "title": "API description",
+    "body": "Swagger and OpenAPI describe an API’s paths, HTTP methods and inputs so people and tools can understand how to call it.",
+    "example": "GET /orders is an illustrative read operation; POST /orders may create data. Reading a description sends neither request.",
+    "tryThis": "Inspect the available description and distinguish its format version from the application version.",
+    "doc": "GREST"
+  },
+  "restApps": {
+    "title": "Associated web applications",
+    "body": "These application paths connect a REST service to web application configurations.",
+    "example": "One dispatch class can be associated with more than one application path.",
+    "tryThis": "Compare a returned path with the web application inventory. Discovery does not establish that you may call it.",
+    "doc": "GREST"
+  },
+  "usageAllGlobalReferences": {
+    "title": "Global references",
+    "body": "Counts references to globals, the persistent data structures IRIS uses to store data.",
+    "example": "A global reference can be served from memory; it is not automatically a disk read. Illustrative comparison: 1,000 then 1,120 is an increase of 120, not 120 per second.",
+    "tryThis": "Compare observations from the same instance and collection period. Check timestamps and provider/reset semantics before calculating a rate; a decrease needs investigation, not a negative workload rate.",
+    "doc": "GCM_dashboard"
+  },
+  "usageGlobalUpdateReferences": {
+    "title": "Global updates",
+    "body": "Counts update references to globals.",
+    "example": "More updates indicate more change activity, not the number of business records changed. Illustrative comparison: 1,000 then 1,120 is an increase of 120, not 120 per second.",
+    "tryThis": "Compare observations from the same instance and collection period. Check timestamps and provider/reset semantics before calculating a rate; a decrease needs investigation, not a negative workload rate.",
+    "doc": "GCM_dashboard"
+  },
+  "usageRoutineCalls": {
+    "title": "Routine calls",
+    "body": "Counts calls to IRIS routines, which are units of executable code.",
+    "example": "A single user request may call many routines. Illustrative comparison: 1,000 then 1,120 is an increase of 120, not 120 per second.",
+    "tryThis": "Compare observations from the same instance and collection period. Check timestamps and provider/reset semantics before calculating a rate; a decrease needs investigation, not a negative workload rate.",
+    "doc": "GCM_dashboard"
+  },
+  "usageRoutineBufferLoadsAndSaves": {
+    "title": "Routine buffer loads and saves",
+    "body": "Counts activity loading or saving routine code in the routine buffer.",
+    "example": "This measures code-buffer activity, not user logins. Illustrative comparison: 1,000 then 1,120 is an increase of 120, not 120 per second.",
+    "tryThis": "Compare observations from the same instance and collection period. Check timestamps and provider/reset semantics before calculating a rate; a decrease needs investigation, not a negative workload rate.",
+    "doc": "GCM_dashboard"
+  },
+  "usageLogicalBlockRequests": {
+    "title": "Logical block requests",
+    "body": "Counts requests for database blocks, including requests satisfied from memory.",
+    "example": "Many logical requests with fewer disk reads can reflect reuse of buffered blocks. Illustrative comparison: 1,000 then 1,120 is an increase of 120, not 120 per second.",
+    "tryThis": "Compare observations from the same instance and collection period. Check timestamps and provider/reset semantics before calculating a rate; a decrease needs investigation, not a negative workload rate.",
+    "doc": "GCM_dashboard"
+  },
+  "usageBlockReads": {
+    "title": "Block reads",
+    "body": "Counts database blocks read from disk.",
+    "example": "A block is a unit of database storage; it is not a row or HTTP request. Illustrative comparison: 1,000 then 1,120 is an increase of 120, not 120 per second.",
+    "tryThis": "Compare observations from the same instance and collection period. Check timestamps and provider/reset semantics before calculating a rate; a decrease needs investigation, not a negative workload rate.",
+    "doc": "GCM_dashboard"
+  },
+  "usageBlockWrites": {
+    "title": "Block writes",
+    "body": "Counts database blocks written to disk.",
+    "example": "A database block write is different from writing a journal record. Illustrative comparison: 1,000 then 1,120 is an increase of 120, not 120 per second.",
+    "tryThis": "Compare observations from the same instance and collection period. Check timestamps and provider/reset semantics before calculating a rate; a decrease needs investigation, not a negative workload rate.",
+    "doc": "GCM_dashboard"
+  },
+  "usageWIJwrites": {
+    "title": "Write image journal writes",
+    "body": "Counts write image journal activity. The WIJ helps protect database integrity when database writes are interrupted.",
+    "example": "The WIJ and transaction journals have different recovery roles. Illustrative comparison: 1,000 then 1,120 is an increase of 120, not 120 per second.",
+    "tryThis": "Compare observations from the same instance and collection period. Check timestamps and provider/reset semantics before calculating a rate; a decrease needs investigation, not a negative workload rate.",
+    "doc": "GCM_dashboard"
+  },
+  "usageJournalEntries": {
+    "title": "Journal entries",
+    "body": "Counts entries in the transaction journal, which records database changes for recovery.",
+    "example": "One application operation can generate multiple journal entries. Illustrative comparison: 1,000 then 1,120 is an increase of 120, not 120 per second.",
+    "tryThis": "Compare observations from the same instance and collection period. Check timestamps and provider/reset semantics before calculating a rate; a decrease needs investigation, not a negative workload rate.",
+    "doc": "GCM_dashboard"
+  },
+  "usageJournalBlockWrites": {
+    "title": "Journal block writes",
+    "body": "Counts blocks written to journal storage.",
+    "example": "Journal entries and journal blocks are different units; their totals need not match. Illustrative comparison: 1,000 then 1,120 is an increase of 120, not 120 per second.",
+    "tryThis": "Compare observations from the same instance and collection period. Check timestamps and provider/reset semantics before calculating a rate; a decrease needs investigation, not a negative workload rate.",
+    "doc": "GCM_dashboard"
+  },
+  "usageRoutineLines": {
+    "title": "Routine lines",
+    "body": "Counts executed routine lines, a measure of code activity.",
+    "example": "One routine call can execute many lines. Illustrative comparison: 1,000 then 1,120 is an increase of 120, not 120 per second.",
+    "tryThis": "Compare observations from the same instance and collection period. Check timestamps and provider/reset semantics before calculating a rate; a decrease needs investigation, not a negative workload rate.",
+    "doc": "GCM_dashboard"
+  },
+  "usageLastUpdate": {
+    "title": "Counter observation time",
+    "body": "LastUpdate is the timestamp supplied with the usage counters. It helps place the values in time.",
+    "example": "Two identical values with the same timestamp may be the same observation.",
+    "tryThis": "Check the timestamp before interpreting a refresh as new activity.",
+    "doc": "GCM_dashboard"
+  },
+  "processPid": {
+    "title": "Process identifier",
+    "body": "A PID identifies a running worker. A process executes code on behalf of a connection or background job.",
+    "example": "A PID can be reused after a process ends.",
+    "tryThis": "Compare PID, namespace and routine in the same observation.",
+    "doc": "GCM_dashboard"
+  },
+  "processRoutine": {
+    "title": "Current routine",
+    "body": "The routine identifies code associated with the observed process.",
+    "example": "A worker can move between routines while doing its work.",
+    "tryThis": "Use the observation time when comparing process snapshots.",
+    "doc": "GCM_dashboard"
+  },
+  "databaseSize": {
+    "title": "Database size",
+    "body": "Size describes database storage as returned by the provider. It is different from a count of records.",
+    "example": "Allocated storage can include space available for reuse.",
+    "tryThis": "Check the provider’s units before comparing sizes; a bare number alone does not establish bytes.",
+    "doc": "GCM_dashboard"
+  },
+  "databaseEncrypted": {
+    "title": "Database encryption",
+    "body": "This flag reports whether the database is configured as encrypted.",
+    "example": "Database encryption concerns stored data; transport encryption protects network traffic separately.",
+    "tryThis": "Read the returned flag. A missing value does not mean encryption is off.",
+    "doc": "GSA_manage_databases"
+  },
+  "databaseMirrored": {
+    "title": "Mirrored database",
+    "body": "Mirroring maintains database copies to support availability. This flag reports database membership, not current partner health.",
+    "example": "A database can belong to a mirror while a partner is unavailable.",
+    "tryThis": "Treat this as configuration context and inspect mirror health separately.",
+    "doc": "GHA_mirror"
+  }
+});
 const FIELD_TEACHING = Object.freeze({
   identity: { Namespaces: "namespace", Privileges: "access" },
-  webApps: { Namespace: "namespace", Enabled: "webapp", Type: "webapp", Resource: "resource", "Dispatch class": "rest", Authentication: "authentication" },
-  restServices: { namespace: "namespace", dispatchClass: "rest" },
-  restServicesV2: { namespace: "namespace", dispatchClass: "rest", webApplications: "webapp" },
+  webApps: { Namespace: "namespace", Enabled: "appEnabled", Type: "appType", "Default namespace": "appDefault", "System application": "appSystem", Resource: "resource", "Dispatch class": "rest", Authentication: "authentication" },
+  restServices: { namespace: "namespace", dispatchClass: "rest", enabled: "restEnabled", swaggerSpec: "apiSpec" },
+  restServicesV2: { namespace: "namespace", dispatchClass: "rest", webApplications: "restApps", swaggerSpec: "apiSpec" },
   users: { Name: "user", Namespace: "namespace", Enabled: "user" },
   roles: { Name: "role" },
   resources: { Name: "resource", PublicPermission: "resource" },
   tasks: { Name: "task", Type: "taskType", Namespace: "namespace", Suspended: "suspended", LastFinished: "lastFinished", NextScheduled: "nextScheduled" },
   taskHistory: { TaskId: "task", Namespace: "namespace", Pid: "process", Completed: "history", Result: "history" },
-  processes: { Pid: "process", Job: "process", Nspace: "namespace", Device: "device", State: "process" },
-  databases: { Directory: "database", Resource: "resource", Status: "database" },
+  systemUsage: {"AllGlobalReferences": "usageAllGlobalReferences", "GlobalUpdateReferences": "usageGlobalUpdateReferences", "RoutineCalls": "usageRoutineCalls", "RoutineBufferLoadsAndSaves": "usageRoutineBufferLoadsAndSaves", "LogicalBlockRequests": "usageLogicalBlockRequests", "BlockReads": "usageBlockReads", "BlockWrites": "usageBlockWrites", "WIJwrites": "usageWIJwrites", "JournalEntries": "usageJournalEntries", "JournalBlockWrites": "usageJournalBlockWrites", "RoutineLines": "usageRoutineLines", "LastUpdate": "usageLastUpdate"},
+  processes: { Pid: "processPid", Job: "processPid", Nspace: "namespace", Device: "device", State: "process", Routine: "processRoutine" },
+  databases: { Directory: "database", Resource: "resource", Status: "database", Size: "databaseSize", MaxSize: "databaseSize", Encrypted: "databaseEncrypted", Mirrored: "databaseMirrored" },
   devices: { Name: "device", PhysicalDevice: "device" },
   auditEnabled: { Enabled: "audit" },
   auditEvents: { EventName: "audit", Enabled: "audit" },
@@ -322,6 +494,7 @@ const FIELD_TEACHING = Object.freeze({
 const SOURCE_TEACHING = Object.freeze({ restServices:"rest", restServicesV2:"rest", users:"user", roles:"role", resources:"resource", walletCollections:"wallet", x509Credentials:"x509", oauthResourceServers:"oauth", oauthServerDefinitions:"oauth", oauthServer:"oauth", tasks:"task", taskHistory:"history", systemUsage:"usage", processes:"process", databases:"database", devices:"device", auditEnabled:"audit", auditEvents:"audit", messagesLog:"logs", messageRotations:"logs", systemMonitorLog:"diagnostics", journalFiles:"journal", alerts:"diagnostics" });
 const TEACHING_STATE_ALIASES = Object.freeze({ OBSERVING:"PREFLIGHT", REHEARSING:"PREFLIGHT", AWAITING_CONFIRMATION:"REVIEW_REQUIRED", EXECUTING:"IN_FLIGHT", FINISHED:"COMPLETED", QUEUED:"ACCEPTED", "READ-FAILURE":"FAILED" });
 const FIELD_EXPLANATIONS = Object.freeze({
+  ...APPLICATION_SYSTEM_FIELDS,
   authentication: { title: "Authentication", body: "Authentication is how IRIS establishes who is making a request. The application's configured methods describe allowed sign-in mechanisms; they are not permissions to read or change an object. Authority is checked separately.", doc: "GSA_manage_applications" },
   taskType: { title: "Task type", body: "The type identifies the kind of work this task is configured to run, such as an integrity check or backup. The task's name identifies its scheduled definition; neither field is a record of an execution.", doc: "GSA_manage_taskmgr" },
   suspended: { title: "Suspended scheduling", body: "Suspension pauses the scheduling of this task. It describes scheduling metadata, not proof that a running job was canceled or that earlier work was undone. Inspect history and job results separately.", doc: "GSA_manage_taskmgr" },
@@ -330,7 +503,7 @@ const FIELD_EXPLANATIONS = Object.freeze({
 });
 function teachingBody(record) {
   const lifecycle = record === ACTION_TEACHING.review ? `<p>These are separate proof boundaries. A provider may not report every intermediate step; do not infer missing stages.</p><ol class="learning-lifecycle" aria-label="Separate operation proof boundaries"><li>Request sent</li><li>${esc(STATE_TEACHING.ACCEPTED.title)}</li><li>${esc(STATE_TEACHING.COMPLETED.title)}</li><li>Authoritative state read again</li><li>Expected state compared under operation policy</li></ol>` : "";
-  return `<p>${esc(record.body)}</p>${lifecycle}${record.doc ? `<a href="https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=${esc(record.doc)}" target="_blank" rel="noopener noreferrer">Official InterSystems documentation ↗</a>` : ""}`;
+  return `<p>${esc(record.body)}</p>${record.example ? `<details><summary>Example and practice</summary><p><strong>Example:</strong> ${esc(record.example)}</p><p><strong>Try this:</strong> ${esc(record.tryThis)}</p></details>` : ""}${lifecycle}${record.doc ? `<a href="https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=${esc(record.doc)}" target="_blank" rel="noopener noreferrer">Official InterSystems documentation ↗</a>` : ""}`;
 }
 function teaching(kind, id, label, accessibleLabel = label) {
   if (!state.learning) return "";
@@ -342,12 +515,27 @@ function teachingField(sourceId, field) {
   const id = FIELD_TEACHING[sourceId]?.[field];
   return id ? teaching(FIELD_EXPLANATIONS[id] ? "field" : "concept", id, "Help", `Help for ${field}`) : "";
 }
+function learningSteps(key, fallback) {
+  if (!["applications", "system"].includes(key)) return fallback;
+  const demo = state.info?.systemMode === "DEMO";
+  const context = demo ? "Safe demo: these are sanitized sample observations; no IRIS server is connected." : state.connected ? "Live session: these observations belong to the connected instance and signed-in identity." : "Connect to an instance before interpreting live values. No observations are available yet.";
+  if (key === "applications") return [context,
+    "Select a web application. Find Namespace, Type and Enabled; open their Help and compare the example with the returned values.",
+    "Compare a REST application with a CSP application when both are returned. Find the dispatch class and associated application paths. Expected: you can explain where requests are routed; an absent value stays unknown.",
+    demo ? "Compare sample rows and their access settings. Live detail reads and availability rehearsal require a live IRIS provider; this exercise ends with inspection." : "Load application detail if the control is available. Compare it with the inventory and its observation time. DENIED means your identity cannot read it; UNAVAILABLE means no usable response was obtained.",
+    "Explain the difference between an enabled application and a successful authorized request. This walkthrough requires no configuration changes."];
+  return [context,
+    "Open usage counters and expand a field’s Help, then Example and practice. Identify the unit being counted and the supplied timestamp.",
+    demo ? "Refresh the sample counters. Expected: deterministic demo values may stay unchanged; they do not measure workload or elapsed server activity." : "Read the counters again using the existing refresh control. Compare only the same instance and collection period. Check timestamps, units and reset semantics before deriving a rate; a snapshot alone is not a health diagnosis.",
+    "Inspect processes, then databases and devices. Compare the process namespace with the database storage information. Expected: you can distinguish a running worker, a namespace and storage on disk.",
+    "If a source is denied or unavailable, inspect that status. Missing observations do not mean zero activity or an empty server."];
+}
 function learningOrientation() {
   if (!state.learning) return "";
   const key = state.route === "applications" && state.applicationsTab === "packages" ? "packages" : state.route === "system" && state.systemSection === "about" ? "about" : state.route;
   const record = WORKSPACE_TEACHING[key];
   if (!record) return "";
-  return `<section class="learning-orientation" aria-label="Learning path: ${esc(record.title)}"><div class="learning-heading"><strong>Learning path · ${esc(record.title)}</strong><button class="button quiet" data-learning-off type="button">Turn learning off</button></div><p>${esc(record.body)}</p><details class="learning-help"><summary>Walk through this workspace</summary><ol>${record.steps.map(step => `<li>${esc(step)}</li>`).join("")}</ol></details></section>`;
+  return `<section class="learning-orientation" aria-label="Learning path: ${esc(record.title)}"><div class="learning-heading"><strong>Learning path · ${esc(record.title)}</strong><button class="button quiet" data-learning-off type="button">Turn learning off</button></div><p>${esc(record.body)}</p><details class="learning-help"><summary>Walk through this workspace</summary><ol>${learningSteps(key, record.steps).map(step => `<li>${esc(step)}</li>`).join("")}</ol></details></section>`;
 }
 function teachingOutcome(value) {
   const stateId = String(value || "").toUpperCase();
@@ -866,7 +1054,7 @@ function applicationsView() {
     ${!inventoryObserved&&state.apps.length?'<p class="source-message">Earlier observed rows are retained below; the current inventory is not established.</p>':''}
     <section class="apps-layout">
       <article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>Web application</th><th>Namespace</th><th>State</th><th>Type</th><th>Authentication</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="empty-cell">${inventoryObserved?'No web applications were returned by IRIS.':'Application inventory has not been observed in this refresh.'}</td></tr>`}</tbody></table></div><div class="panel-foot">Provider <code>SysAdmin API v2</code> · Updated ${fmtTime(state.lastRead)}</div></article>
-      <aside class="panel inspector"><div class="panel-kicker">RESOURCE INSPECTOR</div>${selected ? `<h2 class="inspector-title"><code>${esc(selected.name)}</code></h2><p class="inspector-sub">Provider-owned identity · namespace scoped</p><dl class="detail-grid"><dt>Namespace${teachingField("webApps", "Namespace")}</dt><dd><code>${esc(selected.namespace)}</code></dd><dt>Enabled${teachingField("webApps", "Enabled")}</dt><dd>${selected.enabled ? "Yes" : "No"}</dd><dt>Type${teachingField("webApps","Type")}</dt><dd>${selected.type === null ? "Not returned" : esc(selected.type)}</dd><dt>Resource${teachingField("webApps", "Resource")}</dt><dd>${selected.resource === null ? "Not returned" : selected.resource ? `<code>${esc(selected.resource)}</code>` : "None"}</dd><dt>Authentication${teachingField("webApps", "Authentication")}</dt><dd>${esc(selected.authenticationMethods.join(", ") || "None returned")}</dd><dt>Default namespace</dt><dd>${selected.namespaceDefault === null ? "Not returned" : selected.namespaceDefault ? "Yes" : "No"}</dd><dt>System application</dt><dd>${selected.isSystemApp === null ? "Not returned" : selected.isSystemApp ? "Yes" : "No"}</dd><dt>Dispatch class${teachingField("webApps", "Dispatch class")}</dt><dd>${selected.dispatchClass === null ? "Not returned" : selected.dispatchClass ? `<code>${esc(selected.dispatchClass)}</code>` : "None"}</dd></dl><div class="inspector-foot">Key <code>${esc(selected.ref.key)}</code> · refreshed ${fmtTime(selected.ref.observedAt)}</div><section class="inspector-section"><div class="panel-kicker">AUTHORITATIVE DETAIL</div>${teaching("action","read")}${detailContent}</section><section class="inspector-section"><div class="panel-kicker">REST SERVICE RELATIONSHIP</div>${relationshipContent}</section>${webAppOperationPanel(selected)}` : `<div class="empty-inspector">Select an application to inspect its observed fields.</div>`}</aside>
+      <aside class="panel inspector"><div class="panel-kicker">RESOURCE INSPECTOR</div>${selected ? `<h2 class="inspector-title"><code>${esc(selected.name)}</code></h2><p class="inspector-sub">Provider-owned identity · namespace scoped</p><dl class="detail-grid"><dt>Namespace${teachingField("webApps", "Namespace")}</dt><dd><code>${esc(selected.namespace)}</code></dd><dt>Enabled${teachingField("webApps", "Enabled")}</dt><dd>${selected.enabled ? "Yes" : "No"}</dd><dt>Type${teachingField("webApps","Type")}</dt><dd>${selected.type === null ? "Not returned" : esc(selected.type)}</dd><dt>Resource${teachingField("webApps", "Resource")}</dt><dd>${selected.resource === null ? "Not returned" : selected.resource ? `<code>${esc(selected.resource)}</code>` : "None"}</dd><dt>Authentication${teachingField("webApps", "Authentication")}</dt><dd>${esc(selected.authenticationMethods.join(", ") || "None returned")}</dd><dt>Default namespace${teachingField("webApps","Default namespace")}</dt><dd>${selected.namespaceDefault === null ? "Not returned" : selected.namespaceDefault ? "Yes" : "No"}</dd><dt>System application${teachingField("webApps","System application")}</dt><dd>${selected.isSystemApp === null ? "Not returned" : selected.isSystemApp ? "Yes" : "No"}</dd><dt>Dispatch class${teachingField("webApps", "Dispatch class")}</dt><dd>${selected.dispatchClass === null ? "Not returned" : selected.dispatchClass ? `<code>${esc(selected.dispatchClass)}</code>` : "None"}</dd></dl><div class="inspector-foot">Key <code>${esc(selected.ref.key)}</code> · refreshed ${fmtTime(selected.ref.observedAt)}</div><section class="inspector-section"><div class="panel-kicker">AUTHORITATIVE DETAIL</div>${teaching("action","read")}${detailContent}</section><section class="inspector-section"><div class="panel-kicker">REST SERVICE RELATIONSHIP</div>${relationshipContent}</section>${webAppOperationPanel(selected)}` : `<div class="empty-inspector">Select an application to inspect its observed fields.</div>`}</aside>
     </section>
     ${projectionExports("webApps")}<section class="verification-banner ${state.verification?.matched ? "verified" : state.verification ? "mismatch" : "pending"}"><div class="verification-symbol">${state.verification?.matched ? "✓" : state.verification ? "!" : "·"}</div><div><strong>${state.verification?.matched ? "Read-back confirmed" : state.verification ? "Read-back requires review" : state.error ? "Read-back not established" : "Waiting for authoritative read-back"}</strong><p>${state.verification ? `${state.verification.count} web-app records from the rendered list were compared with a second GET response.` : state.error ? "No current independent comparison is available." : "OpsDeck performs a separate read after the initial list is rendered."}</p></div><code>GET /api/admin/v2/web-apps</code></section>
     <section class="panel provider-panel"><div class="panel-head"><div><div class="panel-kicker">REST DISCOVERY</div><h2>Namespace REST services</h2></div>${badge("Live source", "accent")}</div>${sourceSelector("applications")}${sourcePanel(state.sourceTabs.applications)}</section>`);

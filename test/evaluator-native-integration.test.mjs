@@ -968,3 +968,36 @@ test('an obsolete intelligence completion releases busy state without rebuilding
   assert.match(output.innerHTML,/Intent changed/u);assert.equal(calls.length,1);
   assert.equal(vm.runInContext('!state.intelligence.busy&&state.intelligence.observation===null&&state.intelligence.operation===null&&state.operationEvidence.length===0',context),true);
 });
+
+
+test("Applications and System lessons render examples, remain optional and make no requests", () => {
+  const {context}=contextFor();
+  vm.runInContext('state.learning=true;state.connected=true;state.info={systemMode:"DEMO"};state.apps=mapWebApps({status:{errors:[]},result:[{Name:"/sample",Namespace:"USER",Enabled:true,Type:"CSP",AuthenticationMethods:[]}]});state.selected="/sample";',context);
+  for(const field of ["Type","Enabled","Default namespace","System application"]){
+    const html=vm.runInContext(`teachingField("webApps",${JSON.stringify(field)})`,context);
+    assert.match(html,/Example and practice/u);assert.match(html,/Try this:/u);
+    assert.match(vm.runInContext('applicationsView()',context),new RegExp(`Help for ${field}`));
+  }
+  for(const field of ["AllGlobalReferences","GlobalUpdateReferences","RoutineCalls","RoutineBufferLoadsAndSaves","LogicalBlockRequests","BlockReads","BlockWrites","WIJwrites","JournalEntries","JournalBlockWrites","RoutineLines","LastUpdate"]){
+    assert.match(vm.runInContext(`teachingField("systemUsage",${JSON.stringify(field)})`,context),/Example and practice/u);
+  }
+  for(const source of ["restServices","restServicesV2"])assert.match(vm.runInContext(`teachingField("${source}","swaggerSpec")`,context),/Swagger and OpenAPI/u);
+  const escaped=vm.runInContext('teachingBody({body:"<script>",example:"<img>",tryThis:"<button>"})',context);
+  assert.doesNotMatch(escaped,/<script>|<img>|<button>/u);
+  vm.runInContext('state.learning=false',context);
+  assert.equal(vm.runInContext('teachingField("systemUsage","BlockReads")',context),'');
+});
+
+test("Applications and System walkthroughs adapt to demo, live and disconnected observations",()=>{
+  const {context}=contextFor();
+  vm.runInContext('state.learning=true;state.connected=true;state.info={systemMode:"DEMO"}',context);
+  const path=route=>vm.runInContext(`state.route="${route}";learningOrientation()`,context);
+  assert.match(path('applications'),/sanitized sample[\s\S]*exercise ends with inspection/u);
+  assert.doesNotMatch(path('applications'),/If change confirmed|Rehearse existing/u);
+  assert.match(path('system'),/deterministic demo values/u);
+  vm.runInContext('state.info={systemMode:"NORMAL"};state.observeOnly=true',context);
+  assert.match(path('applications'),/Live session[\s\S]*if the control is available[\s\S]*DENIED/u);
+  assert.match(path('system'),/Check timestamps, units and reset semantics/u);
+  vm.runInContext('state.connected=false',context);
+  assert.match(path('applications'),/Connect to an instance before/u);
+});
